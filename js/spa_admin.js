@@ -517,4 +517,58 @@ $.post(spaAdmin.ajaxUrl, dataArray, function(response) {
        });
     });
 
+    // Event details panel - toggle volunteers-needed opacity when team checkbox changes
+    $(document).on('change', '.spa-event-team-check', function() {
+       var $row = $(this).closest('.spa-event-team-row');
+       var $needed = $row.find('.spa-event-team-needed');
+       $needed.css('opacity', this.checked ? '1' : '0.4');
+    });
+
+    // Event details panel - Save Event button
+    $(document).on('click', '#spa-save-event-details-btn', function() {
+       var $btn = $(this);
+       var $status = $('#spa-save-status');
+
+       // Collect team assignments: only checked teams
+       var teams = {};
+       $('.spa-event-team-check:checked').each(function() {
+           var teamId = $(this).data('team-id');
+           var needed = $(this).closest('.spa-event-team-row').find('.spa-event-team-needed').val() || 1;
+           teams[teamId] = needed;
+       });
+
+       var data = {
+           action: 'spa_save_event_details',
+           nonce: spaAdmin.nonce,
+           event_id: $('#spa-event-id').val(),
+           name: $('#spa-event-name').val(),
+           location: $('#spa-event-location').val(),
+           description: $('#spa-event-description').val(),
+           event_date: $('#spa-event-date').val(),
+           start_time: $('#spa-event-start-time').val(),
+           end_time: $('#spa-event-end-time').val(),
+           is_recurring: $('#spa-event-recurring').is(':checked') ? 1 : 0,
+           recurrence_type: $('#spa-event-recurrence-type').val(),
+           recurrence_end_date: $('#spa-event-recurrence-end').val(),
+           teams: teams
+       };
+
+       $btn.prop('disabled', true).text('Saving...');
+       $status.empty();
+
+       $.post(spaAdmin.ajaxUrl, data, function(response) {
+           if (response && response.success) {
+               $status.html('<div class="notice notice-success inline"><p>Saved successfully.</p></div>');
+               setTimeout(function() { $status.empty(); }, 3000);
+           } else {
+               var msg = response && response.data ? response.data.message : 'Unknown error';
+               $status.html('<div class="notice notice-error inline"><p>Error: ' + msg + '</p></div>');
+           }
+       }).fail(function() {
+           $status.html('<div class="notice notice-error inline"><p>AJAX error. Please try again.</p></div>');
+       }).always(function() {
+           $btn.prop('disabled', false).text('Save Event');
+       });
+    });
+
 });

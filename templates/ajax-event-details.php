@@ -164,5 +164,42 @@
     </div>
 
     <div id="spa-save-status"></div>
+    <p style="margin-top:12px;">
+        <button type="button" id="spa-save-event-details-btn" class="button button-primary">Save Event</button>
+    </p>
+
+    <hr class="hr" />
+
+    <h3 style="margin-top:0;">Assigned Teams</h3>
+    <p style="margin:0 0 8px;font-size:0.85em;color:#666;">Check teams for this event and enter the number of volunteers needed for each.</p>
+    <div id="spa-event-teams-list">
+        <?php if ( ! empty($all_teams) ) : ?>
+            <?php foreach ( $all_teams as $team ) :
+                $checked = in_array(intval($team->id), $assigned_team_ids);
+                $needed = isset($team_volunteers_needed[$team->id]) ? $team_volunteers_needed[$team->id] : 1;
+            ?>
+            <div class="spa-event-team-row" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+                <label style="display:flex;align-items:center;gap:6px;flex:1;font-weight:normal;">
+                    <input type="checkbox"
+                           class="spa-event-team-check"
+                           data-team-id="<?php echo intval($team->id); ?>"
+                           <?php checked($checked); ?>>
+                    <?php echo esc_html($team->name); ?>
+                </label>
+                <label style="display:flex;align-items:center;gap:4px;font-size:0.85em;color:#555;">
+                    Volunteers needed:
+                    <input type="number"
+                           class="spa-event-team-needed"
+                           data-team-id="<?php echo intval($team->id); ?>"
+                           value="<?php echo intval($needed); ?>"
+                           min="1"
+                           style="width:55px;padding:2px 4px;<?php echo $checked ? '' : 'opacity:0.4;'; ?>">
+                </label>
+            </div>
+            <?php endforeach; ?>
+        <?php else : ?>
+            <p><em>No teams have been created yet. <a href="<?php echo esc_url(admin_url('admin.php?page=spa-teams')); ?>">Add a team</a>.</em></p>
+        <?php endif; ?>
+    </div>
 
 </div>

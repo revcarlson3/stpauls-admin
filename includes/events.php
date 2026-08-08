@@ -20,6 +20,68 @@ add_action(
     'spa_save_event_modal_ajax'
 );
 
+add_action(
+    'wp_ajax_spa_save_event_details',
+    'spa_save_event_details_ajax'
+);
+
+function spa_save_event_details_ajax() {
+    global $wpdb;
+
+    if ( ! check_ajax_referer('spa_admin_nonce', 'nonce', false) ) {
+        wp_send_json_error(array('message' => 'Invalid nonce'), 403);
+    }
+    if ( ! current_user_can('manage_options') ) {
+        wp_send_json_error(array('message' => 'Unauthorized'), 403);
+    }
+
+    $event_id = intval($_POST['event_id']);
+    if ( ! $event_id ) {
+        wp_send_json_error(array('message' => 'Invalid event ID'));
+    }
+
+    // Update event fields
+    $wpdb->update(
+        $wpdb->prefix . 'spa_events',
+        array(
+            'name'                => sanitize_text_field($_POST['name']),
+            'location'            => sanitize_text_field($_POST['location']),
+            'description'         => sanitize_textarea_field($_POST['description']),
+            'event_date'          => sanitize_text_field($_POST['event_date']),
+            'start_time'          => sanitize_text_field($_POST['start_time']),
+            'end_time'            => sanitize_text_field($_POST['end_time']),
+            'is_recurring'        => intval($_POST['is_recurring']),
+            'recurrence_type'     => sanitize_text_field($_POST['recurrence_type']),
+            'recurrence_end_date' => sanitize_text_field($_POST['recurrence_end_date']),
+        ),
+        array('id' => $event_id),
+        array('%s','%s','%s','%s','%s','%s','%d','%s','%s'),
+        array('%d')
+    );
+
+    // Save team assignments: delete existing then re-insert checked ones
+    $wpdb->delete($wpdb->prefix . 'spa_events_teams', array('event_id' => $event_id), array('%d'));
+
+    $teams = isset($_POST['teams']) ? (array) $_POST['teams'] : array();
+    foreach ( $teams as $team_id => $needed ) {
+        $team_id = intval($team_id);
+        $needed  = max(1, intval($needed));
+        if ( $team_id > 0 ) {
+            $wpdb->insert(
+                $wpdb->prefix . 'spa_events_teams',
+                array(
+                    'event_id'          => $event_id,
+                    'team_id'           => $team_id,
+                    'volunteers_needed' => $needed,
+                ),
+                array('%d','%d','%d')
+            );
+        }
+    }
+
+    wp_send_json_success(array('message' => 'Event saved.'));
+}
+
 function spa_toggle_volunteer_ajax() {
     global $wpdb;
 
@@ -208,6 +270,19 @@ function spa_load_event_ajax() {
              ORDER BY t.name",
             $event_id
         )
+    );
+
+    // Build lookup of assigned team IDs and their volunteers_needed values
+    $assigned_team_ids = array();
+    $team_volunteers_needed = array();
+    foreach ( $event_teams as $et ) {
+        $assigned_team_ids[] = intval($et->id);
+        $team_volunteers_needed[$et->id] = intval($et->volunteers_needed);
+    }
+
+    // All teams for checkboxes in the event details form
+    $all_teams = $wpdb->get_results(
+        "SELECT id, name FROM {$wpdb->prefix}spa_teams WHERE active = 1 ORDER BY name"
     );
 
     $assigned_volunteers = $wpdb->get_results(
