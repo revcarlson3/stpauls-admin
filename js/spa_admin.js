@@ -260,4 +260,19 @@ jQuery(function($) {
         // proceed to plugins page (default anchor behavior)
     });
 
+    // Email provider fields show/hide
+    function spa_toggle_email_provider() {
+        var selected = $('#spa_email_provider').val();
+        $('.spa-provider').hide();
+        $('.spa-provider[data-provider="' + selected + '"]').show();
+    }
+
+    $(document).ready(function() {
+        spa_toggle_email_provider();
+    });
+
+    $(document).on('change', '#spa_email_provider', function() {
+        spa_toggle_email_provider();
+    });
+
 });

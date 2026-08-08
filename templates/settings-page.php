@@ -25,6 +25,7 @@
                 case 'email':
                     $notification_email = esc_attr( get_option('spa_notification_email', '') );
                     $enable_email = get_option('spa_enable_email', 0 );
+                    $email_provider = get_option('spa_email_provider', 'wp_mail');
                     ?>
                     <h2>Email Settings</h2>
                     <table class="form-table">
@@ -36,7 +37,163 @@
                             <th scope="row">Enable Email</th>
                             <td><input name="spa_enable_email" type="checkbox" value="1" <?php checked(1, $enable_email); ?>></td>
                         </tr>
+                        <tr>
+                            <th scope="row"><label for="spa_email_provider">Email Provider</label></th>
+                            <td>
+                                <select name="spa_email_provider" id="spa_email_provider">
+                                    <option value="wp_mail" <?php selected($email_provider, 'wp_mail'); ?>>WordPress Mail (wp_mail)</option>
+                                    <option value="smtp" <?php selected($email_provider, 'smtp'); ?>>SMTP (custom)</option>
+                                    <option value="sendgrid" <?php selected($email_provider, 'sendgrid'); ?>>SendGrid (API)</option>
+                                    <option value="mailgun" <?php selected($email_provider, 'mailgun'); ?>>Mailgun (API)</option>
+                                    <option value="mailpoet" <?php selected($email_provider, 'mailpoet'); ?>>MailPoet (plugin)</option>
+                                    <option value="ses" <?php selected($email_provider, 'ses'); ?>>Amazon SES</option>
+                                    <option value="postmark" <?php selected($email_provider, 'postmark'); ?>>Postmark</option>
+                                    <option value="mailersend" <?php selected($email_provider, 'mailersend'); ?>>Mailersend</option>
+                                </select>
+                            </td>
+                        </tr>
                     </table>
+
+                    <!-- Provider specific fields -->
+                    <div class="spa-email-provider-fields">
+
+                        <div class="spa-provider wp_mail" data-provider="wp_mail" style="display:none;">
+                            <p>Using WordPress's built-in wp_mail. No provider settings are required. If you need reliable delivery, consider SMTP or an API-based provider listed below.</p>
+                        </div>
+
+                        <div class="spa-provider smtp" data-provider="smtp" style="display:none;">
+                            <h3>SMTP Settings</h3>
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row"><label for="spa_smtp_host">SMTP Host</label></th>
+                                    <td><input name="spa_smtp_host" id="spa_smtp_host" type="text" value="<?php echo esc_attr(get_option('spa_smtp_host', '')); ?>" class="regular-text"></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="spa_smtp_port">SMTP Port</label></th>
+                                    <td><input name="spa_smtp_port" id="spa_smtp_port" type="number" value="<?php echo esc_attr(get_option('spa_smtp_port', 587)); ?>" class="small-text"></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="spa_smtp_user">Username</label></th>
+                                    <td><input name="spa_smtp_user" id="spa_smtp_user" type="text" value="<?php echo esc_attr(get_option('spa_smtp_user', '')); ?>" class="regular-text"></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="spa_smtp_pass">Password</label></th>
+                                    <td><input name="spa_smtp_pass" id="spa_smtp_pass" type="password" value="" class="regular-text"><p class="description">Leave blank to keep existing password.</p></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="spa_smtp_encryption">Encryption</label></th>
+                                    <td>
+                                        <select name="spa_smtp_encryption" id="spa_smtp_encryption">
+                                            <option value="none" <?php selected(get_option('spa_smtp_encryption', 'tls'), 'none'); ?>>None</option>
+                                            <option value="ssl" <?php selected(get_option('spa_smtp_encryption', 'tls'), 'ssl'); ?>>SSL</option>
+                                            <option value="tls" <?php selected(get_option('spa_smtp_encryption', 'tls'), 'tls'); ?>>TLS</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="spa_smtp_from_address">From Address</label></th>
+                                    <td><input name="spa_smtp_from_address" id="spa_smtp_from_address" type="email" value="<?php echo esc_attr(get_option('spa_smtp_from_address', '')); ?>" class="regular-text"></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="spa_smtp_from_name">From Name</label></th>
+                                    <td><input name="spa_smtp_from_name" id="spa_smtp_from_name" type="text" value="<?php echo esc_attr(get_option('spa_smtp_from_name', '')); ?>" class="regular-text"></td>
+                                </tr>
+                            </table>
+                            <p class="description">Instructions: Enter SMTP credentials from your provider (e.g., Sendinblue, Gmail SMTP, or your hosting provider). Ensure the From address is verified with some providers.</p>
+                        </div>
+
+                        <div class="spa-provider sendgrid" data-provider="sendgrid" style="display:none;">
+                            <h3>SendGrid</h3>
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row">API Key</th>
+                                    <td><input name="spa_sendgrid_api_key" type="text" value="" class="regular-text"><p class="description">Store your SendGrid API key here.</p></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">From Address</th>
+                                    <td><input name="spa_sendgrid_from" type="email" value="<?php echo esc_attr(get_option('spa_sendgrid_from', '')); ?>" class="regular-text"></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">From Name</th>
+                                    <td><input name="spa_sendgrid_from_name" type="text" value="<?php echo esc_attr(get_option('spa_sendgrid_from_name', '')); ?>" class="regular-text"></td>
+                                </tr>
+                            </table>
+                            <p class="description">Instructions: Create an API key in SendGrid (Full Access or Mail Send), verify your sender identity, then paste the key here. See https://sendgrid.com/docs/ for setup help.</p>
+                        </div>
+
+                        <div class="spa-provider mailgun" data-provider="mailgun" style="display:none;">
+                            <h3>Mailgun</h3>
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row">API Key</th>
+                                    <td><input name="spa_mailgun_api_key" type="text" value="" class="regular-text"></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Domain</th>
+                                    <td><input name="spa_mailgun_domain" type="text" value="<?php echo esc_attr(get_option('spa_mailgun_domain', '')); ?>" class="regular-text"></td>
+                                </tr>
+                            </table>
+                            <p class="description">Instructions: Create a Mailgun account, add and verify your sending domain, and paste the API key and domain here. See https://www.mailgun.com/ for docs.</p>
+                        </div>
+
+                        <div class="spa-provider mailpoet" data-provider="mailpoet" style="display:none;">
+                            <h3>MailPoet</h3>
+                            <p>If you use the MailPoet plugin, select it here. MailPoet manages its own settings; this selection tells the SPA plugin to use MailPoet for sending.</p>
+                            <p class="description">Instructions: Install & configure MailPoet via its plugin settings. Then select the list to use for notifications below (optional):</p>
+                            <p><label>MailPoet list ID (optional): <input name="spa_mailpoet_list" type="text" value="<?php echo esc_attr(get_option('spa_mailpoet_list', '')); ?>" class="regular-text"></label></p>
+                        </div>
+
+                        <div class="spa-provider ses" data-provider="ses" style="display:none;">
+                            <h3>Amazon SES</h3>
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row">Access Key ID</th>
+                                    <td><input name="spa_ses_key" type="text" value="" class="regular-text"></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Secret Access Key</th>
+                                    <td><input name="spa_ses_secret" type="password" value="" class="regular-text"></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Region</th>
+                                    <td><input name="spa_ses_region" type="text" value="<?php echo esc_attr(get_option('spa_ses_region', 'us-east-1')); ?>" class="regular-text"></td>
+                                </tr>
+                            </table>
+                            <p class="description">Instructions: Create IAM credentials with SES SendEmail permission and verify your sending domain. See https://docs.aws.amazon.com/ses/latest/ for details.</p>
+                        </div>
+
+                        <div class="spa-provider postmark" data-provider="postmark" style="display:none;">
+                            <h3>Postmark</h3>
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row">Server Token</th>
+                                    <td><input name="spa_postmark_token" type="text" value="" class="regular-text"></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">From Address</th>
+                                    <td><input name="spa_postmark_from" type="email" value="<?php echo esc_attr(get_option('spa_postmark_from', '')); ?>" class="regular-text"></td>
+                                </tr>
+                            </table>
+                            <p class="description">Instructions: Create a server token in Postmark and verify sender signatures. See https://postmarkapp.com/ for docs.</p>
+                        </div>
+
+                        <div class="spa-provider mailersend" data-provider="mailersend" style="display:none;">
+                            <h3>Mailersend</h3>
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row">API Token</th>
+                                    <td><input name="spa_mailersend_token" type="text" value="" class="regular-text"></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">From Address</th>
+                                    <td><input name="spa_mailersend_from" type="email" value="<?php echo esc_attr(get_option('spa_mailersend_from', '')); ?>" class="regular-text"></td>
+                                </tr>
+                            </table>
+                            <p class="description">Instructions: Create an API token at Mailersend, verify your domain or sender signature, and paste the token here. See https://www.mailersend.com/ for docs.</p>
+                        </div>
+
+                    </div>
+
                     <?php
                     break;
 

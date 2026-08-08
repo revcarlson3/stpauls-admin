@@ -23,8 +23,81 @@ function spa_settings_page() {
         if ( $posted_tab === 'email' ) {
             $notification_email = isset($_POST['spa_notification_email']) ? sanitize_email(wp_unslash($_POST['spa_notification_email'])) : '';
             $enable_email = isset($_POST['spa_enable_email']) ? 1 : 0;
+            $email_provider = isset($_POST['spa_email_provider']) ? sanitize_text_field(wp_unslash($_POST['spa_email_provider'])) : 'wp_mail';
+
             update_option('spa_notification_email', $notification_email);
             update_option('spa_enable_email', $enable_email);
+            update_option('spa_email_provider', $email_provider);
+
+            // Provider-specific fields
+            switch ( $email_provider ) {
+                case 'smtp':
+                    $smtp_host = isset($_POST['spa_smtp_host']) ? sanitize_text_field(wp_unslash($_POST['spa_smtp_host'])) : '';
+                    $smtp_port = isset($_POST['spa_smtp_port']) ? intval($_POST['spa_smtp_port']) : 587;
+                    $smtp_user = isset($_POST['spa_smtp_user']) ? sanitize_text_field(wp_unslash($_POST['spa_smtp_user'])) : '';
+                    $smtp_pass = isset($_POST['spa_smtp_pass']) ? wp_unslash($_POST['spa_smtp_pass']) : '';
+                    $smtp_enc  = isset($_POST['spa_smtp_encryption']) ? sanitize_text_field(wp_unslash($_POST['spa_smtp_encryption'])) : 'tls';
+                    $smtp_from_address = isset($_POST['spa_smtp_from_address']) ? sanitize_email(wp_unslash($_POST['spa_smtp_from_address'])) : '';
+                    $smtp_from_name = isset($_POST['spa_smtp_from_name']) ? sanitize_text_field(wp_unslash($_POST['spa_smtp_from_name'])) : '';
+
+                    update_option('spa_smtp_host', $smtp_host);
+                    update_option('spa_smtp_port', $smtp_port);
+                    update_option('spa_smtp_user', $smtp_user);
+                    if ($smtp_pass !== '') update_option('spa_smtp_pass', $smtp_pass);
+                    update_option('spa_smtp_encryption', $smtp_enc);
+                    update_option('spa_smtp_from_address', $smtp_from_address);
+                    update_option('spa_smtp_from_name', $smtp_from_name);
+                    break;
+
+                case 'sendgrid':
+                    $sendgrid_key = isset($_POST['spa_sendgrid_api_key']) ? sanitize_text_field(wp_unslash($_POST['spa_sendgrid_api_key'])) : '';
+                    $sendgrid_from_address = isset($_POST['spa_sendgrid_from']) ? sanitize_email(wp_unslash($_POST['spa_sendgrid_from'])) : '';
+                    $sendgrid_from_name = isset($_POST['spa_sendgrid_from_name']) ? sanitize_text_field(wp_unslash($_POST['spa_sendgrid_from_name'])) : '';
+                    if ($sendgrid_key !== '') update_option('spa_sendgrid_api_key', $sendgrid_key);
+                    update_option('spa_sendgrid_from', $sendgrid_from_address);
+                    update_option('spa_sendgrid_from_name', $sendgrid_from_name);
+                    break;
+
+                case 'mailgun':
+                    $mailgun_key = isset($_POST['spa_mailgun_api_key']) ? sanitize_text_field(wp_unslash($_POST['spa_mailgun_api_key'])) : '';
+                    $mailgun_domain = isset($_POST['spa_mailgun_domain']) ? sanitize_text_field(wp_unslash($_POST['spa_mailgun_domain'])) : '';
+                    if ($mailgun_key !== '') update_option('spa_mailgun_api_key', $mailgun_key);
+                    update_option('spa_mailgun_domain', $mailgun_domain);
+                    break;
+
+                case 'mailpoet':
+                    // MailPoet usually uses its own plugin settings; store a flag for integration if needed
+                    $mailpoet_list = isset($_POST['spa_mailpoet_list']) ? sanitize_text_field(wp_unslash($_POST['spa_mailpoet_list'])) : '';
+                    update_option('spa_mailpoet_list', $mailpoet_list);
+                    break;
+
+                case 'ses':
+                    $ses_key = isset($_POST['spa_ses_key']) ? sanitize_text_field(wp_unslash($_POST['spa_ses_key'])) : '';
+                    $ses_secret = isset($_POST['spa_ses_secret']) ? wp_unslash($_POST['spa_ses_secret']) : '';
+                    $ses_region = isset($_POST['spa_ses_region']) ? sanitize_text_field(wp_unslash($_POST['spa_ses_region'])) : '';
+                    if ($ses_key !== '') update_option('spa_ses_key', $ses_key);
+                    if ($ses_secret !== '') update_option('spa_ses_secret', $ses_secret);
+                    update_option('spa_ses_region', $ses_region);
+                    break;
+
+                case 'postmark':
+                    $postmark_token = isset($_POST['spa_postmark_token']) ? sanitize_text_field(wp_unslash($_POST['spa_postmark_token'])) : '';
+                    $postmark_from = isset($_POST['spa_postmark_from']) ? sanitize_email(wp_unslash($_POST['spa_postmark_from'])) : '';
+                    if ($postmark_token !== '') update_option('spa_postmark_token', $postmark_token);
+                    update_option('spa_postmark_from', $postmark_from);
+                    break;
+
+                case 'mailersend':
+                    $mailersend_token = isset($_POST['spa_mailersend_token']) ? sanitize_text_field(wp_unslash($_POST['spa_mailersend_token'])) : '';
+                    $mailersend_from = isset($_POST['spa_mailersend_from']) ? sanitize_email(wp_unslash($_POST['spa_mailersend_from'])) : '';
+                    if ($mailersend_token !== '') update_option('spa_mailersend_token', $mailersend_token);
+                    update_option('spa_mailersend_from', $mailersend_from);
+                    break;
+
+                default:
+                    // wp_mail or unknown provider: nothing special
+                    break;
+            }
         }
 
         if ( $posted_tab === 'sms' ) {
