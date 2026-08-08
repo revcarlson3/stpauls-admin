@@ -122,27 +122,10 @@
             <select
                 id="spa-event-recurrence-type"
                 class="spa-event-field">
-
                 <option value="">Select</option>
-
-                <option
-                    value="daily"
-                    <?php selected($event->recurrence_type, 'daily'); ?>>
-                    Daily
-                </option>
-
-                <option
-                    value="weekly"
-                    <?php selected($event->recurrence_type, 'weekly'); ?>>
-                    Weekly
-                </option>
-
-                <option
-                    value="monthly"
-                    <?php selected($event->recurrence_type, 'monthly'); ?>>
-                    Monthly
-                </option>
-
+                <option value="daily" <?php selected($event->recurrence_type, 'daily'); ?>>Daily</option>
+                <option value="weekly" <?php selected($event->recurrence_type, 'weekly'); ?>>Weekly</option>
+                <option value="monthly" <?php selected($event->recurrence_type, 'monthly'); ?>>Monthly</option>
             </select>
 
         </div>
