@@ -1,5 +1,39 @@
 <?php
 // Teams functions
+
+function spa_handle_teams_post() {
+    // Handle team saves via admin-post.php
+    if ( ! isset($_POST['spa_teams_nonce']) || ! wp_verify_nonce(wp_unslash($_POST['spa_teams_nonce']), 'spa_save_teams') ) {
+        wp_die('Invalid nonce', 'Error', array('response' => 403));
+    }
+    if ( ! current_user_can('manage_options') ) {
+        wp_die('Unauthorized', 'Error', array('response' => 403));
+    }
+
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'spa_teams';
+    
+    $team_name = isset($_POST['spa_team_name']) ? sanitize_text_field(wp_unslash($_POST['spa_team_name'])) : '';
+    $team_description = isset($_POST['spa_team_description']) ? sanitize_textarea_field(wp_unslash($_POST['spa_team_description'])) : '';
+    $team_id = isset($_POST['team_id']) ? intval($_POST['team_id']) : 0;
+
+    if (!empty($team_id)) {
+        $wpdb->update($table_name, array(
+            'name' => $team_name,
+            'description' => $team_description
+        ), array('id' => $team_id));
+        wp_redirect(admin_url('admin.php?page=spa-teams&updated=1'));
+    } else {
+        $wpdb->insert($table_name, array(
+            'name' => $team_name,
+            'description' => $team_description
+        ));
+        wp_redirect(admin_url('admin.php?page=spa-teams&added=1'));
+    }
+    exit;
+}
+add_action('admin_post_spa_save_team', 'spa_handle_teams_post');
+
 function spa_teams_page() {
     global $wpdb;
 
@@ -39,26 +73,6 @@ function spa_teams_page() {
 			exit;
 		}
 	}
-
-    // Save/update Team
-    if(isset($_POST['spa_team_name']) && current_user_can('manage_options')) {
-        if(!empty($_POST['team_id'])) {
-            $wpdb->update($table_name, array(
-                'name' => sanitize_text_field($_POST['spa_team_name']),
-                'description' => sanitize_textarea_field($_POST['spa_team_description'])
-            ), array('id' => intval($_POST['team_id'])
-            ));
-			wp_redirect(admin_url('admin.php?page=spa-teams&updated=1'));
-			exit;
-        } else {
-            $wpdb->insert($table_name, array(
-                'name'=> sanitize_text_field($_POST['spa_team_name']),
-                'description'=> sanitize_textarea_field($_POST['spa_team_description'])
-            ));
-			wp_redirect(admin_url('admin.php?page=spa-teams&added=1'));
-			exit;
-        }
-    }
 
     // Page title
     $page_title = "Teams";

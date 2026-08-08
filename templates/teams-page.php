@@ -4,7 +4,9 @@
 
         <h1>Teams</h1>
 
-        <form method="POST">
+        <form method="POST" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <?php wp_nonce_field('spa_save_teams', 'spa_teams_nonce'); ?>
+            <input type="hidden" name="action" value="spa_save_team">
 
             <?php if($editing && $current_team) : ?>
 

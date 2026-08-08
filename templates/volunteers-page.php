@@ -4,7 +4,9 @@
 
         <h1>Volunteers</h1>
 
-        <form method="POST">
+        <form method="POST" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <?php wp_nonce_field('spa_save_volunteers', 'spa_volunteers_nonce'); ?>
+            <input type="hidden" name="action" value="spa_save_volunteer">
 
             <?php if($editing && $current_volunteer) : ?>
 
