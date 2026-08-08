@@ -1,4 +1,4 @@
-jQuery(function($) {
+﻿jQuery(function($) {
     $(document).on(
         'click',
         '.spa-tab-button',
@@ -288,7 +288,7 @@ jQuery(function($) {
         $btn.prop('disabled', true).text('Sending...');
         var $result = $('#spa-test-result');
         $result.removeClass().text('');
-n        $.post(spaAdmin.ajaxUrl, dataArray, function(response) {
+        $.post(spaAdmin.ajaxUrl, dataArray, function(response) {
             if ( response && response.success ) {
                 $result.addClass('spa-test-success').text('Test email sent successfully.');
             } else {

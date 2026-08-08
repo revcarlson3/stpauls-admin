@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 function spa_handle_settings_post() {
     // Handle saves via admin-post.php
@@ -255,11 +255,11 @@ function spa_ajax_send_test_email() {
     if ( empty($test_to) ) {
         wp_send_json_error('missing_recipient');
     }
-n    $sent = spa_send_email($test_to, 'St. Paul\'s Admin - Test Email', '<p>This is a test email sent from the plugin to verify provider settings.</p>');
+    $sent = spa_send_email($test_to, 'St. Paul\'s Admin - Test Email', '<p>This is a test email sent from the plugin to verify provider settings.</p>');
     if ( is_wp_error($sent) ) {
         wp_send_json_error($sent->get_error_message());
     }
-n    wp_send_json_success('sent');
+    wp_send_json_success('sent');
 }
 add_action('wp_ajax_spa_send_test_email', 'spa_ajax_send_test_email');
 
@@ -274,3 +274,5 @@ function spa_settings_page() {
     include SPA_TEMPLATE_DIR . 'settings-page.php';
 
 }
+
+
