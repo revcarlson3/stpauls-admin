@@ -47,6 +47,13 @@ function spa_handle_import_volunteers() {
         exit;
     }
 
+    // DEBUG: store first row keys so we can inspect them
+    set_transient('spa_import_debug', array(
+        'row_count' => count($rows),
+        'first_row' => $rows[0],
+        'keys' => array_keys($rows[0]),
+    ), HOUR_IN_SECONDS);
+
     $result = spa_import_volunteers_data($rows);
     $result['type'] = 'volunteers';
 
