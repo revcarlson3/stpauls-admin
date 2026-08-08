@@ -722,6 +722,7 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                     break;
 
                 default:
+                    global $wpdb;
                     $org_name = esc_attr( get_option('spa_org_name', '') );
                     $active_email_tpl = get_option('spa_active_email_template', '');
                     $active_sms_tpl   = get_option('spa_active_sms_template', '');
