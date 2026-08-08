@@ -68,7 +68,7 @@ function spa_parse_csv($file_path) {
     }
 
     if ( ($handle = fopen($file_path, 'r')) !== FALSE ) {
-        while ( ($data = fgetcsv($handle, 1000, ',')) !== FALSE ) {
+        while ( ($data = fgetcsv($handle, 0, ',')) !== FALSE ) {
             $row_num++;
 
             if ( $row_num === 1 ) {
@@ -77,8 +77,19 @@ function spa_parse_csv($file_path) {
                 if ( isset($headers[0]) ) {
                     $headers[0] = ltrim($headers[0], "\xEF\xBB\xBF");
                 }
+                // Also strip any null bytes or other invisible chars
+                $headers = array_map(function($h) {
+                    return preg_replace('/[^\x20-\x7E]/', '', $h);
+                }, $headers);
                 continue;
             }
+
+            // Pad data to match header count to avoid array_combine failure
+            $header_count = count($headers);
+            while ( count($data) < $header_count ) {
+                $data[] = '';
+            }
+            $data = array_slice($data, 0, $header_count);
 
             $row = array_combine($headers, $data);
             if ( $row !== false ) {
@@ -145,9 +156,9 @@ function spa_import_volunteers_data($rows) {
     $errors_list = array();
 
     foreach ( $rows as $row_index => $row ) {
-        $first_name = isset($row['first_name']) ? sanitize_text_field($row['first_name']) : '';
-        $last_name = isset($row['last_name']) ? sanitize_text_field($row['last_name']) : '';
-        $email = isset($row['email']) ? sanitize_email($row['email']) : '';
+        $first_name = isset($row['first_name']) ? sanitize_text_field(trim($row['first_name'])) : '';
+        $last_name = isset($row['last_name']) ? sanitize_text_field(trim($row['last_name'])) : '';
+        $email = isset($row['email']) ? sanitize_email(trim($row['email'])) : '';
         $phone = isset($row['phone']) ? sanitize_text_field($row['phone']) : '';
 
         // Validate required fields
