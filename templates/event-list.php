@@ -64,7 +64,7 @@
 
     <tr data-event-id="<?php echo intval($event->id); ?>">
         <td class="spa-event-date"><?php echo date('F j Y', strtotime($event->event_date)) ?></td>
-        <td class="spa-event-name"><a href="#" class="spa-event-link" data-event-id="<?php echo intval($event->id) ?>"><?php echo $event->name ?></a></td>
+        <td class="spa-event-name"><a href="#" class="spa-event-link" data-event-id="<?php echo intval($event->id) ?>"><?php echo esc_html(wp_unslash($event->name)) ?></a></td>
     </tr>
 
     <?php endforeach; ?>

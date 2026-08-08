@@ -16,7 +16,7 @@
             type="text"
             id="spa-event-name"
             class="spa-event-field"
-            value="<?php echo esc_attr($event->name); ?>">
+            value="<?php echo esc_attr(wp_unslash($event->name)); ?>">
 
     </div>
 
@@ -30,7 +30,7 @@
             type="text"
             id="spa-event-location"
             class="spa-event-field"
-            value="<?php echo esc_attr($event->location); ?>">
+            value="<?php echo esc_attr(wp_unslash($event->location)); ?>">
 
     </div>
 
@@ -43,7 +43,7 @@
         <textarea
             id="spa-event-description"
             class="spa-event-field"
-            rows="5"><?php echo esc_textarea($event->description); ?></textarea>
+            rows="5"><?php echo esc_textarea(wp_unslash($event->description)); ?></textarea>
 
     </div>
 
