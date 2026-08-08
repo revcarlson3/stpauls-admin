@@ -73,6 +73,10 @@ function spa_parse_csv($file_path) {
 
             if ( $row_num === 1 ) {
                 $headers = array_map('trim', $data);
+                // Strip UTF-8 BOM from first header (added by Excel-compatible export)
+                if ( isset($headers[0]) ) {
+                    $headers[0] = ltrim($headers[0], "\xEF\xBB\xBF");
+                }
                 continue;
             }
 
