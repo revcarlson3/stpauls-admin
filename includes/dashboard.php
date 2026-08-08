@@ -36,37 +36,31 @@ function spa_save_dashboard_order_ajax() {
     );
 }
 
-$dashboard_order = get_user_meta(
-    get_current_user_id(),
-    'spa_dashboard_order',
-    true
-);
-
-if (empty($dashboard_order)) {
-
-    $dashboard_order = array(
-        'volunteer-alerts',
-        'upcoming-events',
-        'quick-statistics',
-        'communications',
-        'recent-activity',
-        'future'
-    );
-
-}
-
-$dashboard_cards = array(
-    'volunteer-alerts' => array('title' => 'Volunteer Alerts'),
-    'upcoming-events'  => array('title' => 'Upcoming Events'),
-    'quick-statistics' => array('title' => 'Quick Statistics'),
-    'communications'   => array('title' => 'Communications'),
-    'recent-activity'  => array('title' => 'Recent Activity'),
-    'future'           => array('title' => 'Future'),
-);
-
 function spa_dashboard_page() {
 
     global $wpdb;
+
+    $dashboard_order = get_user_meta(get_current_user_id(), 'spa_dashboard_order', true);
+
+    if ( empty($dashboard_order) ) {
+        $dashboard_order = array(
+            'volunteer-alerts',
+            'upcoming-events',
+            'quick-statistics',
+            'communications',
+            'recent-activity',
+            'future',
+        );
+    }
+
+    $dashboard_cards = array(
+        'volunteer-alerts' => array('title' => 'Volunteer Alerts'),
+        'upcoming-events'  => array('title' => 'Upcoming Events'),
+        'quick-statistics' => array('title' => 'Quick Statistics'),
+        'communications'   => array('title' => 'Communications'),
+        'recent-activity'  => array('title' => 'Recent Activity'),
+        'future'           => array('title' => 'Future'),
+    );
 
     $sunday_service = $wpdb->get_row(
         "SELECT *
