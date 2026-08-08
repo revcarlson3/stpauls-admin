@@ -16,9 +16,10 @@
             <div class="notice notice-success is-dismissible"><p>Settings saved.</p></div>
         <?php endif; ?>
 
-        <form method="post" action="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=' . $active_tab)); ?>">
-            <?php wp_nonce_field('spa_save_settings', 'spa_settings_nonce'); ?>
-            <input type="hidden" name="active_tab" value="<?php echo esc_attr($active_tab); ?>">
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                    <input type="hidden" name="action" value="spa_save_settings">
+                    <?php wp_nonce_field('spa_save_settings', 'spa_settings_nonce'); ?>
+                    <input type="hidden" name="active_tab" value="<?php echo esc_attr($active_tab); ?>">
 
             <?php
             switch ($active_tab) {
