@@ -68,21 +68,25 @@ function spa_parse_csv($file_path) {
     }
 
     if ( ($handle = fopen($file_path, 'r')) !== FALSE ) {
+        // Handle Mac/Windows line endings
+        stream_filter_append($handle, 'convert.iconv.UTF-8/UTF-8');
         while ( ($data = fgetcsv($handle, 0, ',')) !== FALSE ) {
             $row_num++;
 
             if ( $row_num === 1 ) {
-                $headers = array_map('trim', $data);
-                // Strip UTF-8 BOM from first header (added by Excel-compatible export)
-                if ( isset($headers[0]) ) {
-                    $headers[0] = ltrim($headers[0], "\xEF\xBB\xBF");
-                }
-                // Also strip any null bytes or other invisible chars
                 $headers = array_map(function($h) {
+                    // Strip BOM, carriage returns, and all non-printable chars
+                    $h = ltrim($h, "\xEF\xBB\xBF");
+                    $h = trim($h, "\r\n\t ");
                     return preg_replace('/[^\x20-\x7E]/', '', $h);
-                }, $headers);
+                }, $data);
                 continue;
             }
+
+            // Strip carriage returns from all values
+            $data = array_map(function($v) {
+                return trim($v, "\r\n");
+            }, $data);
 
             // Pad data to match header count to avoid array_combine failure
             $header_count = count($headers);
