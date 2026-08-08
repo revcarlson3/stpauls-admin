@@ -502,7 +502,7 @@ $.post(spaAdmin.ajaxUrl, dataArray, function(response) {
                        page: page
                    }, function(data) {
                        if (data.success) {
-                           $('#spa-events-list-container').html(data.data);
+                           $('#spa-events-list-container').html(data.data.html);
                        }
                    });
                }, 1000);
