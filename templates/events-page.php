@@ -21,3 +21,5 @@
     </div>
 
 </div>
+
+<?php include SPA_TEMPLATE_DIR . 'event-modal.php'; ?>

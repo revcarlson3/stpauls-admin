@@ -15,6 +15,11 @@ add_action(
     'spa_toggle_volunteer_ajax'
 );
 
+add_action(
+    'wp_ajax_spa_save_event_modal',
+    'spa_save_event_modal_ajax'
+);
+
 function spa_toggle_volunteer_ajax() {
     global $wpdb;
 
@@ -57,6 +62,54 @@ function spa_toggle_volunteer_ajax() {
     }
 
     wp_send_json_success();
+}
+
+function spa_save_event_modal_ajax() {
+    global $wpdb;
+
+    if (! check_ajax_referer('spa_admin_nonce', 'nonce', false)) {
+        wp_send_json_error(array('message' => 'Invalid nonce'), 403);
+    }
+    if (! current_user_can('manage_options')) {
+        wp_send_json_error(array('message' => 'Unauthorized'), 403);
+    }
+
+    $table_name = $wpdb->prefix . 'spa_events';
+    
+    $event_id = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
+    $name = isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '';
+    $location = isset($_POST['location']) ? sanitize_text_field(wp_unslash($_POST['location'])) : '';
+    $description = isset($_POST['description']) ? sanitize_textarea_field(wp_unslash($_POST['description'])) : '';
+    $event_date = isset($_POST['event_date']) ? sanitize_text_field(wp_unslash($_POST['event_date'])) : '';
+    $start_time = isset($_POST['start_time']) ? sanitize_text_field(wp_unslash($_POST['start_time'])) : '';
+    $end_time = isset($_POST['end_time']) ? sanitize_text_field(wp_unslash($_POST['end_time'])) : '';
+    $is_recurring = isset($_POST['is_recurring']) ? intval($_POST['is_recurring']) : 0;
+    $recurrence_type = isset($_POST['recurrence_type']) ? sanitize_text_field(wp_unslash($_POST['recurrence_type'])) : '';
+    $recurrence_end_date = isset($_POST['recurrence_end_date']) ? sanitize_text_field(wp_unslash($_POST['recurrence_end_date'])) : '';
+
+    if (empty($name) || empty($event_date)) {
+        wp_send_json_error('Event name and date are required');
+    }
+
+    $data = array(
+        'name' => $name,
+        'location' => $location,
+        'description' => $description,
+        'event_date' => $event_date,
+        'start_time' => $start_time,
+        'end_time' => $end_time,
+        'is_recurring' => $is_recurring,
+        'recurrence_type' => $recurrence_type,
+        'recurrence_end_date' => $recurrence_end_date
+    );
+
+    if ($event_id > 0) {
+        $wpdb->update($table_name, $data, array('id' => $event_id));
+    } else {
+        $wpdb->insert($table_name, $data);
+    }
+
+    wp_send_json_success('Event saved');
 }
 
 function spa_load_events_page_ajax() {

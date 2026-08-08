@@ -436,4 +436,85 @@ $.post(spaAdmin.ajaxUrl, dataArray, function(response) {
        });
     });
 
+    // Event Modal - Open Add Event modal
+    $(document).on('click', '#spa-add-event-button', function() {
+       $('#spa-event-modal-title').text('Add Event');
+       $('#spa-event-modal-id').val('');
+       $('#spa-event-modal-name').val('');
+       $('#spa-event-modal-location').val('');
+       $('#spa-event-modal-description').val('');
+       $('#spa-event-modal-date').val('');
+       $('#spa-event-modal-start-time').val('');
+       $('#spa-event-modal-end-time').val('');
+       $('#spa-event-modal-recurring').prop('checked', false);
+       $('#spa-event-modal-recurrence-type').val('');
+       $('#spa-event-modal-recurrence-end').val('');
+       $('#spa-event-modal-status').empty();
+       $('#spa-event-modal').show();
+    });
+
+    // Close modal - X button
+    $(document).on('click', '#spa-event-modal-close, #spa-event-modal-cancel', function() {
+       $('#spa-event-modal').hide();
+    });
+
+    // Close modal - overlay click
+    $(document).on('click', '.spa-modal-overlay', function(e) {
+       if (e.target === this) {
+           $('#spa-event-modal').hide();
+       }
+    });
+
+    // Save event - modal submit
+    $(document).on('click', '#spa-event-modal-save', function(e) {
+       e.preventDefault();
+       var $btn = $(this);
+       var $status = $('#spa-event-modal-status');
+        
+       var eventData = {
+           action: 'spa_save_event_modal',
+           nonce: spaAdmin.nonce,
+           event_id: $('#spa-event-modal-id').val(),
+           name: $('#spa-event-modal-name').val(),
+           location: $('#spa-event-modal-location').val(),
+           description: $('#spa-event-modal-description').val(),
+           event_date: $('#spa-event-modal-date').val(),
+           start_time: $('#spa-event-modal-start-time').val(),
+           end_time: $('#spa-event-modal-end-time').val(),
+           is_recurring: $('#spa-event-modal-recurring').is(':checked') ? 1 : 0,
+           recurrence_type: $('#spa-event-modal-recurrence-type').val(),
+           recurrence_end_date: $('#spa-event-modal-recurrence-end').val()
+       };
+
+       $btn.prop('disabled', true).text('Saving...');
+       $status.empty();
+
+       $.post(spaAdmin.ajaxUrl, eventData, function(response) {
+           if (response && response.success) {
+               $status.html('<div class="notice notice-success"><p>Event saved successfully!</p></div>');
+               setTimeout(function() {
+                   $('#spa-event-modal').hide();
+                   // Reload events list
+                   var page = 1;
+                   $.post(spaAdmin.ajaxUrl, {
+                       action: 'spa_load_events_page',
+                       nonce: spaAdmin.nonce,
+                       page: page
+                   }, function(data) {
+                       if (data.success) {
+                           $('#spa-events-list-container').html(data.data);
+                       }
+                   });
+               }, 1000);
+           } else {
+               var msg = response && response.data ? response.data : 'Unknown error';
+               $status.html('<div class="notice notice-error"><p>Error: ' + msg + '</p></div>');
+           }
+       }).fail(function() {
+           $status.html('<div class="notice notice-error"><p>AJAX error</p></div>');
+       }).always(function() {
+           $btn.prop('disabled', false).text('Save Event');
+       });
+    });
+
 });
