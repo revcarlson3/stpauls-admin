@@ -63,13 +63,16 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                     $error_code = intval($_GET['import_error']);
                     switch($error_code) {
                         case 1:
-                            echo 'File upload failed. Please try again.';
+                            echo 'File upload failed. Please make sure a file was selected and try again.';
                             break;
                         case 2:
                             echo 'Invalid file format. Please upload a CSV or XLSX file.';
                             break;
                         case 3:
                             echo 'No data found in file. Make sure the file has headers and at least one row of data.';
+                            break;
+                        case 4:
+                            echo 'File is too large. Maximum file size is 5MB.';
                             break;
                         default:
                             echo 'An unknown error occurred during import.';

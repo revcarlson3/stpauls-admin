@@ -8,15 +8,25 @@ function spa_handle_import_volunteers() {
         wp_die('Nonce verification failed');
     }
 
-    if ( ! isset($_FILES['spa_import_file']) || $_FILES['spa_import_file']['error'] !== UPLOAD_ERR_OK ) {
-        wp_safe_remote_post(admin_url('admin-post.php'), array(
-            'blocking' => false,
-        ));
+    if ( ! isset($_FILES['spa_import_file']) ) {
         wp_redirect(admin_url('admin.php?page=spa-settings&tab=import&import_error=1'));
         exit;
     }
 
     $file = $_FILES['spa_import_file'];
+
+    // Check for upload errors
+    if ( $file['error'] !== UPLOAD_ERR_OK ) {
+        wp_redirect(admin_url('admin.php?page=spa-settings&tab=import&import_error=1'));
+        exit;
+    }
+
+    // Check file size (max 5MB)
+    if ( $file['size'] > 5 * 1024 * 1024 ) {
+        wp_redirect(admin_url('admin.php?page=spa-settings&tab=import&import_error=4'));
+        exit;
+    }
+
     $file_name = basename($file['name']);
     $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
 
