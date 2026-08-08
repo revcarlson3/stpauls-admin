@@ -93,5 +93,21 @@ function spa_activate_plugin() {
         ) $charset_collate;";
     
     dbDelta($sql);
+
+    // Notification Templates Table
+    $templates_table = $wpdb->prefix . 'spa_notification_templates';
+
+    $sql = "CREATE TABLE $templates_table (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        name varchar(255) NOT NULL,
+        type varchar(10) NOT NULL,
+        subject varchar(255) NULL,
+        body longtext NOT NULL,
+        created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id)
+    ) $charset_collate;";
+
+    dbDelta($sql);
 }
 ?>

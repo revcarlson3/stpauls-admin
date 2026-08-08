@@ -556,4 +556,184 @@ $.post(spaAdmin.ajaxUrl, dataArray, function(response) {
        });
     });
 
+    /* ── Notification Templates ── */
+
+    function spaTemplateGetBody(type) {
+       if (type === 'email') {
+           if (typeof tinymce !== 'undefined' && tinymce.get('spa_template_body_email')) {
+               return tinymce.get('spa_template_body_email').getContent();
+           }
+           return $('#spa_template_body_email').val();
+       }
+       return $('#spa-template-body-sms').val();
+    }
+
+    function spaTemplateSetBody(type, content) {
+       if (type === 'email') {
+           if (typeof tinymce !== 'undefined' && tinymce.get('spa_template_body_email')) {
+               tinymce.get('spa_template_body_email').setContent(content);
+           } else {
+               $('#spa_template_body_email').val(content);
+           }
+       } else {
+           $('#spa-template-body-sms').val(content);
+           spaUpdateSmsWordCount();
+       }
+    }
+
+    function spaTemplateSetType(type) {
+       $('#spa-template-type').val(type);
+       if (type === 'email') {
+           $('#spa-email-editor-wrap').show();
+           $('#spa-sms-editor-wrap').hide();
+           $('#spa-template-subject-row').show();
+       } else {
+           $('#spa-email-editor-wrap').hide();
+           $('#spa-sms-editor-wrap').show();
+           $('#spa-template-subject-row').hide();
+       }
+    }
+
+    function spaTemplateShowForm(type, id, name, subject, body) {
+       $('#spa-template-placeholder').hide();
+       $('#spa-template-form').show();
+       $('#spa-template-id').val(id || '');
+       $('#spa-template-name').val(name || '');
+       $('#spa-template-subject').val(subject || '');
+       $('#spa-delete-template-btn').toggle(!!id);
+       $('#spa-template-status').text('');
+       spaTemplateSetType(type);
+       spaTemplateSetBody(type, body || '');
+    }
+
+    function spaUpdateSmsWordCount() {
+       var words = $('#spa-template-body-sms').val().trim().split(/\s+/).filter(Boolean).length;
+       $('#spa-sms-word-count').text(words);
+       $('#spa-sms-word-count').css('color', words > 75 ? '#dc3545' : '#666');
+    }
+
+    $(document).on('input', '#spa-template-body-sms', spaUpdateSmsWordCount);
+
+    // New template buttons
+    $(document).on('click', '#spa-new-email-template', function() {
+       spaTemplateShowForm('email', '', '', '', '');
+    });
+    $(document).on('click', '#spa-new-sms-template', function() {
+       spaTemplateShowForm('sms', '', '', '', '');
+    });
+
+    // Load existing template
+    $(document).on('click', '.spa-load-template', function(e) {
+       e.preventDefault();
+       var id = $(this).data('id');
+       $.post(spaAdmin.ajaxUrl, {
+           action: 'spa_load_template',
+           nonce: spaAdmin.nonce,
+           template_id: id
+       }, function(response) {
+           if (response.success) {
+               var t = response.data;
+               spaTemplateShowForm(t.type, t.id, t.name, t.subject, t.body);
+           }
+       });
+    });
+
+    // Insert smart tag
+    $(document).on('click', '#spa-insert-tag', function() {
+       var tag = $('#spa-tag-picker').val();
+       if (!tag) return;
+       var type = $('#spa-template-type').val();
+       if (type === 'email') {
+           if (typeof tinymce !== 'undefined' && tinymce.get('spa_template_body_email')) {
+               tinymce.get('spa_template_body_email').insertContent(tag);
+           } else {
+               var $ta = $('#spa_template_body_email');
+               var pos = $ta[0].selectionStart;
+               var val = $ta.val();
+               $ta.val(val.slice(0, pos) + tag + val.slice(pos));
+           }
+       } else {
+           var $sms = $('#spa-template-body-sms');
+           var pos = $sms[0].selectionStart;
+           var val = $sms.val();
+           $sms.val(val.slice(0, pos) + tag + val.slice(pos));
+           spaUpdateSmsWordCount();
+       }
+       $('#spa-tag-picker').val('');
+    });
+
+    // Save template
+    $(document).on('click', '#spa-save-template-btn', function() {
+       var $btn = $(this);
+       var type = $('#spa-template-type').val();
+       var body = spaTemplateGetBody(type);
+       var words = body.replace(/<[^>]+>/g, '').trim().split(/\s+/).filter(Boolean).length;
+
+       if (type === 'sms' && words > 75) {
+           $('#spa-template-status').text('SMS is over 75 words. Please shorten it.').css('color','#dc3545');
+           return;
+       }
+
+       $btn.prop('disabled', true).text('Saving...');
+       $('#spa-template-status').text('');
+
+       $.post(spaAdmin.ajaxUrl, {
+           action: 'spa_save_template',
+           nonce: spaAdmin.nonce,
+           template_id: $('#spa-template-id').val(),
+           template_name: $('#spa-template-name').val(),
+           template_type: type,
+           template_subject: $('#spa-template-subject').val(),
+           template_body: body
+       }, function(response) {
+           if (response.success) {
+               $('#spa-template-id').val(response.data.id);
+               $('#spa-delete-template-btn').show();
+               $('#spa-template-status').text('Saved!').css('color','green');
+               // Refresh the sidebar list
+               spaRefreshTemplateLists();
+               setTimeout(function() { $('#spa-template-status').text(''); }, 3000);
+           } else {
+               $('#spa-template-status').text('Error: ' + (response.data ? response.data.message : 'Unknown')).css('color','#dc3545');
+           }
+       }).always(function() {
+           $btn.prop('disabled', false).text('Save Template');
+       });
+    });
+
+    // Delete template
+    $(document).on('click', '#spa-delete-template-btn', function() {
+       if (!confirm('Delete this template? This cannot be undone.')) return;
+       var id = $('#spa-template-id').val();
+       $.post(spaAdmin.ajaxUrl, {
+           action: 'spa_delete_template',
+           nonce: spaAdmin.nonce,
+           template_id: id
+       }, function(response) {
+           if (response.success) {
+               $('#spa-template-form').hide();
+               $('#spa-template-placeholder').show();
+               spaRefreshTemplateLists();
+           }
+       });
+    });
+
+    function spaRefreshTemplateLists() {
+       $.post(spaAdmin.ajaxUrl, {
+           action: 'spa_get_template_list',
+           nonce: spaAdmin.nonce
+       }, function(response) {
+           if (!response.success) return;
+           var email = '', sms = '';
+           $.each(response.data.email, function(i, t) {
+               email += '<li style="margin-bottom:4px;"><a href="#" class="spa-load-template" data-id="' + t.id + '" style="text-decoration:none;">📧 ' + $('<span>').text(t.name).html() + '</a></li>';
+           });
+           $.each(response.data.sms, function(i, t) {
+               sms += '<li style="margin-bottom:4px;"><a href="#" class="spa-load-template" data-id="' + t.id + '" style="text-decoration:none;">💬 ' + $('<span>').text(t.name).html() + '</a></li>';
+           });
+           $('#spa-email-template-list').html(email || '');
+           $('#spa-sms-template-list').html(sms || '');
+       });
+    }
+
 });

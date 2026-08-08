@@ -577,15 +577,112 @@ Jane,Smith,jane@example.com,+13209999998</pre>
                     break;
 
                 case 'templates':
-                    $example_template = esc_textarea( get_option('spa_example_template', '') );
+                    global $wpdb;
+                    $all_templates = $wpdb->get_results(
+                        "SELECT id, name, type, subject FROM {$wpdb->prefix}spa_notification_templates ORDER BY type, name"
+                    );
+                    $email_templates = array_filter($all_templates, fn($t) => $t->type === 'email');
+                    $sms_templates   = array_filter($all_templates, fn($t) => $t->type === 'sms');
+                    $tags = spa_template_tags();
                     ?>
                     <h2>Notification Templates</h2>
-                    <table class="form-table">
-                        <tr>
-                            <th scope="row"><label for="spa_example_template">Example Template</label></th>
-                            <td><textarea name="spa_example_template" id="spa_example_template" rows="8" cols="60"><?php echo $example_template; ?></textarea></td>
-                        </tr>
-                    </table>
+                    <p>Create reusable templates for email and SMS notifications. Use smart tags to insert dynamic content.</p>
+
+                    <div style="display:flex;gap:2rem;align-items:flex-start;flex-wrap:wrap;">
+
+                        <!-- Template List Sidebar -->
+                        <div style="min-width:220px;flex:0 0 220px;">
+                            <h3 style="margin-top:0;">Email Templates</h3>
+                            <ul id="spa-email-template-list" style="margin:0 0 1rem;padding:0;list-style:none;">
+                                <?php foreach ($email_templates as $t) : ?>
+                                <li style="margin-bottom:4px;">
+                                    <a href="#" class="spa-load-template" data-id="<?php echo intval($t->id); ?>" style="text-decoration:none;">
+                                        📧 <?php echo esc_html($t->name); ?>
+                                    </a>
+                                </li>
+                                <?php endforeach; ?>
+                            </ul>
+                            <button type="button" class="button" id="spa-new-email-template">+ New Email Template</button>
+
+                            <h3>SMS Templates</h3>
+                            <ul id="spa-sms-template-list" style="margin:0 0 1rem;padding:0;list-style:none;">
+                                <?php foreach ($sms_templates as $t) : ?>
+                                <li style="margin-bottom:4px;">
+                                    <a href="#" class="spa-load-template" data-id="<?php echo intval($t->id); ?>" style="text-decoration:none;">
+                                        💬 <?php echo esc_html($t->name); ?>
+                                    </a>
+                                </li>
+                                <?php endforeach; ?>
+                            </ul>
+                            <button type="button" class="button" id="spa-new-sms-template">+ New SMS Template</button>
+                        </div>
+
+                        <!-- Template Editor -->
+                        <div style="flex:1;min-width:400px;" id="spa-template-editor">
+                            <div id="spa-template-placeholder" style="color:#999;font-style:italic;padding:2rem 0;">
+                                Select a template from the list or click &ldquo;+ New&rdquo; to create one.
+                            </div>
+
+                            <div id="spa-template-form" style="display:none;">
+                                <input type="hidden" id="spa-template-id" value="">
+                                <input type="hidden" id="spa-template-type" value="">
+
+                                <table class="form-table" style="margin-bottom:0;">
+                                    <tr>
+                                        <th><label for="spa-template-name">Template Name</label></th>
+                                        <td><input type="text" id="spa-template-name" class="regular-text" placeholder="e.g. Volunteer Reminder"></td>
+                                    </tr>
+                                    <tr id="spa-template-subject-row">
+                                        <th><label for="spa-template-subject">Email Subject</label></th>
+                                        <td><input type="text" id="spa-template-subject" class="regular-text" placeholder="e.g. Volunteer Schedule for {event_name}"></td>
+                                    </tr>
+                                </table>
+
+                                <!-- Smart Tags -->
+                                <div style="margin:12px 0;">
+                                    <strong>Insert Smart Tag:</strong>
+                                    <select id="spa-tag-picker" style="margin-left:8px;">
+                                        <option value="">— choose tag —</option>
+                                        <?php foreach ($tags as $tag => $label) : ?>
+                                        <option value="<?php echo esc_attr($tag); ?>"><?php echo esc_html($label); ?> &rarr; <?php echo esc_html($tag); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <button type="button" class="button" id="spa-insert-tag">Insert</button>
+                                </div>
+
+                                <!-- Email WYSIWYG -->
+                                <div id="spa-email-editor-wrap">
+                                    <?php
+                                    wp_editor('', 'spa_template_body_email', array(
+                                        'textarea_name' => 'spa_template_body_email',
+                                        'textarea_rows' => 14,
+                                        'media_buttons' => false,
+                                        'teeny'         => false,
+                                        'tinymce'       => array(
+                                            'toolbar1' => 'bold italic underline | bullist numlist | link | forecolor | removeformat',
+                                            'toolbar2' => '',
+                                        ),
+                                    ));
+                                    ?>
+                                </div>
+
+                                <!-- SMS Textarea -->
+                                <div id="spa-sms-editor-wrap" style="display:none;">
+                                    <textarea id="spa-template-body-sms" rows="6" style="width:100%;font-size:14px;" placeholder="Write your SMS message here. Keep it under 75 words."></textarea>
+                                    <p style="margin:4px 0 0;font-size:0.85em;color:#666;">
+                                        Word count: <strong id="spa-sms-word-count">0</strong> / 75
+                                    </p>
+                                </div>
+
+                                <p style="margin-top:1rem;display:flex;gap:8px;align-items:center;">
+                                    <button type="button" class="button button-primary" id="spa-save-template-btn">Save Template</button>
+                                    <button type="button" class="button button-link-delete" id="spa-delete-template-btn" style="display:none;">Delete Template</button>
+                                    <span id="spa-template-status" style="font-style:italic;color:#666;"></span>
+                                </p>
+                            </div>
+                        </div>
+
+                    </div>
                     <?php
                     break;
 

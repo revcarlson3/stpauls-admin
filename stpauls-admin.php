@@ -13,6 +13,7 @@ if(!defined('ABSPATH')) {
 
 define('SPA_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SPA_TEMPLATE_DIR', plugin_dir_path(__FILE__) . 'templates/');
+define('SPA_VERSION', '0.2.0');
 
 // Optional Composer autoloader for libraries (libphonenumber)
 if ( file_exists(plugin_dir_path(__FILE__) . 'vendor/autoload.php') ) {
@@ -32,7 +33,16 @@ require_once plugin_dir_path(__FILE__) . 'includes/email.php';
 require_once plugin_dir_path(__FILE__) . 'includes/sms.php';
 require_once plugin_dir_path(__FILE__) . 'includes/push.php';
 require_once plugin_dir_path(__FILE__) . 'includes/import.php';
+require_once plugin_dir_path(__FILE__) . 'includes/templates.php';
 require_once plugin_dir_path(__FILE__) . 'includes/settings.php';
 
 register_activation_hook(__FILE__, 'spa_activate_plugin');
+
+// Run dbDelta on version upgrades without requiring deactivation/reactivation
+add_action('plugins_loaded', function() {
+    if ( get_option('spa_db_version') !== SPA_VERSION ) {
+        spa_activate_plugin();
+        update_option('spa_db_version', SPA_VERSION);
+    }
+});
 ?>
