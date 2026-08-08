@@ -150,7 +150,28 @@ function spa_handle_settings_post() {
 
     if ( $posted_tab === 'push' ) {
         $enable_push = isset($_POST['spa_enable_push']) ? 1 : 0;
+        $push_provider = isset($_POST['spa_push_provider']) ? sanitize_text_field(wp_unslash($_POST['spa_push_provider'])) : 'onesignal';
+
         update_option('spa_enable_push', $enable_push);
+        update_option('spa_push_provider', $push_provider);
+
+        // Provider-specific fields
+        switch ($push_provider) {
+            case 'onesignal':
+                $app_id = isset($_POST['spa_onesignal_app_id']) ? sanitize_text_field(wp_unslash($_POST['spa_onesignal_app_id'])) : '';
+                $api_key = isset($_POST['spa_onesignal_api_key']) ? sanitize_text_field(wp_unslash($_POST['spa_onesignal_api_key'])) : '';
+                update_option('spa_onesignal_app_id', $app_id);
+                if ($api_key !== '') update_option('spa_onesignal_api_key', $api_key);
+                break;
+            case 'firebase':
+                $project_id = isset($_POST['spa_firebase_project_id']) ? sanitize_text_field(wp_unslash($_POST['spa_firebase_project_id'])) : '';
+                $server_key = isset($_POST['spa_firebase_server_key']) ? sanitize_text_field(wp_unslash($_POST['spa_firebase_server_key'])) : '';
+                update_option('spa_firebase_project_id', $project_id);
+                if ($server_key !== '') update_option('spa_firebase_server_key', $server_key);
+                break;
+            default:
+                break;
+        }
     }
 
     if ( $posted_tab === 'templates' ) {

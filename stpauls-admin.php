@@ -30,6 +30,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/volunteers.php';
 require_once plugin_dir_path(__FILE__) . 'includes/events.php';
 require_once plugin_dir_path(__FILE__) . 'includes/email.php';
 require_once plugin_dir_path(__FILE__) . 'includes/sms.php';
+require_once plugin_dir_path(__FILE__) . 'includes/push.php';
 require_once plugin_dir_path(__FILE__) . 'includes/settings.php';
 
 register_activation_hook(__FILE__, 'spa_activate_plugin');

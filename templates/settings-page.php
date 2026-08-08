@@ -388,14 +388,56 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
 
                 case 'push':
                     $enable_push = get_option('spa_enable_push', 0 );
+                    $push_provider = esc_attr( get_option('spa_push_provider', 'onesignal') );
                     ?>
                     <h2>Push Notifications</h2>
+                    <p>Push notifications allow you to send messages directly to users' browsers and devices. Note: Not supported on all browsers or devices.</p>
                     <table class="form-table">
                         <tr>
-                            <th scope="row">Enable Push</th>
+                            <th scope="row">Enable Push Notifications</th>
                             <td><input name="spa_enable_push" type="checkbox" value="1" <?php checked(1, $enable_push); ?>></td>
                         </tr>
+                        <tr>
+                            <th scope="row"><label for="spa_push_provider">Push Provider</label></th>
+                            <td>
+                                <select name="spa_push_provider" id="spa_push_provider">
+                                    <option value="onesignal" <?php selected($push_provider, 'onesignal'); ?>>OneSignal</option>
+                                    <option value="firebase" <?php selected($push_provider, 'firebase'); ?>>Firebase Cloud Messaging</option>
+                                </select>
+                            </td>
+                        </tr>
                     </table>
+
+                    <div class="spa-push-provider-fields">
+                        <div class="spa-push-provider onesignal" data-provider="onesignal" style="display:none;">
+                            <h3>OneSignal Settings</h3>
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row">App ID</th>
+                                    <td><input name="spa_onesignal_app_id" type="text" value="<?php echo esc_attr(get_option('spa_onesignal_app_id','')); ?>" class="regular-text"></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">API Key</th>
+                                    <td><?php spa_render_secret_field('spa_onesignal_api_key', 'spa_onesignal_api_key'); ?></td>
+                                </tr>
+                            </table>
+                            <p class="description">Instructions: Create a OneSignal account, create an app, and copy your App ID and REST API Key. See https://onesignal.com/documentation for setup help.</p>
+                        </div>
+                        <div class="spa-push-provider firebase" data-provider="firebase" style="display:none;">
+                            <h3>Firebase Cloud Messaging Settings</h3>
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row">Project ID</th>
+                                    <td><input name="spa_firebase_project_id" type="text" value="<?php echo esc_attr(get_option('spa_firebase_project_id','')); ?>" class="regular-text"></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Server Key</th>
+                                    <td><?php spa_render_secret_field('spa_firebase_server_key', 'spa_firebase_server_key'); ?></td>
+                                </tr>
+                            </table>
+                            <p class="description">Instructions: Create a Firebase project, enable Cloud Messaging, and copy your Project ID and Server API Key. See https://firebase.google.com/docs for setup help.</p>
+                        </div>
+                    </div>
                     <?php
                     break;
 

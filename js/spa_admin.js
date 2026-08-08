@@ -269,6 +269,7 @@
 
     $(document).ready(function() {
         spa_toggle_email_provider();
+        spa_toggle_push_provider();
     });
 
     $(document).on('change', '#spa_email_provider', function() {
@@ -302,6 +303,17 @@
         }).always(function() {
             $btn.prop('disabled', false).text('Send Test Email');
         });
+    });
+
+    // Push provider toggle
+    function spa_toggle_push_provider() {
+        var selected = $('#spa_push_provider').val();
+        $('.spa-push-provider').hide();
+        $('.spa-push-provider[data-provider="' + selected + '"]').show();
+    }
+
+    $(document).on('change', '#spa_push_provider', function() {
+        spa_toggle_push_provider();
     });
 
     // SMS provider toggle and AJAX test send
