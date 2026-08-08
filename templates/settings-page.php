@@ -43,17 +43,70 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
         <?php endif; ?>
 
         <?php if ( isset($_GET['import_success']) ) : ?>
+            <?php 
+            $import_results = get_transient('spa_import_results');
+            if ($import_results) :
+                delete_transient('spa_import_results');
+            ?>
             <div class="notice notice-success is-dismissible">
                 <p>
-                    Import completed successfully!
-                    <?php 
-                    $imported = isset($_GET['imported']) ? intval($_GET['imported']) : 0;
-                    $skipped = isset($_GET['skipped']) ? intval($_GET['skipped']) : 0;
-                    $errors = isset($_GET['errors']) ? intval($_GET['errors']) : 0;
-                    echo "Imported: $imported | Skipped (duplicates): $skipped | Errors: $errors";
-                    ?>
+                    <strong>Import completed successfully!</strong><br>
+                    Imported: <strong><?php echo intval($import_results['imported']); ?></strong> | 
+                    Skipped: <strong><?php echo intval($import_results['skipped']); ?></strong> | 
+                    Errors: <strong><?php echo intval($import_results['errors']); ?></strong>
                 </p>
             </div>
+
+            <?php if ( ! empty($import_results['skipped_list']) ) : ?>
+            <div style="background:#fff8e5;border-left:4px solid #ffb900;padding:1rem;margin-bottom:1rem;">
+                <h4 style="margin-top:0;">Skipped Entries (<?php echo count($import_results['skipped_list']); ?>)</h4>
+                <p>These volunteers were not imported because they already exist in the database:</p>
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#f5f5f5;">
+                            <th style="border:1px solid #ddd;padding:0.5rem;text-align:left;">Row</th>
+                            <th style="border:1px solid #ddd;padding:0.5rem;text-align:left;">Name</th>
+                            <th style="border:1px solid #ddd;padding:0.5rem;text-align:left;">Email</th>
+                            <th style="border:1px solid #ddd;padding:0.5rem;text-align:left;">Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $import_results['skipped_list'] as $skipped ) : ?>
+                        <tr>
+                            <td style="border:1px solid #ddd;padding:0.5rem;"><?php echo intval($skipped['row']); ?></td>
+                            <td style="border:1px solid #ddd;padding:0.5rem;"><?php echo esc_html($skipped['first_name'] . ' ' . $skipped['last_name']); ?></td>
+                            <td style="border:1px solid #ddd;padding:0.5rem;"><?php echo esc_html($skipped['email']); ?></td>
+                            <td style="border:1px solid #ddd;padding:0.5rem;"><?php echo esc_html($skipped['reason']); ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+
+            <?php if ( ! empty($import_results['errors_list']) ) : ?>
+            <div style="background:#fee;border-left:4px solid #dc3545;padding:1rem;margin-bottom:1rem;">
+                <h4 style="margin-top:0;color:#dc3545;">Errors (<?php echo count($import_results['errors_list']); ?>)</h4>
+                <p>These rows could not be imported due to validation errors:</p>
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#f5f5f5;">
+                            <th style="border:1px solid #ddd;padding:0.5rem;text-align:left;">Row</th>
+                            <th style="border:1px solid #ddd;padding:0.5rem;text-align:left;">Error Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $import_results['errors_list'] as $error ) : ?>
+                        <tr>
+                            <td style="border:1px solid #ddd;padding:0.5rem;"><?php echo intval($error['row']); ?></td>
+                            <td style="border:1px solid #ddd;padding:0.5rem;"><strong><?php echo esc_html($error['reason']); ?></strong></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+            <?php endif; ?>
         <?php endif; ?>
 
         <?php if ( isset($_GET['import_error']) ) : ?>

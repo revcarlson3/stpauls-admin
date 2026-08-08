@@ -49,7 +49,10 @@ function spa_handle_import_volunteers() {
 
     $result = spa_import_volunteers_data($rows);
 
-    wp_redirect(admin_url('admin.php?page=spa-settings&tab=import&import_success=1&imported=' . $result['imported'] . '&skipped=' . $result['skipped'] . '&errors=' . $result['errors']));
+    // Store detailed results in transient for display
+    set_transient('spa_import_results', $result, HOUR_IN_SECONDS);
+
+    wp_redirect(admin_url('admin.php?page=spa-settings&tab=import&import_success=1'));
     exit;
 }
 add_action('admin_post_spa_import_volunteers', 'spa_handle_import_volunteers');
@@ -133,10 +136,10 @@ function spa_import_volunteers_data($rows) {
     $table_name = $wpdb->prefix . 'spa_volunteers';
 
     $imported = 0;
-    $skipped = 0;
-    $errors = 0;
+    $skipped_list = array();
+    $errors_list = array();
 
-    foreach ( $rows as $row ) {
+    foreach ( $rows as $row_index => $row ) {
         $first_name = isset($row['first_name']) ? sanitize_text_field($row['first_name']) : '';
         $last_name = isset($row['last_name']) ? sanitize_text_field($row['last_name']) : '';
         $email = isset($row['email']) ? sanitize_email($row['email']) : '';
@@ -144,13 +147,21 @@ function spa_import_volunteers_data($rows) {
 
         // Validate required fields
         if ( empty($first_name) || empty($last_name) || empty($email) ) {
-            $errors++;
+            $errors_list[] = array(
+                'row' => $row_index + 2,
+                'data' => $row,
+                'reason' => 'Missing required fields (first_name, last_name, or email)'
+            );
             continue;
         }
 
         // Validate email format
         if ( ! is_email($email) ) {
-            $errors++;
+            $errors_list[] = array(
+                'row' => $row_index + 2,
+                'data' => $row,
+                'reason' => "Invalid email format: $email"
+            );
             continue;
         }
 
@@ -161,7 +172,13 @@ function spa_import_volunteers_data($rows) {
         ));
 
         if ( $existing ) {
-            $skipped++;
+            $skipped_list[] = array(
+                'row' => $row_index + 2,
+                'first_name' => $first_name,
+                'last_name' => $last_name,
+                'email' => $email,
+                'reason' => 'Email already exists in database'
+            );
             continue;
         }
 
@@ -171,7 +188,11 @@ function spa_import_volunteers_data($rows) {
                 // Try to normalize phone number using libphonenumber if available
                 $normalized = spa_normalize_phone_for_import($phone);
                 if ( ! $normalized ) {
-                    $errors++;
+                    $errors_list[] = array(
+                        'row' => $row_index + 2,
+                        'data' => $row,
+                        'reason' => "Invalid phone format: $phone (must be E.164 format like +13209999999)"
+                    );
                     continue;
                 }
                 $phone = $normalized;
@@ -196,14 +217,20 @@ function spa_import_volunteers_data($rows) {
         if ( $inserted ) {
             $imported++;
         } else {
-            $errors++;
+            $errors_list[] = array(
+                'row' => $row_index + 2,
+                'data' => $row,
+                'reason' => 'Database insert failed'
+            );
         }
     }
 
     return array(
         'imported' => $imported,
-        'skipped' => $skipped,
-        'errors' => $errors,
+        'skipped' => count($skipped_list),
+        'errors' => count($errors_list),
+        'skipped_list' => $skipped_list,
+        'errors_list' => $errors_list,
     );
 }
 
