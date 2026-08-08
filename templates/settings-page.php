@@ -209,7 +209,10 @@
                             </td>
                         </tr>
                     </table>
-                    <p class="submit"><button type="submit" name="spa_send_test" class="button">Send Test Email</button></p>
+                    <p class="submit">
+    <button type="button" id="spa-send-test-btn" class="button">Send Test Email</button>
+    <span id="spa-test-result" style="margin-left:1rem;vertical-align:middle;"></span>
+</p>
 
                     <?php
                     break;

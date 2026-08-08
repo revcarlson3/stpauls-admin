@@ -275,4 +275,32 @@ jQuery(function($) {
         spa_toggle_email_provider();
     });
 
+    // AJAX Send Test Email (shows result inline under the button)
+    $(document).on('click', '#spa-send-test-btn', function(e) {
+        e.preventDefault();
+        var $btn = $(this);
+        var $form = $btn.closest('form');
+        var dataArray = $form.serializeArray();
+        // add action and nonce for admin-ajax
+        dataArray.push({ name: 'action', value: 'spa_send_test_email' });
+        dataArray.push({ name: 'nonce', value: spaAdmin.nonce });
+
+        $btn.prop('disabled', true).text('Sending...');
+        var $result = $('#spa-test-result');
+        $result.removeClass().text('');
+n        $.post(spaAdmin.ajaxUrl, dataArray, function(response) {
+            if ( response && response.success ) {
+                $result.addClass('spa-test-success').text('Test email sent successfully.');
+            } else {
+                var msg = response && response.data ? response.data : 'Unknown error';
+                if ( msg === 'missing_recipient' ) msg = 'Recipient email missing.';
+                $result.addClass('spa-test-error').text('Error: ' + msg);
+            }
+        }).fail(function(jqXHR) {
+            $result.addClass('spa-test-error').text('AJAX error: ' + (jqXHR.statusText || 'request failed'));
+        }).always(function() {
+            $btn.prop('disabled', false).text('Send Test Email');
+        });
+    });
+
 });
