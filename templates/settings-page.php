@@ -218,20 +218,128 @@
                     break;
 
                 case 'sms':
-                    $sms_provider = esc_attr( get_option('spa_sms_provider', '') );
+                    $sms_provider = esc_attr( get_option('spa_sms_provider', 'twilio') );
                     $enable_sms = get_option('spa_enable_sms', 0 );
                     ?>
                     <h2>SMS Settings</h2>
                     <table class="form-table">
                         <tr>
                             <th scope="row"><label for="spa_sms_provider">SMS Provider</label></th>
-                            <td><input name="spa_sms_provider" id="spa_sms_provider" type="text" value="<?php echo $sms_provider; ?>" class="regular-text"></td>
+                            <td>
+                                <select name="spa_sms_provider" id="spa_sms_provider">
+                                    <option value="twilio" <?php selected($sms_provider, 'twilio'); ?>>Twilio</option>
+                                    <option value="vonage" <?php selected($sms_provider, 'vonage'); ?>>Vonage (Nexmo)</option>
+                                    <option value="plivo" <?php selected($sms_provider, 'plivo'); ?>>Plivo</option>
+                                    <option value="messagebird" <?php selected($sms_provider, 'messagebird'); ?>>MessageBird</option>
+                                    <option value="textmagic" <?php selected($sms_provider, 'textmagic'); ?>>TextMagic</option>
+                                </select>
+                            </td>
                         </tr>
                         <tr>
                             <th scope="row">Enable SMS</th>
                             <td><input name="spa_enable_sms" type="checkbox" value="1" <?php checked(1, $enable_sms); ?>></td>
                         </tr>
                     </table>
+
+                    <div class="spa-sms-provider-fields">
+                        <div class="spa-sms-provider twilio" data-provider="twilio" style="display:none;">
+                            <h3>Twilio Settings</h3>
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row">Account SID</th>
+                                    <td><input name="spa_twilio_sid" type="text" value="<?php echo esc_attr(get_option('spa_twilio_sid','')); ?>" class="regular-text"></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Auth Token</th>
+                                    <td><input name="spa_twilio_token" type="password" value="" class="regular-text"><p class="description">Leave blank to keep existing token.</p></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">From Number</th>
+                                    <td><input name="spa_twilio_from" type="text" value="<?php echo esc_attr(get_option('spa_twilio_from','')); ?>" class="regular-text"></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="spa-sms-provider vonage" data-provider="vonage" style="display:none;">
+                            <h3>Vonage (Nexmo) Settings</h3>
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row">API Key</th>
+                                    <td><input name="spa_vonage_key" type="text" value="<?php echo esc_attr(get_option('spa_vonage_key','')); ?>" class="regular-text"></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">API Secret</th>
+                                    <td><input name="spa_vonage_secret" type="password" value="" class="regular-text"><p class="description">Leave blank to keep existing secret.</p></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">From</th>
+                                    <td><input name="spa_vonage_from" type="text" value="<?php echo esc_attr(get_option('spa_vonage_from','')); ?>" class="regular-text"></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="spa-sms-provider plivo" data-provider="plivo" style="display:none;">
+                            <h3>Plivo Settings</h3>
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row">Auth ID</th>
+                                    <td><input name="spa_plivo_auth_id" type="text" value="<?php echo esc_attr(get_option('spa_plivo_auth_id','')); ?>" class="regular-text"></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Auth Token</th>
+                                    <td><input name="spa_plivo_auth_token" type="password" value="" class="regular-text"><p class="description">Leave blank to keep existing token.</p></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">From</th>
+                                    <td><input name="spa_plivo_from" type="text" value="<?php echo esc_attr(get_option('spa_plivo_from','')); ?>" class="regular-text"></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="spa-sms-provider messagebird" data-provider="messagebird" style="display:none;">
+                            <h3>MessageBird Settings</h3>
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row">API Key</th>
+                                    <td><input name="spa_messagebird_key" type="text" value="<?php echo esc_attr(get_option('spa_messagebird_key','')); ?>" class="regular-text"></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">From</th>
+                                    <td><input name="spa_messagebird_from" type="text" value="<?php echo esc_attr(get_option('spa_messagebird_from','')); ?>" class="regular-text"></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="spa-sms-provider textmagic" data-provider="textmagic" style="display:none;">
+                            <h3>TextMagic Settings</h3>
+                            <table class="form-table">
+                                <tr>
+                                    <th scope="row">Username</th>
+                                    <td><input name="spa_textmagic_username" type="text" value="<?php echo esc_attr(get_option('spa_textmagic_username','')); ?>" class="regular-text"></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">API Key</th>
+                                    <td><input name="spa_textmagic_api_key" type="password" value="" class="regular-text"><p class="description">Leave blank to keep existing key.</p></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">From</th>
+                                    <td><input name="spa_textmagic_from" type="text" value="<?php echo esc_attr(get_option('spa_textmagic_from','')); ?>" class="regular-text"></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <h3>Send a test SMS</h3>
+                    <p>Use this to verify your chosen provider and settings. A test message will be sent using the configured From number.</p>
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row"><label for="spa_test_recipient">Recipient Phone</label></th>
+                            <td>
+                                <input name="spa_test_sms_recipient" id="spa_test_sms_recipient" type="text" value="" class="regular-text">
+                                <p class="description">Enter a phone number to receive a test SMS.</p>
+                            </td>
+                        </tr>
+                    </table>
+                    <p class="submit">
+                        <button type="button" id="spa-send-test-sms-btn" class="button">Send Test SMS</button>
+                        <span id="spa-test-sms-result" style="margin-left:1rem;vertical-align:middle;"></span>
+                    </p>
                     <?php
                     break;
 

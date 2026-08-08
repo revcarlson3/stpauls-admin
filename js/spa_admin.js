@@ -288,6 +288,7 @@
         $btn.prop('disabled', true).text('Sending...');
         var $result = $('#spa-test-result');
         $result.removeClass().text('');
+
         $.post(spaAdmin.ajaxUrl, dataArray, function(response) {
             if ( response && response.success ) {
                 $result.addClass('spa-test-success').text('Test email sent successfully.');
@@ -301,6 +302,48 @@
         }).always(function() {
             $btn.prop('disabled', false).text('Send Test Email');
         });
+    });
+
+    // SMS provider toggle and AJAX test send
+    function spa_toggle_sms_provider() {
+var selected = $('#spa_sms_provider').val();
+$('.spa-sms-provider').hide();
+$('.spa-sms-provider[data-provider="' + selected + '"]').show();
+    }
+
+    $(document).ready(function() {
+spa_toggle_sms_provider();
+    });
+
+    $(document).on('change', '#spa_sms_provider', function() {
+spa_toggle_sms_provider();
+    });
+
+    $(document).on('click', '#spa-send-test-sms-btn', function(e) {
+e.preventDefault();
+var $btn = $(this);
+var $form = $btn.closest('form');
+var dataArray = $form.serializeArray();
+dataArray.push({ name: 'action', value: 'spa_send_test_sms' });
+dataArray.push({ name: 'nonce', value: spaAdmin.nonce });
+
+$btn.prop('disabled', true).text('Sending...');
+var $result = $('#spa-test-sms-result');
+$result.removeClass().text('');
+
+$.post(spaAdmin.ajaxUrl, dataArray, function(response) {
+    if ( response && response.success ) {
+        $result.addClass('spa-test-success').text('Test SMS sent successfully.');
+    } else {
+        var msg = response && response.data ? response.data : 'Unknown error';
+        if ( msg === 'missing_recipient' ) msg = 'Recipient phone missing.';
+        $result.addClass('spa-test-error').text('Error: ' + msg);
+    }
+}).fail(function(jqXHR) {
+    $result.addClass('spa-test-error').text('AJAX error: ' + (jqXHR.statusText || 'request failed'));
+}).always(function() {
+    $btn.prop('disabled', false).text('Send Test SMS');
+});
     });
 
 });

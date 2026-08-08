@@ -100,6 +100,50 @@ function spa_handle_settings_post() {
         $enable_sms = isset($_POST['spa_enable_sms']) ? 1 : 0;
         update_option('spa_sms_provider', $sms_provider);
         update_option('spa_enable_sms', $enable_sms);
+
+        // Provider-specific fields for SMS providers
+        switch ( $sms_provider ) {
+            case 'twilio':
+                $tw_sid = isset($_POST['spa_twilio_sid']) ? sanitize_text_field(wp_unslash($_POST['spa_twilio_sid'])) : '';
+                $tw_token = isset($_POST['spa_twilio_token']) ? sanitize_text_field(wp_unslash($_POST['spa_twilio_token'])) : '';
+                $tw_from = isset($_POST['spa_twilio_from']) ? sanitize_text_field(wp_unslash($_POST['spa_twilio_from'])) : '';
+                if ($tw_sid !== '') update_option('spa_twilio_sid', $tw_sid);
+                if ($tw_token !== '') update_option('spa_twilio_token', $tw_token);
+                update_option('spa_twilio_from', $tw_from);
+                break;
+            case 'vonage':
+                $vn_key = isset($_POST['spa_vonage_key']) ? sanitize_text_field(wp_unslash($_POST['spa_vonage_key'])) : '';
+                $vn_secret = isset($_POST['spa_vonage_secret']) ? sanitize_text_field(wp_unslash($_POST['spa_vonage_secret'])) : '';
+                $vn_from = isset($_POST['spa_vonage_from']) ? sanitize_text_field(wp_unslash($_POST['spa_vonage_from'])) : '';
+                if ($vn_key !== '') update_option('spa_vonage_key', $vn_key);
+                if ($vn_secret !== '') update_option('spa_vonage_secret', $vn_secret);
+                update_option('spa_vonage_from', $vn_from);
+                break;
+            case 'plivo':
+                $pl_id = isset($_POST['spa_plivo_auth_id']) ? sanitize_text_field(wp_unslash($_POST['spa_plivo_auth_id'])) : '';
+                $pl_token = isset($_POST['spa_plivo_auth_token']) ? sanitize_text_field(wp_unslash($_POST['spa_plivo_auth_token'])) : '';
+                $pl_from = isset($_POST['spa_plivo_from']) ? sanitize_text_field(wp_unslash($_POST['spa_plivo_from'])) : '';
+                if ($pl_id !== '') update_option('spa_plivo_auth_id', $pl_id);
+                if ($pl_token !== '') update_option('spa_plivo_auth_token', $pl_token);
+                update_option('spa_plivo_from', $pl_from);
+                break;
+            case 'messagebird':
+                $mb_key = isset($_POST['spa_messagebird_key']) ? sanitize_text_field(wp_unslash($_POST['spa_messagebird_key'])) : '';
+                $mb_from = isset($_POST['spa_messagebird_from']) ? sanitize_text_field(wp_unslash($_POST['spa_messagebird_from'])) : '';
+                if ($mb_key !== '') update_option('spa_messagebird_key', $mb_key);
+                update_option('spa_messagebird_from', $mb_from);
+                break;
+            case 'textmagic':
+                $tm_user = isset($_POST['spa_textmagic_username']) ? sanitize_text_field(wp_unslash($_POST['spa_textmagic_username'])) : '';
+                $tm_key = isset($_POST['spa_textmagic_api_key']) ? sanitize_text_field(wp_unslash($_POST['spa_textmagic_api_key'])) : '';
+                $tm_from = isset($_POST['spa_textmagic_from']) ? sanitize_text_field(wp_unslash($_POST['spa_textmagic_from'])) : '';
+                if ($tm_user !== '') update_option('spa_textmagic_username', $tm_user);
+                if ($tm_key !== '') update_option('spa_textmagic_api_key', $tm_key);
+                update_option('spa_textmagic_from', $tm_from);
+                break;
+            default:
+                break;
+        }
     }
 
     if ( $posted_tab === 'push' ) {
@@ -262,6 +306,76 @@ function spa_ajax_send_test_email() {
     wp_send_json_success('sent');
 }
 add_action('wp_ajax_spa_send_test_email', 'spa_ajax_send_test_email');
+
+
+function spa_ajax_send_test_sms() {
+    check_ajax_referer('spa_admin_nonce', 'nonce');
+    if ( ! current_user_can('manage_options') ) {
+        wp_send_json_error('Unauthorized', 403);
+    }
+
+    $sms_provider = isset($_POST['spa_sms_provider']) ? sanitize_text_field(wp_unslash($_POST['spa_sms_provider'])) : get_option('spa_sms_provider', 'twilio');
+    $to = isset($_POST['spa_test_sms_recipient']) ? sanitize_text_field(wp_unslash($_POST['spa_test_sms_recipient'])) : '';
+    if ( empty($to) ) {
+        wp_send_json_error('missing_recipient');
+    }
+
+    // Save minimal sms settings
+    $enable_sms = isset($_POST['spa_enable_sms']) ? 1 : 0;
+    update_option('spa_sms_provider', $sms_provider);
+    update_option('spa_enable_sms', $enable_sms);
+
+    // Save provider-specific minimal fields
+    switch ($sms_provider) {
+        case 'twilio':
+            $tw_sid = isset($_POST['spa_twilio_sid']) ? sanitize_text_field(wp_unslash($_POST['spa_twilio_sid'])) : '';
+            $tw_token = isset($_POST['spa_twilio_token']) ? sanitize_text_field(wp_unslash($_POST['spa_twilio_token'])) : '';
+            $tw_from = isset($_POST['spa_twilio_from']) ? sanitize_text_field(wp_unslash($_POST['spa_twilio_from'])) : '';
+            if ($tw_sid !== '') update_option('spa_twilio_sid', $tw_sid);
+            if ($tw_token !== '') update_option('spa_twilio_token', $tw_token);
+            update_option('spa_twilio_from', $tw_from);
+            break;
+        case 'vonage':
+            $vn_key = isset($_POST['spa_vonage_key']) ? sanitize_text_field(wp_unslash($_POST['spa_vonage_key'])) : '';
+            $vn_secret = isset($_POST['spa_vonage_secret']) ? sanitize_text_field(wp_unslash($_POST['spa_vonage_secret'])) : '';
+            $vn_from = isset($_POST['spa_vonage_from']) ? sanitize_text_field(wp_unslash($_POST['spa_vonage_from'])) : '';
+            if ($vn_key !== '') update_option('spa_vonage_key', $vn_key);
+            if ($vn_secret !== '') update_option('spa_vonage_secret', $vn_secret);
+            update_option('spa_vonage_from', $vn_from);
+            break;
+        case 'plivo':
+            $pl_id = isset($_POST['spa_plivo_auth_id']) ? sanitize_text_field(wp_unslash($_POST['spa_plivo_auth_id'])) : '';
+            $pl_token = isset($_POST['spa_plivo_auth_token']) ? sanitize_text_field(wp_unslash($_POST['spa_plivo_auth_token'])) : '';
+            $pl_from = isset($_POST['spa_plivo_from']) ? sanitize_text_field(wp_unslash($_POST['spa_plivo_from'])) : '';
+            if ($pl_id !== '') update_option('spa_plivo_auth_id', $pl_id);
+            if ($pl_token !== '') update_option('spa_plivo_auth_token', $pl_token);
+            update_option('spa_plivo_from', $pl_from);
+            break;
+        case 'messagebird':
+            $mb_key = isset($_POST['spa_messagebird_key']) ? sanitize_text_field(wp_unslash($_POST['spa_messagebird_key'])) : '';
+            $mb_from = isset($_POST['spa_messagebird_from']) ? sanitize_text_field(wp_unslash($_POST['spa_messagebird_from'])) : '';
+            if ($mb_key !== '') update_option('spa_messagebird_key', $mb_key);
+            update_option('spa_messagebird_from', $mb_from);
+            break;
+        case 'textmagic':
+            $tm_user = isset($_POST['spa_textmagic_username']) ? sanitize_text_field(wp_unslash($_POST['spa_textmagic_username'])) : '';
+            $tm_key = isset($_POST['spa_textmagic_api_key']) ? sanitize_text_field(wp_unslash($_POST['spa_textmagic_api_key'])) : '';
+            $tm_from = isset($_POST['spa_textmagic_from']) ? sanitize_text_field(wp_unslash($_POST['spa_textmagic_from'])) : '';
+            if ($tm_user !== '') update_option('spa_textmagic_username', $tm_user);
+            if ($tm_key !== '') update_option('spa_textmagic_api_key', $tm_key);
+            update_option('spa_textmagic_from', $tm_from);
+            break;
+        default:
+            break;
+    }
+
+    $sent = spa_send_sms($to, "Test message from St. Paul's Admin plugin", $sms_provider);
+    if ( is_wp_error($sent) ) {
+        wp_send_json_error($sent->get_error_message());
+    }
+    wp_send_json_success('sent');
+}
+add_action('wp_ajax_spa_send_test_sms', 'spa_ajax_send_test_sms');
 
 
 function spa_settings_page() {
