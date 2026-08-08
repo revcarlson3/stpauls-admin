@@ -82,17 +82,22 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
             </div>
         <?php endif; ?>
 
+        <?php
+        // Close the main settings form if not on import tab
+        if ($active_tab !== 'import') : ?>
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                     <input type="hidden" name="action" value="spa_save_settings">
                     <?php wp_nonce_field('spa_save_settings', 'spa_settings_nonce'); ?>
                     <input type="hidden" name="active_tab" value="<?php echo esc_attr($active_tab); ?>">
 
             <?php
-            switch ($active_tab) {
-                case 'email':
-                    $notification_email = esc_attr( get_option('spa_notification_email', '') );
-                    $enable_email = get_option('spa_enable_email', 0 );
-                    $email_provider = get_option('spa_email_provider', 'wp_mail');
+        endif;
+         
+        switch ($active_tab) {
+            case 'email':
+                $notification_email = esc_attr( get_option('spa_notification_email', '') );
+                $enable_email = get_option('spa_enable_email', 0 );
+                $email_provider = get_option('spa_email_provider', 'wp_mail');
                     ?>
                     <h2>Email Settings</h2>
                     <table class="form-table">
@@ -546,10 +551,12 @@ Jane,Smith,jane@example.com,+13209999998</pre>
             }
             ?>
 
-            <p class="submit"><button type="submit" class="button button-primary">Save Changes</button></p>
-        </form>
+           <?php if ($active_tab !== 'import') : ?>
+               <p class="submit"><button type="submit" class="button button-primary">Save Changes</button></p>
+           </form>
+           <?php endif; ?>
 
-    </div>
+       </div>
 
     <div class="spa-danger-zone" style="margin-top:2rem;border-top:1px solid #e5e5e5;padding-top:1rem;">
         <h3 style="color:#b71c1c;">Danger Zone</h3>
