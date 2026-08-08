@@ -324,18 +324,36 @@ e.preventDefault();
 var $btn = $(this);
 var $form = $btn.closest('form');
 var $to = $('#spa_test_sms_recipient').val().trim();
-// Client-side E.164 check
-var e164re = /^\+[1-9]\d{7,14}$/;
 if ( $to === '' ) {
     $('#spa-test-sms-result').removeClass().addClass('spa-test-error').text('Please enter a recipient phone number.');
     return;
 }
+// Strip most special characters
+var cleaned = $to.replace(/[^\d+]/g, '');
+// If no leading +, try to prepend default country dial code
+if ( cleaned.charAt(0) !== '+' ) {
+    var selectedOpt = $('#spa_sms_default_country option:selected');
+    var dial = selectedOpt.data('dial') || null;
+    if ( dial ) {
+        // remove leading zeros from local number
+        cleaned = cleaned.replace(/^0+/, '');
+        cleaned = '+' + dial + cleaned;
+    } else {
+        // if no dial code available, ensure digits only
+        cleaned = cleaned;
+    }
+}
+// Validate E.164 when provider requires it
 var provider = $('#spa_sms_provider').val();
 var requireE164 = ['twilio','vonage','plivo','messagebird','textmagic'];
-if ( requireE164.indexOf(provider) !== -1 && ! e164re.test($to) ) {
+var e164re = /^\+[1-9]\d{7,14}$/;
+if ( requireE164.indexOf(provider) !== -1 && ! e164re.test(cleaned) ) {
     $('#spa-test-sms-result').removeClass().addClass('spa-test-error').text('Phone must be E.164 format (e.g. +15551234567) for the selected provider.');
     return;
 }
+
+// Set normalized value back into the input so server receives the same
+$('#spa_test_sms_recipient').val(cleaned);
 
 var dataArray = $form.serializeArray();
 dataArray.push({ name: 'action', value: 'spa_send_test_sms' });

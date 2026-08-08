@@ -98,53 +98,55 @@ function spa_handle_settings_post() {
     if ( $posted_tab === 'sms' ) {
         $sms_provider = isset($_POST['spa_sms_provider']) ? sanitize_text_field(wp_unslash($_POST['spa_sms_provider'])) : '';
         $enable_sms = isset($_POST['spa_enable_sms']) ? 1 : 0;
-        update_option('spa_sms_provider', $sms_provider);
-        update_option('spa_enable_sms', $enable_sms);
+            $default_country = isset($_POST['spa_sms_default_country']) ? sanitize_text_field(wp_unslash($_POST['spa_sms_default_country'])) : 'US';
+            update_option('spa_sms_provider', $sms_provider);
+            update_option('spa_enable_sms', $enable_sms);
+            update_option('spa_sms_default_country', $default_country);
 
-        // Provider-specific fields for SMS providers
-        switch ( $sms_provider ) {
-            case 'twilio':
-                $tw_sid = isset($_POST['spa_twilio_sid']) ? sanitize_text_field(wp_unslash($_POST['spa_twilio_sid'])) : '';
-                $tw_token = isset($_POST['spa_twilio_token']) ? sanitize_text_field(wp_unslash($_POST['spa_twilio_token'])) : '';
-                $tw_from = isset($_POST['spa_twilio_from']) ? sanitize_text_field(wp_unslash($_POST['spa_twilio_from'])) : '';
-                if ($tw_sid !== '') update_option('spa_twilio_sid', $tw_sid);
-                if ($tw_token !== '') update_option('spa_twilio_token', $tw_token);
-                update_option('spa_twilio_from', $tw_from);
+            // Provider-specific fields for SMS providers
+            switch ( $sms_provider ) {
+                case 'twilio':
+                    $tw_sid = isset($_POST['spa_twilio_sid']) ? sanitize_text_field(wp_unslash($_POST['spa_twilio_sid'])) : '';
+                    $tw_token = isset($_POST['spa_twilio_token']) ? sanitize_text_field(wp_unslash($_POST['spa_twilio_token'])) : '';
+                    $tw_from = isset($_POST['spa_twilio_from']) ? sanitize_text_field(wp_unslash($_POST['spa_twilio_from'])) : '';
+                    if ($tw_sid !== '') update_option('spa_twilio_sid', $tw_sid);
+                    if ($tw_token !== '') update_option('spa_twilio_token', $tw_token);
+                    update_option('spa_twilio_from', $tw_from);
+                    break;
+                case 'vonage':
+                    $vn_key = isset($_POST['spa_vonage_key']) ? sanitize_text_field(wp_unslash($_POST['spa_vonage_key'])) : '';
+                    $vn_secret = isset($_POST['spa_vonage_secret']) ? sanitize_text_field(wp_unslash($_POST['spa_vonage_secret'])) : '';
+                    $vn_from = isset($_POST['spa_vonage_from']) ? sanitize_text_field(wp_unslash($_POST['spa_vonage_from'])) : '';
+                    if ($vn_key !== '') update_option('spa_vonage_key', $vn_key);
+                    if ($vn_secret !== '') update_option('spa_vonage_secret', $vn_secret);
+                    update_option('spa_vonage_from', $vn_from);
+                    break;
+                case 'plivo':
+                    $pl_id = isset($_POST['spa_plivo_auth_id']) ? sanitize_text_field(wp_unslash($_POST['spa_plivo_auth_id'])) : '';
+                    $pl_token = isset($_POST['spa_plivo_auth_token']) ? sanitize_text_field(wp_unslash($_POST['spa_plivo_auth_token'])) : '';
+                    $pl_from = isset($_POST['spa_plivo_from']) ? sanitize_text_field(wp_unslash($_POST['spa_plivo_from'])) : '';
+                    if ($pl_id !== '') update_option('spa_plivo_auth_id', $pl_id);
+                    if ($pl_token !== '') update_option('spa_plivo_auth_token', $pl_token);
+                    update_option('spa_plivo_from', $pl_from);
+                    break;
+                case 'messagebird':
+                    $mb_key = isset($_POST['spa_messagebird_key']) ? sanitize_text_field(wp_unslash($_POST['spa_messagebird_key'])) : '';
+                    $mb_from = isset($_POST['spa_messagebird_from']) ? sanitize_text_field(wp_unslash($_POST['spa_messagebird_from'])) : '';
+                    if ($mb_key !== '') update_option('spa_messagebird_key', $mb_key);
+                    update_option('spa_messagebird_from', $mb_from);
+                    break;
+                case 'textmagic':
+                    $tm_user = isset($_POST['spa_textmagic_username']) ? sanitize_text_field(wp_unslash($_POST['spa_textmagic_username'])) : '';
+                    $tm_key = isset($_POST['spa_textmagic_api_key']) ? sanitize_text_field(wp_unslash($_POST['spa_textmagic_api_key'])) : '';
+                    $tm_from = isset($_POST['spa_textmagic_from']) ? sanitize_text_field(wp_unslash($_POST['spa_textmagic_from'])) : '';
+                    if ($tm_user !== '') update_option('spa_textmagic_username', $tm_user);
+                    if ($tm_key !== '') update_option('spa_textmagic_api_key', $tm_key);
+                    update_option('spa_textmagic_from', $tm_from);
                 break;
-            case 'vonage':
-                $vn_key = isset($_POST['spa_vonage_key']) ? sanitize_text_field(wp_unslash($_POST['spa_vonage_key'])) : '';
-                $vn_secret = isset($_POST['spa_vonage_secret']) ? sanitize_text_field(wp_unslash($_POST['spa_vonage_secret'])) : '';
-                $vn_from = isset($_POST['spa_vonage_from']) ? sanitize_text_field(wp_unslash($_POST['spa_vonage_from'])) : '';
-                if ($vn_key !== '') update_option('spa_vonage_key', $vn_key);
-                if ($vn_secret !== '') update_option('spa_vonage_secret', $vn_secret);
-                update_option('spa_vonage_from', $vn_from);
-                break;
-            case 'plivo':
-                $pl_id = isset($_POST['spa_plivo_auth_id']) ? sanitize_text_field(wp_unslash($_POST['spa_plivo_auth_id'])) : '';
-                $pl_token = isset($_POST['spa_plivo_auth_token']) ? sanitize_text_field(wp_unslash($_POST['spa_plivo_auth_token'])) : '';
-                $pl_from = isset($_POST['spa_plivo_from']) ? sanitize_text_field(wp_unslash($_POST['spa_plivo_from'])) : '';
-                if ($pl_id !== '') update_option('spa_plivo_auth_id', $pl_id);
-                if ($pl_token !== '') update_option('spa_plivo_auth_token', $pl_token);
-                update_option('spa_plivo_from', $pl_from);
-                break;
-            case 'messagebird':
-                $mb_key = isset($_POST['spa_messagebird_key']) ? sanitize_text_field(wp_unslash($_POST['spa_messagebird_key'])) : '';
-                $mb_from = isset($_POST['spa_messagebird_from']) ? sanitize_text_field(wp_unslash($_POST['spa_messagebird_from'])) : '';
-                if ($mb_key !== '') update_option('spa_messagebird_key', $mb_key);
-                update_option('spa_messagebird_from', $mb_from);
-                break;
-            case 'textmagic':
-                $tm_user = isset($_POST['spa_textmagic_username']) ? sanitize_text_field(wp_unslash($_POST['spa_textmagic_username'])) : '';
-                $tm_key = isset($_POST['spa_textmagic_api_key']) ? sanitize_text_field(wp_unslash($_POST['spa_textmagic_api_key'])) : '';
-                $tm_from = isset($_POST['spa_textmagic_from']) ? sanitize_text_field(wp_unslash($_POST['spa_textmagic_from'])) : '';
-                if ($tm_user !== '') update_option('spa_textmagic_username', $tm_user);
-                if ($tm_key !== '') update_option('spa_textmagic_api_key', $tm_key);
-                update_option('spa_textmagic_from', $tm_from);
-                break;
-            default:
-                break;
+                default:
+                    break;
+            }
         }
-    }
 
     if ( $posted_tab === 'push' ) {
         $enable_push = isset($_POST['spa_enable_push']) ? 1 : 0;
@@ -320,12 +322,23 @@ function spa_ajax_send_test_sms() {
         wp_send_json_error('missing_recipient');
     }
 
-    // Validate phone number format for providers that require E.164
-    if ( ! function_exists('spa_is_e164') ) {
+    // Include helpers and attempt server-side normalization to E.164 when possible
+    if ( ! function_exists('spa_is_e164') || ! function_exists('spa_normalize_phone') ) {
         if ( file_exists(plugin_dir_path(__FILE__) . 'helpers.php') ) {
             include_once plugin_dir_path(__FILE__) . 'helpers.php';
         }
     }
+
+    // Try to normalize using saved default country (falls back to US)
+    $default_country = get_option('spa_sms_default_country', 'US');
+    if ( function_exists('spa_normalize_phone') ) {
+        $normalized = spa_normalize_phone($to, $default_country);
+        if ( $normalized !== false ) {
+            $to = $normalized;
+        }
+    }
+
+    // Validate phone number format for providers that require E.164
     $requires_e164 = array('twilio','vonage','plivo','messagebird','textmagic');
     if ( in_array($sms_provider, $requires_e164, true) ) {
         if ( ! function_exists('spa_is_e164') || ! spa_is_e164($to) ) {

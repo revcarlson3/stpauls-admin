@@ -239,6 +239,19 @@
                             <th scope="row">Enable SMS</th>
                             <td><input name="spa_enable_sms" type="checkbox" value="1" <?php checked(1, $enable_sms); ?>></td>
                         </tr>
+                        <tr>
+                            <th scope="row"><label for="spa_sms_default_country">Default Country</label></th>
+                            <td>
+                                <select name="spa_sms_default_country" id="spa_sms_default_country">
+                                    <option value="US" data-dial="1" <?php selected(get_option('spa_sms_default_country','US'),'US'); ?>>United States (+1)</option>
+                                    <option value="CA" data-dial="1" <?php selected(get_option('spa_sms_default_country','US'),'CA'); ?>>Canada (+1)</option>
+                                    <option value="GB" data-dial="44" <?php selected(get_option('spa_sms_default_country','US'),'GB'); ?>>United Kingdom (+44)</option>
+                                    <option value="AU" data-dial="61" <?php selected(get_option('spa_sms_default_country','US'),'AU'); ?>>Australia (+61)</option>
+                                    <option value="DE" data-dial="49" <?php selected(get_option('spa_sms_default_country','US'),'DE'); ?>>Germany (+49)</option>
+                                </select>
+                                <p class="description">Select a default country to help normalize local phone numbers for test sends.</p>
+                            </td>
+                        </tr>
                     </table>
 
                     <div class="spa-sms-provider-fields">
