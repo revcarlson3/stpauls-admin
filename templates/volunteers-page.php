@@ -8,7 +8,10 @@
             <?php wp_nonce_field('spa_save_volunteers', 'spa_volunteers_nonce'); ?>
             <input type="hidden" name="action" value="spa_save_volunteer">
 
-            <?php if($editing && $current_volunteer) : ?>
+            <?php
+            $assigned_teams = array();
+            
+            if($editing && $current_volunteer) : ?>
 
                 <input type="hidden" name="volunteer_id" value="<?php echo intval($current_volunteer->id); ?>">
 
