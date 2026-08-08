@@ -46,3 +46,22 @@ wp-config.php
 # Note: If you wish to whitelist themes,
 # uncomment the next line
 #/wp-content/themes
+
+# Plugin / project specific ignores
+wp-content/upgrade/
+wp-content/cache/
+/node_modules/
+/vendor/
+.env
+.DS_Store
+.idea/
+.vscode/
+
+# Composer / npm
+composer.lock
+package-lock.json
+yarn.lock
+
+# OS files
+Thumbs.db
+Desktop.ini
