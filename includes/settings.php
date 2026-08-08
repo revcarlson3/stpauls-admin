@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 function spa_handle_settings_post() {
     // Handle saves via admin-post.php

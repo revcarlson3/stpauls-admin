@@ -1,4 +1,4 @@
-﻿jQuery(function($) {
+jQuery(function($) {
     $(document).on(
         'click',
         '.spa-tab-button',
