@@ -141,6 +141,29 @@ function spa_handle_settings_post() {
 add_action('admin_post_spa_save_settings', 'spa_handle_settings_post');
 
 
+function spa_settings_admin_notices() {
+    // Only show on the plugin settings page
+    if ( ! isset($_GET['page']) || $_GET['page'] !== 'spa-settings' ) {
+        return;
+    }
+
+    if ( isset($_GET['test']) ) {
+        $test = wp_unslash($_GET['test']);
+        if ( strpos($test, 'error:') === 0 ) {
+            $msg = rawurldecode(substr($test, 6));
+            echo '<div class="notice notice-error"><p>Test email failed: ' . esc_html($msg) . '</p></div>';
+        } elseif ( $test === 'missing_recipient' ) {
+            echo '<div class="notice notice-warning"><p>Test email not sent: recipient email missing.</p></div>';
+        } elseif ( $test === 'sent' ) {
+            echo '<div class="notice notice-success is-dismissible"><p>Test email sent successfully.</p></div>';
+        } else {
+            echo '<div class="notice notice-info"><p>Test result: ' . esc_html($test) . '</p></div>';
+        }
+    }
+}
+add_action('admin_notices', 'spa_settings_admin_notices');
+
+
 function spa_settings_page() {
 
     $active_tab = isset($_REQUEST['tab'])
