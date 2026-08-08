@@ -32,7 +32,7 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=email')); ?>" class="nav-tab <?php echo ($active_tab === 'email') ? 'nav-tab-active' : ''; ?>">Email</a>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=sms')); ?>" class="nav-tab <?php echo ($active_tab === 'sms') ? 'nav-tab-active' : ''; ?>">SMS</a>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=push')); ?>" class="nav-tab <?php echo ($active_tab === 'push') ? 'nav-tab-active' : ''; ?>">Push Notifications</a>
-        <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=import')); ?>" class="nav-tab <?php echo ($active_tab === 'import') ? 'nav-tab-active' : ''; ?>">Import</a>
+        <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=import')); ?>" class="nav-tab <?php echo ($active_tab === 'import') ? 'nav-tab-active' : ''; ?>">Import / Export</a>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=templates')); ?>" class="nav-tab <?php echo ($active_tab === 'templates') ? 'nav-tab-active' : ''; ?>">Templates</a>
     </nav>
 
@@ -47,10 +47,11 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
             $import_results = get_transient('spa_import_results');
             if ($import_results) :
                 delete_transient('spa_import_results');
+                $import_type = ucfirst($import_results['type'] ?? 'records');
             ?>
             <div class="notice notice-success is-dismissible">
                 <p>
-                    <strong>Import completed successfully!</strong><br>
+                    <strong><?php echo esc_html($import_type); ?> import completed!</strong><br>
                     Imported: <strong><?php echo intval($import_results['imported']); ?></strong> | 
                     Skipped: <strong><?php echo intval($import_results['skipped']); ?></strong> | 
                     Errors: <strong><?php echo intval($import_results['errors']); ?></strong>
@@ -60,22 +61,22 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
             <?php if ( ! empty($import_results['skipped_list']) ) : ?>
             <div style="background:#fff8e5;border-left:4px solid #ffb900;padding:1rem;margin-bottom:1rem;">
                 <h4 style="margin-top:0;">Skipped Entries (<?php echo count($import_results['skipped_list']); ?>)</h4>
-                <p>These volunteers were not imported because they already exist in the database:</p>
                 <table style="width:100%;border-collapse:collapse;">
                     <thead>
                         <tr style="background:#f5f5f5;">
                             <th style="border:1px solid #ddd;padding:0.5rem;text-align:left;">Row</th>
-                            <th style="border:1px solid #ddd;padding:0.5rem;text-align:left;">Name</th>
-                            <th style="border:1px solid #ddd;padding:0.5rem;text-align:left;">Email</th>
+                            <th style="border:1px solid #ddd;padding:0.5rem;text-align:left;">Identifier</th>
                             <th style="border:1px solid #ddd;padding:0.5rem;text-align:left;">Reason</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ( $import_results['skipped_list'] as $skipped ) : ?>
+                        <?php foreach ( $import_results['skipped_list'] as $skipped ) : 
+                            // Build a readable identifier from whatever keys are present
+                            $ident = $skipped['email'] ?? $skipped['name'] ?? ($skipped['first_name'] . ' ' . $skipped['last_name']);
+                        ?>
                         <tr>
                             <td style="border:1px solid #ddd;padding:0.5rem;"><?php echo intval($skipped['row']); ?></td>
-                            <td style="border:1px solid #ddd;padding:0.5rem;"><?php echo esc_html($skipped['first_name'] . ' ' . $skipped['last_name']); ?></td>
-                            <td style="border:1px solid #ddd;padding:0.5rem;"><?php echo esc_html($skipped['email']); ?></td>
+                            <td style="border:1px solid #ddd;padding:0.5rem;"><?php echo esc_html(trim($ident)); ?></td>
                             <td style="border:1px solid #ddd;padding:0.5rem;"><?php echo esc_html($skipped['reason']); ?></td>
                         </tr>
                         <?php endforeach; ?>
@@ -87,7 +88,6 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
             <?php if ( ! empty($import_results['errors_list']) ) : ?>
             <div style="background:#fee;border-left:4px solid #dc3545;padding:1rem;margin-bottom:1rem;">
                 <h4 style="margin-top:0;color:#dc3545;">Errors (<?php echo count($import_results['errors_list']); ?>)</h4>
-                <p>These rows could not be imported due to validation errors:</p>
                 <table style="width:100%;border-collapse:collapse;">
                     <thead>
                         <tr style="background:#f5f5f5;">
@@ -541,43 +541,78 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                     break;
 
                 case 'import':
+                    // Helper to render an import form
+                    $render_import_form = function($action, $nonce_action, $nonce_field, $btn_label) { ?>
+                        <form method="post" enctype="multipart/form-data" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:8px;">
+                            <?php wp_nonce_field($nonce_action, $nonce_field); ?>
+                            <input type="hidden" name="action" value="<?php echo esc_attr($action); ?>">
+                            <input type="file" name="spa_import_file" accept=".csv" required style="margin-right:8px;">
+                            <button type="submit" class="button"><?php echo esc_html($btn_label); ?></button>
+                        </form>
+                    <?php };
                     ?>
-                    <h2>Bulk Import Volunteers</h2>
-                    <p>Upload a CSV or XLSX file to import multiple volunteers at once. Duplicates are checked based on email address and skipped if they already exist.</p>
-                    
-                    <h3>File Format Instructions</h3>
-                    <p>Your file must have the following column headers (in the first row):</p>
-                    <ul style="list-style: disc; margin-left: 2rem;">
-                        <li><code>first_name</code> - Volunteer's first name (required)</li>
-                        <li><code>last_name</code> - Volunteer's last name (required)</li>
-                        <li><code>email</code> - Volunteer's email address (required, used for duplicate checking)</li>
-                        <li><code>phone</code> - Volunteer's phone number in E.164 format, e.g. +13209999999 (optional)</li>
-                    </ul>
-                    
-                    <h3>Example CSV Format</h3>
-                    <pre style="background:#f5f5f5;padding:1rem;border:1px solid #ddd;border-radius:3px;overflow-x:auto;">first_name,last_name,email,phone
-John,Doe,john@example.com,+13209999999
-Jane,Smith,jane@example.com,+13209999998</pre>
 
-                    <h3>Upload File</h3>
-                    <form method="post" enctype="multipart/form-data" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                        <?php wp_nonce_field('spa_import_volunteers', 'spa_import_nonce'); ?>
-                        <input type="hidden" name="action" value="spa_import_volunteers">
-                        
-                        <p>
-                            <label for="spa_import_file">Select CSV or XLSX file:</label><br>
-                            <input type="file" id="spa_import_file" name="spa_import_file" accept=".csv,.xlsx" required>
-                        </p>
-                        
-                        <p class="submit">
-                            <button type="submit" class="button button-primary">Import Volunteers</button>
-                        </p>
-                    </form>
+                    <h2>Import / Export</h2>
+
+                    <div style="display:flex;gap:2rem;flex-wrap:wrap;align-items:flex-start;">
+
+                        <!-- EXPORT -->
+                        <div style="flex:1;min-width:280px;">
+                            <h3 style="border-bottom:1px solid #ddd;padding-bottom:6px;">Export</h3>
+                            <p>Download your data as CSV files that can be reimported or opened in Excel/Sheets.</p>
+
+                            <table class="widefat" style="margin-bottom:1.5rem;">
+                                <thead><tr><th>Data</th><th>Records</th><th></th></tr></thead>
+                                <tbody>
+                                <?php
+                                global $wpdb;
+                                $counts = array(
+                                    'Volunteers' => array('table' => 'spa_volunteers', 'action' => 'spa_export_volunteers', 'nonce' => 'spa_export_volunteers'),
+                                    'Teams'      => array('table' => 'spa_teams',      'action' => 'spa_export_teams',      'nonce' => 'spa_export_teams'),
+                                    'Events'     => array('table' => 'spa_events',     'action' => 'spa_export_events',     'nonce' => 'spa_export_events'),
+                                );
+                                foreach ( $counts as $label => $cfg ) :
+                                    $count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}{$cfg['table']}");
+                                ?>
+                                <tr>
+                                    <td><?php echo esc_html($label); ?></td>
+                                    <td><?php echo intval($count); ?></td>
+                                    <td>
+                                        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                                            <?php wp_nonce_field($cfg['nonce']); ?>
+                                            <input type="hidden" name="action" value="<?php echo esc_attr($cfg['action']); ?>">
+                                            <button type="submit" class="button button-small">Download CSV</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- IMPORT -->
+                        <div style="flex:1;min-width:320px;">
+                            <h3 style="border-bottom:1px solid #ddd;padding-bottom:6px;">Import</h3>
+                            <p>Upload a CSV file to bulk-import data. Duplicates are skipped and detailed results shown after import.</p>
+
+                            <h4 style="margin-bottom:4px;">Import Volunteers</h4>
+                            <p style="margin:0 0 4px;font-size:0.85em;color:#555;">Required columns: <code>first_name</code>, <code>last_name</code>, <code>email</code> &nbsp;Optional: <code>phone</code> (e.g. +13209999999)</p>
+                            <?php $render_import_form('spa_import_volunteers', 'spa_import_volunteers', 'spa_import_nonce', 'Import Volunteers'); ?>
+
+                            <h4 style="margin:1.5rem 0 4px;">Import Teams</h4>
+                            <p style="margin:0 0 4px;font-size:0.85em;color:#555;">Required columns: <code>name</code> &nbsp;Optional: <code>description</code>, <code>active</code> (1 or 0)</p>
+                            <?php $render_import_form('spa_import_teams', 'spa_import_teams', 'spa_import_nonce', 'Import Teams'); ?>
+
+                            <h4 style="margin:1.5rem 0 4px;">Import Events</h4>
+                            <p style="margin:0 0 4px;font-size:0.85em;color:#555;">Required columns: <code>name</code>, <code>event_date</code> (YYYY-MM-DD), <code>start_time</code> (HH:MM:SS), <code>end_time</code> (HH:MM:SS)<br>Optional: <code>description</code>, <code>location</code>, <code>is_recurring</code>, <code>recurrence_type</code>, <code>recurrence_end_date</code>, <code>active</code></p>
+                            <?php $render_import_form('spa_import_events', 'spa_import_events', 'spa_import_nonce', 'Import Events'); ?>
+                        </div>
+
+                    </div>
                     <?php
                     break;
 
                 case 'templates':
-                    global $wpdb;
                     $all_templates = $wpdb->get_results(
                         "SELECT id, name, type, subject FROM {$wpdb->prefix}spa_notification_templates ORDER BY type, name"
                     );
