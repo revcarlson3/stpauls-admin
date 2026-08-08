@@ -723,12 +723,48 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
 
                 default:
                     $org_name = esc_attr( get_option('spa_org_name', '') );
+                    $active_email_tpl = get_option('spa_active_email_template', '');
+                    $active_sms_tpl   = get_option('spa_active_sms_template', '');
+                    $email_templates_gen = $wpdb->get_results(
+                        "SELECT id, name FROM {$wpdb->prefix}spa_notification_templates WHERE type = 'email' ORDER BY name"
+                    );
+                    $sms_templates_gen = $wpdb->get_results(
+                        "SELECT id, name FROM {$wpdb->prefix}spa_notification_templates WHERE type = 'sms' ORDER BY name"
+                    );
                     ?>
                     <h2>General Settings</h2>
                     <table class="form-table">
                         <tr>
                             <th scope="row"><label for="spa_org_name">Organization Name</label></th>
                             <td><input name="spa_org_name" id="spa_org_name" type="text" value="<?php echo $org_name; ?>" class="regular-text"></td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><label for="spa_active_email_template">Active Email Template</label></th>
+                            <td>
+                                <select name="spa_active_email_template" id="spa_active_email_template">
+                                    <option value="">— None selected —</option>
+                                    <?php foreach ( $email_templates_gen as $t ) : ?>
+                                        <option value="<?php echo intval($t->id); ?>" <?php selected($active_email_tpl, $t->id); ?>><?php echo esc_html($t->name); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <?php if ( empty($email_templates_gen) ) : ?>
+                                    <p class="description">No email templates yet. <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=templates')); ?>">Create one</a>.</p>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><label for="spa_active_sms_template">Active SMS Template</label></th>
+                            <td>
+                                <select name="spa_active_sms_template" id="spa_active_sms_template">
+                                    <option value="">— None selected —</option>
+                                    <?php foreach ( $sms_templates_gen as $t ) : ?>
+                                        <option value="<?php echo intval($t->id); ?>" <?php selected($active_sms_tpl, $t->id); ?>><?php echo esc_html($t->name); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <?php if ( empty($sms_templates_gen) ) : ?>
+                                    <p class="description">No SMS templates yet. <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=templates')); ?>">Create one</a>.</p>
+                                <?php endif; ?>
+                            </td>
                         </tr>
                     </table>
                     <?php
