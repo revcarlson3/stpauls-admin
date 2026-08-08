@@ -332,7 +332,7 @@
                             <th scope="row"><label for="spa_test_recipient">Recipient Phone</label></th>
                             <td>
                                 <input name="spa_test_sms_recipient" id="spa_test_sms_recipient" type="text" value="" class="regular-text">
-                                <p class="description">Enter a phone number to receive a test SMS.</p>
+                                <p class="description">Enter a phone number to receive a test SMS. Use E.164 format (e.g. +15551234567) for best compatibility.</p>
                             </td>
                         </tr>
                     </table>

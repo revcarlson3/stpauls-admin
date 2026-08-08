@@ -323,6 +323,20 @@ spa_toggle_sms_provider();
 e.preventDefault();
 var $btn = $(this);
 var $form = $btn.closest('form');
+var $to = $('#spa_test_sms_recipient').val().trim();
+// Client-side E.164 check
+var e164re = /^\+[1-9]\d{7,14}$/;
+if ( $to === '' ) {
+    $('#spa-test-sms-result').removeClass().addClass('spa-test-error').text('Please enter a recipient phone number.');
+    return;
+}
+var provider = $('#spa_sms_provider').val();
+var requireE164 = ['twilio','vonage','plivo','messagebird','textmagic'];
+if ( requireE164.indexOf(provider) !== -1 && ! e164re.test($to) ) {
+    $('#spa-test-sms-result').removeClass().addClass('spa-test-error').text('Phone must be E.164 format (e.g. +15551234567) for the selected provider.');
+    return;
+}
+
 var dataArray = $form.serializeArray();
 dataArray.push({ name: 'action', value: 'spa_send_test_sms' });
 dataArray.push({ name: 'nonce', value: spaAdmin.nonce });
@@ -337,6 +351,10 @@ $.post(spaAdmin.ajaxUrl, dataArray, function(response) {
     } else {
         var msg = response && response.data ? response.data : 'Unknown error';
         if ( msg === 'missing_recipient' ) msg = 'Recipient phone missing.';
+        // handle prefixed invalid_phone_format message
+        if ( typeof msg === 'string' && msg.indexOf('invalid_phone_format:') === 0 ) {
+            msg = msg.replace('invalid_phone_format:', '');
+        }
         $result.addClass('spa-test-error').text('Error: ' + msg);
     }
 }).fail(function(jqXHR) {

@@ -320,6 +320,19 @@ function spa_ajax_send_test_sms() {
         wp_send_json_error('missing_recipient');
     }
 
+    // Validate phone number format for providers that require E.164
+    if ( ! function_exists('spa_is_e164') ) {
+        if ( file_exists(plugin_dir_path(__FILE__) . 'helpers.php') ) {
+            include_once plugin_dir_path(__FILE__) . 'helpers.php';
+        }
+    }
+    $requires_e164 = array('twilio','vonage','plivo','messagebird','textmagic');
+    if ( in_array($sms_provider, $requires_e164, true) ) {
+        if ( ! function_exists('spa_is_e164') || ! spa_is_e164($to) ) {
+            wp_send_json_error('invalid_phone_format:Phone number must be in E.164 format (e.g. +15551234567) for the selected provider.');
+        }
+    }
+
     // Save minimal sms settings
     $enable_sms = isset($_POST['spa_enable_sms']) ? 1 : 0;
     update_option('spa_sms_provider', $sms_provider);
