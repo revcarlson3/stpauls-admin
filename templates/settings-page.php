@@ -44,20 +44,6 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
 
         <?php if ( isset($_GET['import_success']) ) : ?>
             <?php 
-            $import_debug = get_transient('spa_import_debug');
-            if ($import_debug) :
-                delete_transient('spa_import_debug');
-            ?>
-            <div style="background:#f0f0f0;border-left:4px solid #999;padding:1rem;margin-bottom:1rem;font-family:monospace;font-size:12px;">
-                <strong>DEBUG — First parsed row:</strong><br>
-                Row count: <?php echo intval($import_debug['row_count']); ?><br>
-                Keys: <?php echo esc_html(implode(', ', $import_debug['keys'])); ?><br>
-                first_name: "<?php echo esc_html($import_debug['first_row']['first_name'] ?? '(missing)'); ?>"<br>
-                last_name: "<?php echo esc_html($import_debug['first_row']['last_name'] ?? '(missing)'); ?>"<br>
-                email: "<?php echo esc_html($import_debug['first_row']['email'] ?? '(missing)'); ?>"
-            </div>
-            <?php endif; ?>
-            <?php 
             $import_results = get_transient('spa_import_results');
             if ($import_results) :
                 delete_transient('spa_import_results');
