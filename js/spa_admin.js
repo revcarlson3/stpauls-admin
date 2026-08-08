@@ -27,35 +27,20 @@ jQuery(function($) {
         }
     );
     $('#spa-dashboard-widgets').sortable({
-
         items: '.spa-dashboard-card',
-
+        handle: '.spa-card-drag-handle',
+        placeholder: 'spa-dashboard-card ui-sortable-placeholder',
         stop: function() {
-
             let order = [];
-
-            $('#spa-dashboard-widgets .spa-dashboard-card')
-                .each(function() {
-
-                    order.push(
-                        $(this).data('card')
-                    );
-
-                });
-            $.post(
-                spaAdmin.ajaxUrl,
-                {
-                    action: 'spa_save_dashboard_order',
-                    order: order,
-                    nonce: spaAdmin.nonce
-                },
-                function(response) {
-                    console.log(response);
-                }
-            );
-
+            $('#spa-dashboard-widgets .spa-dashboard-card').each(function() {
+                order.push($(this).data('card'));
+            });
+            $.post(spaAdmin.ajaxUrl, {
+                action: 'spa_save_dashboard_order',
+                order: order,
+                nonce: spaAdmin.nonce
+            });
         }
-
     });
     $(document).on(
         'click',

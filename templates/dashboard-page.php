@@ -144,27 +144,24 @@
 
     <div id="spa-dashboard-widgets" class="spa-dashboard-widgets">
 
-        <?php
-        foreach($dashboard_order AS $card_id) {
-            ?>
-
-            <div
-                class="spa-dashboard-card"
-                data-card="<?php echo esc_attr($card_id); ?>">
-
+        <?php foreach ( $dashboard_order as $card_id ) :
+            if ( ! isset($dashboard_cards[$card_id]) ) continue;
+            $card = $dashboard_cards[$card_id];
+        ?>
+            <div class="spa-dashboard-card" data-card="<?php echo esc_attr($card_id); ?>">
                 <div class="spa-card-header">
+                    <span class="spa-card-drag-handle dashicons dashicons-move" title="Drag to reorder"></span>
                     <?php echo esc_html($card['title']); ?>
                 </div>
-
                 <div class="spa-card-body">
-                    Coming Soon
+                    <?php if ( $card_id === 'future' ) : ?>
+                        <p style="color:#999;font-style:italic;">Reserved for future functionality.</p>
+                    <?php else : ?>
+                        <p style="color:#999;font-style:italic;">Coming soon.</p>
+                    <?php endif; ?>
                 </div>
-
             </div>
-
-            <?php
-        }
-        ?>
+        <?php endforeach; ?>
 
     </div>
 

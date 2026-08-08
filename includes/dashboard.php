@@ -49,35 +49,19 @@ if (empty($dashboard_order)) {
         'upcoming-events',
         'quick-statistics',
         'communications',
-        'recent-activity'
+        'recent-activity',
+        'future'
     );
 
 }
 
-$cards = array(
-    'volunteer-alerts',
-    'upcoming-events',
-    'quick-statistics',
-    'communications',
-    'recent-activity'
-);
-
 $dashboard_cards = array(
-    'volunteer-alerts' => array(
-        'title' => 'Volunteer Alerts'
-    ),
-    'upcoming-events' => array(
-        'title' => 'Upcoming Events'
-    ),
-    'quick-statistics' => array(
-        'title' => 'Quick Statistics'
-    ),
-    'communications' => array(
-        'title' => 'Communications'
-    ),
-    'recent-activity' => array(
-        'title' => 'Recent Activity'
-    )
+    'volunteer-alerts' => array('title' => 'Volunteer Alerts'),
+    'upcoming-events'  => array('title' => 'Upcoming Events'),
+    'quick-statistics' => array('title' => 'Quick Statistics'),
+    'communications'   => array('title' => 'Communications'),
+    'recent-activity'  => array('title' => 'Recent Activity'),
+    'future'           => array('title' => 'Future'),
 );
 
 function spa_dashboard_page() {
