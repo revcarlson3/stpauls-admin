@@ -13,7 +13,7 @@ function spa_render_secret_field($field_id, $option_name, $label = 'API Key / To
     
     if ($has_value): ?>
         <div style="padding: 0.5rem; background: #f5f5f5; border: 1px solid #ddd; border-radius: 3px; display: inline-block;">
-            <span style="font-family: monospace; color: #666;">••••••••• (saved)</span>
+            <span style="font-family: monospace; color: #666;">********* (saved)</span>
             <button type="button" class="spa-delete-secret-btn button button-small" data-field="<?php echo esc_attr($field_id); ?>" data-option="<?php echo esc_attr($option_name); ?>" style="margin-left: 1rem;">Delete & Re-enter</button>
         </div>
         <input type="hidden" name="<?php echo esc_attr($field_id); ?>" id="<?php echo esc_attr($field_id); ?>" value="">
