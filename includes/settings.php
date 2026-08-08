@@ -117,8 +117,28 @@ function spa_settings_page() {
             update_option('spa_example_template', $example_template);
         }
 
+        // If a test send was requested, send a test email and include result in the redirect
+        $test_result = '';
+        if ( isset($_POST['spa_send_test']) ) {
+            $test_to = isset($_POST['spa_test_recipient']) ? sanitize_email(wp_unslash($_POST['spa_test_recipient'])) : '';
+            if ( empty($test_to) ) {
+                $test_result = 'missing_recipient';
+            } else {
+                $sent = spa_send_email($test_to, 'St. Paul\'s Admin - Test Email', '<p>This is a test email sent from the plugin to verify provider settings.</p>');
+                if ( is_wp_error($sent) ) {
+                    $test_result = 'error:' . rawurlencode($sent->get_error_message());
+                } else {
+                    $test_result = 'sent';
+                }
+            }
+        }
+
         // Redirect back to avoid re-post on refresh
-        $redirect_url = add_query_arg(array('page' => 'spa-settings', 'tab' => $posted_tab, 'saved' => '1'), admin_url('admin.php'));
+        $redirect_args = array('page' => 'spa-settings', 'tab' => $posted_tab, 'saved' => '1');
+        if ( $test_result !== '' ) {
+            $redirect_args['test'] = $test_result;
+        }
+        $redirect_url = add_query_arg($redirect_args, admin_url('admin.php'));
         wp_safe_redirect($redirect_url);
         exit;
     }

@@ -195,6 +195,22 @@
                     </div>
 
                     <?php
+                    // Test send form
+                    ?>
+                    <h3>Send a test email</h3>
+                    <p>Use this to verify your chosen provider and settings. A test message will be sent using the configured From address.</p>
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row"><label for="spa_test_recipient">Recipient Email</label></th>
+                            <td>
+                                <input name="spa_test_recipient" id="spa_test_recipient" type="email" value="" class="regular-text">
+                                <p class="description">Enter an email address to receive a test notification. When you click "Send Test Email", the settings on this page will be saved and a test message sent immediately.</p>
+                            </td>
+                        </tr>
+                    </table>
+                    <p class="submit"><button type="submit" name="spa_send_test" class="button">Send Test Email</button></p>
+
+                    <?php
                     break;
 
                 case 'sms':
