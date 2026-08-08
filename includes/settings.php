@@ -404,6 +404,23 @@ function spa_ajax_send_test_sms() {
 add_action('wp_ajax_spa_send_test_sms', 'spa_ajax_send_test_sms');
 
 
+function spa_ajax_delete_secret() {
+    check_ajax_referer('spa_save_settings', 'nonce');
+    if ( ! current_user_can('manage_options') ) {
+        wp_send_json_error('Unauthorized');
+    }
+
+    $option_name = isset($_POST['option']) ? sanitize_text_field(wp_unslash($_POST['option'])) : '';
+    if ( empty($option_name) ) {
+        wp_send_json_error('No option specified');
+    }
+
+    delete_option($option_name);
+    wp_send_json_success('deleted');
+}
+add_action('wp_ajax_spa_delete_secret', 'spa_ajax_delete_secret');
+
+
 function spa_settings_page() {
 
     $active_tab = isset($_REQUEST['tab'])

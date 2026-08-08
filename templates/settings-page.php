@@ -1,4 +1,29 @@
-<?php include SPA_TEMPLATE_DIR . 'header.php'; ?>
+<?php
+/**
+ * Render a protected secret/token input field content.
+ * If a value exists in the option, show a locked view with delete button.
+ * Otherwise, show an editable password input.
+ * @param string $field_id HTML id/name for the input
+ * @param string $option_name WordPress option key
+ * @param string $label Display label (for reference, not rendered)
+ */
+function spa_render_secret_field($field_id, $option_name, $label = 'API Key / Token') {
+    $value = get_option($option_name, '');
+    $has_value = !empty($value);
+    
+    if ($has_value): ?>
+        <div style="padding: 0.5rem; background: #f5f5f5; border: 1px solid #ddd; border-radius: 3px; display: inline-block;">
+            <span style="font-family: monospace; color: #666;">●●●●●●●● (saved)</span>
+            <button type="button" class="spa-delete-secret-btn button button-small" data-field="<?php echo esc_attr($field_id); ?>" data-option="<?php echo esc_attr($option_name); ?>" style="margin-left: 1rem;">Delete & Re-enter</button>
+        </div>
+        <input type="hidden" name="<?php echo esc_attr($field_id); ?>" id="<?php echo esc_attr($field_id); ?>" value="">
+    <?php else: ?>
+        <input name="<?php echo esc_attr($field_id); ?>" id="<?php echo esc_attr($field_id); ?>" type="password" value="" class="regular-text">
+        <p class="description">Enter a new value. This field is required to configure this provider.</p>
+    <?php endif;
+}
+
+include SPA_TEMPLATE_DIR . 'header.php'; ?>
 
 <div class="spa-settings">
 
@@ -78,8 +103,8 @@
                                     <td><input name="spa_smtp_user" id="spa_smtp_user" type="text" value="<?php echo esc_attr(get_option('spa_smtp_user', '')); ?>" class="regular-text"></td>
                                 </tr>
                                 <tr>
-                                    <th scope="row"><label for="spa_smtp_pass">Password</label></th>
-                                    <td><input name="spa_smtp_pass" id="spa_smtp_pass" type="password" value="" class="regular-text"><p class="description">Leave blank to keep existing password.</p></td>
+                                    <th scope="row"><label>Password</label></th>
+                                    <td><?php spa_render_secret_field('spa_smtp_pass', 'spa_smtp_pass'); ?></td>
                                 </tr>
                                 <tr>
                                     <th scope="row"><label for="spa_smtp_encryption">Encryption</label></th>
@@ -108,7 +133,7 @@
                             <table class="form-table">
                                 <tr>
                                     <th scope="row">API Key</th>
-                                    <td><input name="spa_sendgrid_api_key" type="text" value="" class="regular-text"><p class="description">Store your SendGrid API key here.</p></td>
+                                    <td><?php spa_render_secret_field('spa_sendgrid_api_key', 'spa_sendgrid_api_key'); ?></td>
                                 </tr>
                                 <tr>
                                     <th scope="row">From Address</th>
@@ -127,7 +152,7 @@
                             <table class="form-table">
                                 <tr>
                                     <th scope="row">API Key</th>
-                                    <td><input name="spa_mailgun_api_key" type="text" value="" class="regular-text"></td>
+                                    <td><?php spa_render_secret_field('spa_mailgun_api_key', 'spa_mailgun_api_key'); ?></td>
                                 </tr>
                                 <tr>
                                     <th scope="row">Domain</th>
@@ -149,11 +174,11 @@
                             <table class="form-table">
                                 <tr>
                                     <th scope="row">Access Key ID</th>
-                                    <td><input name="spa_ses_key" type="text" value="" class="regular-text"></td>
+                                    <td><?php spa_render_secret_field('spa_ses_key', 'spa_ses_key'); ?></td>
                                 </tr>
                                 <tr>
                                     <th scope="row">Secret Access Key</th>
-                                    <td><input name="spa_ses_secret" type="password" value="" class="regular-text"></td>
+                                    <td><?php spa_render_secret_field('spa_ses_secret', 'spa_ses_secret'); ?></td>
                                 </tr>
                                 <tr>
                                     <th scope="row">Region</th>
@@ -168,7 +193,7 @@
                             <table class="form-table">
                                 <tr>
                                     <th scope="row">Server Token</th>
-                                    <td><input name="spa_postmark_token" type="text" value="" class="regular-text"></td>
+                                    <td><?php spa_render_secret_field('spa_postmark_token', 'spa_postmark_token'); ?></td>
                                 </tr>
                                 <tr>
                                     <th scope="row">From Address</th>
@@ -183,7 +208,7 @@
                             <table class="form-table">
                                 <tr>
                                     <th scope="row">API Token</th>
-                                    <td><input name="spa_mailersend_token" type="text" value="" class="regular-text"></td>
+                                    <td><?php spa_render_secret_field('spa_mailersend_token', 'spa_mailersend_token'); ?></td>
                                 </tr>
                                 <tr>
                                     <th scope="row">From Address</th>
@@ -269,7 +294,7 @@
                                 </tr>
                                 <tr>
                                     <th scope="row">Auth Token</th>
-                                    <td><input name="spa_twilio_token" type="password" value="" class="regular-text"><p class="description">Leave blank to keep existing token.</p></td>
+                                    <td><?php spa_render_secret_field('spa_twilio_token', 'spa_twilio_token'); ?></td>
                                 </tr>
                                 <tr>
                                     <th scope="row">From Number</th>
@@ -286,7 +311,7 @@
                                 </tr>
                                 <tr>
                                     <th scope="row">API Secret</th>
-                                    <td><input name="spa_vonage_secret" type="password" value="" class="regular-text"><p class="description">Leave blank to keep existing secret.</p></td>
+                                    <td><?php spa_render_secret_field('spa_vonage_secret', 'spa_vonage_secret'); ?></td>
                                 </tr>
                                 <tr>
                                     <th scope="row">From</th>
@@ -303,7 +328,7 @@
                                 </tr>
                                 <tr>
                                     <th scope="row">Auth Token</th>
-                                    <td><input name="spa_plivo_auth_token" type="password" value="" class="regular-text"><p class="description">Leave blank to keep existing token.</p></td>
+                                    <td><?php spa_render_secret_field('spa_plivo_auth_token', 'spa_plivo_auth_token'); ?></td>
                                 </tr>
                                 <tr>
                                     <th scope="row">From</th>
@@ -316,7 +341,7 @@
                             <table class="form-table">
                                 <tr>
                                     <th scope="row">API Key</th>
-                                    <td><input name="spa_messagebird_key" type="text" value="<?php echo esc_attr(get_option('spa_messagebird_key','')); ?>" class="regular-text"></td>
+                                    <td><?php spa_render_secret_field('spa_messagebird_key', 'spa_messagebird_key'); ?></td>
                                 </tr>
                                 <tr>
                                     <th scope="row">From</th>
@@ -333,7 +358,7 @@
                                 </tr>
                                 <tr>
                                     <th scope="row">API Key</th>
-                                    <td><input name="spa_textmagic_api_key" type="password" value="" class="regular-text"><p class="description">Leave blank to keep existing key.</p></td>
+                                    <td><?php spa_render_secret_field('spa_textmagic_api_key', 'spa_textmagic_api_key'); ?></td>
                                 </tr>
                                 <tr>
                                     <th scope="row">From</th>

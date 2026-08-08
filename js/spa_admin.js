@@ -393,4 +393,35 @@ $.post(spaAdmin.ajaxUrl, dataArray, function(response) {
 });
     });
 
+    // Delete secret button handler
+    $(document).on('click', '.spa-delete-secret-btn', function(e) {
+       e.preventDefault();
+       var $btn = $(this);
+       var field = $btn.data('field');
+       var option = $btn.data('option');
+        
+       if (!confirm('Are you sure? This will delete the saved credential.')) {
+           return;
+       }
+        
+       $btn.prop('disabled', true).text('Deleting...');
+        
+       $.post(spaAdmin.ajaxUrl, {
+           action: 'spa_delete_secret',
+           option: option,
+           nonce: spaAdmin.nonce
+       }, function(response) {
+           if (response && response.success) {
+               // Reload the settings page to show the input field again
+               location.reload();
+           } else {
+               alert('Error deleting credential: ' + (response && response.data ? response.data : 'unknown error'));
+               $btn.prop('disabled', false).text('Delete & Re-enter');
+           }
+       }).fail(function() {
+           alert('AJAX error');
+           $btn.prop('disabled', false).text('Delete & Re-enter');
+       });
+    });
+
 });
