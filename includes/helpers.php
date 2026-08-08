@@ -42,6 +42,21 @@ function spa_normalize_phone($number, $default_country = 'US') {
     if ( empty($number) ) return false;
     $num = trim($number);
 
+    // Prefer libphonenumber if available
+    if ( class_exists('\\libphonenumber\\PhoneNumberUtil') ) {
+        try {
+            $util = \libphonenumber\PhoneNumberUtil::getInstance();
+            $region = strtoupper($default_country);
+            // Try parsing with region
+            $phoneProto = $util->parse($num, $region);
+            if ( $util->isValidNumber($phoneProto) ) {
+                return $util->format($phoneProto, \libphonenumber\PhoneNumberFormat::E164);
+            }
+        } catch (Exception $e) {
+            // fallback to simple method below
+        }
+    }
+
     // If already starts with +, ensure it's E.164
     if (strpos($num, '+') === 0) {
         $cand = preg_replace('/[^\d+]/', '', $num);
@@ -70,4 +85,34 @@ function spa_normalize_phone($number, $default_country = 'US') {
     }
 
     return false;
+}
+
+/**
+ * Get an example phone number for a given ISO alpha-2 country code.
+ * Returns E.164 example or null if not available.
+ */
+function spa_get_example_number($country) {
+    $country = strtoupper($country);
+    // Prefer libphonenumber examples when available
+    if ( class_exists('\\libphonenumber\\PhoneNumberUtil') ) {
+        try {
+            $util = \libphonenumber\PhoneNumberUtil::getInstance();
+            $type = \libphonenumber\PhoneNumberType::MOBILE;
+            $ex = $util->getExampleNumberForType($country, $type);
+            if ( $ex ) {
+                return $util->format($ex, \libphonenumber\PhoneNumberFormat::E164);
+            }
+        } catch (Exception $e) {
+            // fall through
+        }
+    }
+    // Fallback static examples
+    $map = array(
+        'US' => '+12025550123',
+        'CA' => '+14165550123',
+        'GB' => '+447700900000',
+        'AU' => '+61491570156',
+        'DE' => '+4915123456789'
+    );
+    return isset($map[$country]) ? $map[$country] : null;
 }

@@ -243,11 +243,16 @@
                             <th scope="row"><label for="spa_sms_default_country">Default Country</label></th>
                             <td>
                                 <select name="spa_sms_default_country" id="spa_sms_default_country">
-                                    <option value="US" data-dial="1" <?php selected(get_option('spa_sms_default_country','US'),'US'); ?>>United States (+1)</option>
-                                    <option value="CA" data-dial="1" <?php selected(get_option('spa_sms_default_country','US'),'CA'); ?>>Canada (+1)</option>
-                                    <option value="GB" data-dial="44" <?php selected(get_option('spa_sms_default_country','US'),'GB'); ?>>United Kingdom (+44)</option>
-                                    <option value="AU" data-dial="61" <?php selected(get_option('spa_sms_default_country','US'),'AU'); ?>>Australia (+61)</option>
-                                    <option value="DE" data-dial="49" <?php selected(get_option('spa_sms_default_country','US'),'DE'); ?>>Germany (+49)</option>
+                                    <?php
+                                    $countries = array('US','CA','GB','AU','DE');
+                                    foreach ( $countries as $c ) {
+                                        $example = function_exists('spa_get_example_number') ? spa_get_example_number($c) : '';
+                                        $dial = spa_country_to_dial($c);
+                                        $label = $c;
+                                        switch ($c) { case 'US': $label = 'United States (+1)'; break; case 'CA': $label = 'Canada (+1)'; break; case 'GB': $label = 'United Kingdom (+44)'; break; case 'AU': $label = 'Australia (+61)'; break; case 'DE': $label = 'Germany (+49)'; break; }
+                                        printf('<option value="%1$s" data-dial="%2$s" data-example="%3$s" %4$s>%5$s</option>', esc_attr($c), esc_attr($dial), esc_attr($example), selected(get_option('spa_sms_default_country','US'), $c, false), esc_html($label));
+                                    }
+                                    ?>
                                 </select>
                                 <p class="description">Select a default country to help normalize local phone numbers for test sends.</p>
                             </td>
@@ -345,7 +350,7 @@
                             <th scope="row"><label for="spa_test_recipient">Recipient Phone</label></th>
                             <td>
                                 <input name="spa_test_sms_recipient" id="spa_test_sms_recipient" type="text" value="" class="regular-text">
-                                <p class="description">Enter a phone number to receive a test SMS. Use E.164 format (e.g. +15551234567) for best compatibility.</p>
+                                <p class="description">Enter a phone number to receive a test SMS. Use E.164 format (e.g. +15551234567) for best compatibility. Example: <span id="spa-sms-example" style="font-weight:600;"></span></p>
                             </td>
                         </tr>
                     </table>

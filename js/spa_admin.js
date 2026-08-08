@@ -319,6 +319,17 @@ spa_toggle_sms_provider();
 spa_toggle_sms_provider();
     });
 
+    // update inline example when default country changes
+    $(document).on('change', '#spa_sms_default_country', function() {
+var ex = $(this).find('option:selected').data('example') || '';
+$('#spa-sms-example').text(ex);
+    });
+    // set initial example on load
+    $(document).ready(function() {
+var ex0 = $('#spa_sms_default_country').find('option:selected').data('example') || '';
+$('#spa-sms-example').text(ex0);
+    });
+
     $(document).on('click', '#spa-send-test-sms-btn', function(e) {
 e.preventDefault();
 var $btn = $(this);
