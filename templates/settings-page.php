@@ -32,6 +32,7 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=email')); ?>" class="nav-tab <?php echo ($active_tab === 'email') ? 'nav-tab-active' : ''; ?>">Email</a>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=sms')); ?>" class="nav-tab <?php echo ($active_tab === 'sms') ? 'nav-tab-active' : ''; ?>">SMS</a>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=push')); ?>" class="nav-tab <?php echo ($active_tab === 'push') ? 'nav-tab-active' : ''; ?>">Push Notifications</a>
+        <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=import')); ?>" class="nav-tab <?php echo ($active_tab === 'import') ? 'nav-tab-active' : ''; ?>">Import</a>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=templates')); ?>" class="nav-tab <?php echo ($active_tab === 'templates') ? 'nav-tab-active' : ''; ?>">Templates</a>
     </nav>
 
@@ -39,6 +40,43 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
 
         <?php if ( isset($_GET['saved']) ) : ?>
             <div class="notice notice-success is-dismissible"><p>Settings saved.</p></div>
+        <?php endif; ?>
+
+        <?php if ( isset($_GET['import_success']) ) : ?>
+            <div class="notice notice-success is-dismissible">
+                <p>
+                    Import completed successfully!
+                    <?php 
+                    $imported = isset($_GET['imported']) ? intval($_GET['imported']) : 0;
+                    $skipped = isset($_GET['skipped']) ? intval($_GET['skipped']) : 0;
+                    $errors = isset($_GET['errors']) ? intval($_GET['errors']) : 0;
+                    echo "Imported: $imported | Skipped (duplicates): $skipped | Errors: $errors";
+                    ?>
+                </p>
+            </div>
+        <?php endif; ?>
+
+        <?php if ( isset($_GET['import_error']) ) : ?>
+            <div class="notice notice-error is-dismissible">
+                <p>
+                    <?php 
+                    $error_code = intval($_GET['import_error']);
+                    switch($error_code) {
+                        case 1:
+                            echo 'File upload failed. Please try again.';
+                            break;
+                        case 2:
+                            echo 'Invalid file format. Please upload a CSV or XLSX file.';
+                            break;
+                        case 3:
+                            echo 'No data found in file. Make sure the file has headers and at least one row of data.';
+                            break;
+                        default:
+                            echo 'An unknown error occurred during import.';
+                    }
+                    ?>
+                </p>
+            </div>
         <?php endif; ?>
 
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
@@ -438,6 +476,42 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                             <p class="description">Instructions: Create a Firebase project, enable Cloud Messaging, and copy your Project ID and Server API Key. See https://firebase.google.com/docs for setup help.</p>
                         </div>
                     </div>
+                    <?php
+                    break;
+
+                case 'import':
+                    ?>
+                    <h2>Bulk Import Volunteers</h2>
+                    <p>Upload a CSV or XLSX file to import multiple volunteers at once. Duplicates are checked based on email address and skipped if they already exist.</p>
+                    
+                    <h3>File Format Instructions</h3>
+                    <p>Your file must have the following column headers (in the first row):</p>
+                    <ul style="list-style: disc; margin-left: 2rem;">
+                        <li><code>first_name</code> - Volunteer's first name (required)</li>
+                        <li><code>last_name</code> - Volunteer's last name (required)</li>
+                        <li><code>email</code> - Volunteer's email address (required, used for duplicate checking)</li>
+                        <li><code>phone</code> - Volunteer's phone number in E.164 format, e.g. +13209999999 (optional)</li>
+                    </ul>
+                    
+                    <h3>Example CSV Format</h3>
+                    <pre style="background:#f5f5f5;padding:1rem;border:1px solid #ddd;border-radius:3px;overflow-x:auto;">first_name,last_name,email,phone
+John,Doe,john@example.com,+13209999999
+Jane,Smith,jane@example.com,+13209999998</pre>
+
+                    <h3>Upload File</h3>
+                    <form method="post" enctype="multipart/form-data" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                        <?php wp_nonce_field('spa_import_volunteers', 'spa_import_nonce'); ?>
+                        <input type="hidden" name="action" value="spa_import_volunteers">
+                        
+                        <p>
+                            <label for="spa_import_file">Select CSV or XLSX file:</label><br>
+                            <input type="file" id="spa_import_file" name="spa_import_file" accept=".csv,.xlsx" required>
+                        </p>
+                        
+                        <p class="submit">
+                            <button type="submit" class="button button-primary">Import Volunteers</button>
+                        </p>
+                    </form>
                     <?php
                     break;
 
