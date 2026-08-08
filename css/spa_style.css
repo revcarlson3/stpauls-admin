@@ -442,11 +442,12 @@
 
 .spa-form-field select {
     width: 100%;
-    padding: 6px 8px;
-    height: auto;
+    padding: 0 8px;
+    height: 36px;
     border: 1px solid #ccd0d4;
     border-radius: 4px;
     box-sizing: border-box;
+    appearance: auto;
 }
 
 .spa-form-field input:focus,
