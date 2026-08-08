@@ -125,12 +125,16 @@
             foreach ($volunteers AS $volunteer) {
                 $email = esc_html($volunteer->email);
                 if($volunteer->email_enabled) {
-                    $email .= ' ?';
+                    $email .= ' <span style="color:green;">✓</span>';
+                } else {
+                    $email .= ' <span style="color:red;">✗</span>';
                 }
 
                 $phone = esc_html($volunteer->phone);
                 if($volunteer->phone_enabled) {
-                    $phone .= ' ?';
+                    $phone .= ' <span style="color:green;">✓</span>';
+                } else {
+                    $phone .= ' <span style="color:red;">✗</span>';
                 }
                 $edit_url = wp_nonce_url(admin_url('admin.php?page=spa-volunteers&action=edit&id=' . $volunteer->id),
                     'edit_volunteer_' . $volunteer->id);
