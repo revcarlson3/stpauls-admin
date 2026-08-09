@@ -572,6 +572,9 @@ $('#spa-sms-example').text(ex);
        $.post(spaAdmin.ajaxUrl, data, function(response) {
            if (response && response.success) {
                $status.html('<div class="notice notice-success inline"><p>Saved successfully.</p></div>');
+               if (response.data && response.data.volunteers_html) {
+                   $('#spa-event-volunteers-container').html(response.data.volunteers_html);
+               }
                setTimeout(function() { $status.empty(); }, 3000);
            } else {
                var msg = response && response.data ? response.data.message : 'Unknown error';
