@@ -78,8 +78,6 @@ jQuery(function($) {
                             .html(
                                 response.data.details
                             );
-                        $('#spa-event-notify-volunteers').prop('checked', false);
-
                         $('#spa-event-volunteers-container')
                             .html(
                                 response.data.volunteers
@@ -266,11 +264,11 @@ jQuery(function($) {
     $(document).on('click', '#spa-send-test-btn', function(e) {
         e.preventDefault();
         var $btn = $(this);
-        var $form = $btn.closest('form');
-        var dataArray = $form.serializeArray();
-        // add action and nonce for admin-ajax
-        dataArray.push({ name: 'action', value: 'spa_send_test_email' });
-        dataArray.push({ name: 'nonce', value: spaAdmin.nonce });
+        var dataArray = [
+            { name: 'action', value: 'spa_send_test_email' },
+            { name: 'nonce', value: spaAdmin.nonce },
+            { name: 'spa_test_recipient', value: ($('#spa_test_recipient').val() || '').trim() }
+        ];
 
         $btn.prop('disabled', true).text('Sending...');
         var $result = $('#spa-test-result');
@@ -338,14 +336,12 @@ jQuery(function($) {
 
     // SMS provider toggle and AJAX test send
     function spa_toggle_sms_provider() {
-var selected = $('#spa_sms_provider').val();
-$('.spa-sms-provider').hide();
-$('.spa-sms-provider[data-provider="' + selected + '"]').show();
+        var selected = $('#spa_sms_provider').val();
+        $('.spa-sms-provider').hide();
+        $('.spa-sms-provider[data-provider="' + selected + '"]').show();
     }
 
-    $(document).ready(function() {
-spa_toggle_sms_provider();
-    });
+    spa_toggle_sms_provider();
 
     $(document).on('change', '#spa_sms_provider', function() {
 spa_toggle_sms_provider();
@@ -357,72 +353,66 @@ var ex = $(this).find('option:selected').data('example') || '';
 $('#spa-sms-example').text(ex);
     });
     // set initial example on load
-    $(document).ready(function() {
-var ex0 = $('#spa_sms_default_country').find('option:selected').data('example') || '';
-$('#spa-sms-example').text(ex0);
-    });
+    var ex0 = $('#spa_sms_default_country').find('option:selected').data('example') || '';
+    $('#spa-sms-example').text(ex0);
 
     $(document).on('click', '#spa-send-test-sms-btn', function(e) {
-e.preventDefault();
-var $btn = $(this);
-var $form = $btn.closest('form');
-var $to = $('#spa_test_sms_recipient').val().trim();
-if ( $to === '' ) {
-    $('#spa-test-sms-result').removeClass().addClass('spa-test-error').text('Please enter a recipient phone number.');
-    return;
-}
-// Strip most special characters
-var cleaned = $to.replace(/[^\d+]/g, '');
-// If no leading +, try to prepend default country dial code
-if ( cleaned.charAt(0) !== '+' ) {
-    var selectedOpt = $('#spa_sms_default_country option:selected');
-    var dial = selectedOpt.data('dial') || null;
-    if ( dial ) {
-        // remove leading zeros from local number
-        cleaned = cleaned.replace(/^0+/, '');
-        cleaned = '+' + dial + cleaned;
-    } else {
-        // if no dial code available, ensure digits only
-        cleaned = cleaned;
-    }
-}
-// Validate E.164 when provider requires it
-var provider = $('#spa_sms_provider').val();
-var requireE164 = ['twilio','vonage','plivo','messagebird','textmagic'];
-var e164re = /^\+[1-9]\d{7,14}$/;
-if ( requireE164.indexOf(provider) !== -1 && ! e164re.test(cleaned) ) {
-    $('#spa-test-sms-result').removeClass().addClass('spa-test-error').text('Phone must be E.164 format (e.g. +15551234567) for the selected provider.');
-    return;
-}
-
-// Set normalized value back into the input so server receives the same
-$('#spa_test_sms_recipient').val(cleaned);
-
-var dataArray = $form.serializeArray();
-dataArray.push({ name: 'action', value: 'spa_send_test_sms' });
-dataArray.push({ name: 'nonce', value: spaAdmin.nonce });
-
-$btn.prop('disabled', true).text('Sending...');
-var $result = $('#spa-test-sms-result');
-$result.removeClass().text('');
-
-$.post(spaAdmin.ajaxUrl, dataArray, function(response) {
-    if ( response && response.success ) {
-        $result.addClass('spa-test-success').text('Test SMS sent successfully.');
-    } else {
-        var msg = response && response.data ? response.data : 'Unknown error';
-        if ( msg === 'missing_recipient' ) msg = 'Recipient phone missing.';
-        // handle prefixed invalid_phone_format message
-        if ( typeof msg === 'string' && msg.indexOf('invalid_phone_format:') === 0 ) {
-            msg = msg.replace('invalid_phone_format:', '');
+        e.preventDefault();
+        var $btn = $(this);
+        var $to = $('#spa_test_sms_recipient').val().trim();
+        if ( $to === '' ) {
+            $('#spa-test-sms-result').removeClass().addClass('spa-test-error').text('Please enter a recipient phone number.');
+            return;
         }
-        $result.addClass('spa-test-error').text('Error: ' + msg);
-    }
-}).fail(function(jqXHR) {
-    $result.addClass('spa-test-error').text('AJAX error: ' + (jqXHR.statusText || 'request failed'));
-}).always(function() {
-    $btn.prop('disabled', false).text('Send Test SMS');
-});
+
+        // Strip most special characters
+        var cleaned = $to.replace(/[^\d+]/g, '');
+        // If no leading +, try to prepend default country dial code
+        if ( cleaned.charAt(0) !== '+' ) {
+            var selectedOpt = $('#spa_sms_default_country option:selected');
+            var dial = selectedOpt.data('dial') || null;
+            if ( dial ) {
+                cleaned = cleaned.replace(/^0+/, '');
+                cleaned = '+' + dial + cleaned;
+            }
+        }
+
+        // Validate E.164 when provider requires it
+        var provider = $('#spa_sms_provider').val();
+        var requireE164 = ['twilio','vonage','plivo','messagebird','textmagic'];
+        var e164re = /^\+[1-9]\d{7,14}$/;
+        if ( requireE164.indexOf(provider) !== -1 && ! e164re.test(cleaned) ) {
+            $('#spa-test-sms-result').removeClass().addClass('spa-test-error').text('Phone must be E.164 format (e.g. +15551234567) for the selected provider.');
+            return;
+        }
+
+        $('#spa_test_sms_recipient').val(cleaned);
+
+        $btn.prop('disabled', true).text('Sending...');
+        var $result = $('#spa-test-sms-result');
+        $result.removeClass().text('');
+
+        $.post(spaAdmin.ajaxUrl, {
+            action: 'spa_send_test_sms',
+            nonce: spaAdmin.nonce,
+            spa_test_sms_recipient: cleaned,
+            spa_sms_provider: provider
+        }, function(response) {
+            if ( response && response.success ) {
+                $result.addClass('spa-test-success').text('Test SMS sent successfully.');
+            } else {
+                var msg = response && response.data ? response.data : 'Unknown error';
+                if ( msg === 'missing_recipient' ) msg = 'Recipient phone missing.';
+                if ( typeof msg === 'string' && msg.indexOf('invalid_phone_format:') === 0 ) {
+                    msg = msg.replace('invalid_phone_format:', '');
+                }
+                $result.addClass('spa-test-error').text('Error: ' + msg);
+            }
+        }).fail(function(jqXHR) {
+            $result.addClass('spa-test-error').text('AJAX error: ' + (jqXHR.statusText || 'request failed'));
+        }).always(function() {
+            $btn.prop('disabled', false).text('Send Test SMS');
+        });
     });
 
     // Delete secret button handler
