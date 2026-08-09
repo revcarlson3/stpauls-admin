@@ -189,7 +189,11 @@ function spa_handle_settings_post() {
         if ( empty($test_to) ) {
             $test_result = 'missing_recipient';
         } else {
-            $sent = spa_send_email($test_to, 'St. Paul\'s Admin - Test Email', '<p>This is a test email sent from the plugin to verify provider settings.</p>');
+            $sent = spa_send_email(
+                $test_to,
+                'St. Paul\'s Admin - Test Email',
+                '<p>This is a test email sent from the plugin to verify provider settings.</p>'
+            );
             if ( is_wp_error($sent) ) {
                 $test_result = 'error:' . rawurlencode($sent->get_error_message());
             } else {
