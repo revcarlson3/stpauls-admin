@@ -736,10 +736,6 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                     <h2>General Settings</h2>
                     <table class="form-table">
                         <tr>
-                            <th scope="row"><label for="spa_org_name">Organization Name</label></th>
-                            <td><input name="spa_org_name" id="spa_org_name" type="text" value="<?php echo $org_name; ?>" class="regular-text"></td>
-                        </tr>
-                        <tr>
                             <th scope="row"><label for="spa_active_email_template">Active Email Template</label></th>
                             <td>
                                 <select name="spa_active_email_template" id="spa_active_email_template">

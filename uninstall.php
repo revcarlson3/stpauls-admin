@@ -37,7 +37,6 @@ if ( isset( $wpdb->options ) ) {
 }
 
 // Remove plugin options
-delete_option('spa_org_name');
 delete_option('spa_active_email_template');
 delete_option('spa_active_sms_template');
 delete_option('spa_db_version');

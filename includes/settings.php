@@ -13,10 +13,8 @@ function spa_handle_settings_post() {
 
 
     if ( $posted_tab === 'general' ) {
-        $org_name = isset($_POST['spa_org_name']) ? sanitize_text_field(wp_unslash($_POST['spa_org_name'])) : '';
-        update_option('spa_org_name', $org_name);
         update_option('spa_active_email_template', intval($_POST['spa_active_email_template'] ?? 0));
-        update_option('spa_active_sms_template',   intval($_POST['spa_active_sms_template'] ?? 0));
+        update_option('spa_active_sms_template', intval($_POST['spa_active_sms_template'] ?? 0));
     }
 
     if ( $posted_tab === 'email' ) {
@@ -454,5 +452,4 @@ function spa_settings_page() {
     include SPA_TEMPLATE_DIR . 'settings-page.php';
 
 }
-
 
