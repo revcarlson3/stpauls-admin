@@ -727,6 +727,9 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                     $org_name = esc_attr( get_option('spa_org_name', '') );
                     $active_email_tpl = get_option('spa_active_email_template', '');
                     $active_sms_tpl   = get_option('spa_active_sms_template', '');
+                    $notification_day = intval(get_option('spa_notification_day_of_week', 0));
+                    $notification_time = esc_attr(get_option('spa_notification_time', '09:00'));
+                    $notification_reminder_24h = intval(get_option('spa_notification_reminder_24h', 0));
                     $email_templates_gen = $wpdb->get_results(
                         "SELECT id, name FROM {$wpdb->prefix}spa_notification_templates WHERE type = 'email' ORDER BY name"
                     );
@@ -762,6 +765,27 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                                 <?php if ( empty($sms_templates_gen) ) : ?>
                                     <p class="description">No SMS templates yet. <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=templates')); ?>">Create one</a>.</p>
                                 <?php endif; ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Volunteer Notification Schedule</th>
+                            <td>
+                                <label for="spa_notification_day_of_week">Day</label>
+                                <select name="spa_notification_day_of_week" id="spa_notification_day_of_week">
+                                    <?php
+                                    $days = array('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday');
+                                    foreach ( $days as $i => $day ) :
+                                    ?>
+                                        <option value="<?php echo intval($i); ?>" <?php selected($notification_day, $i); ?>><?php echo esc_html($day); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <label for="spa_notification_time" style="margin-left:12px;">Time</label>
+                                <input type="time" name="spa_notification_time" id="spa_notification_time" value="<?php echo $notification_time; ?>">
+                                <br>
+                                <label style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;">
+                                    <input type="checkbox" name="spa_notification_reminder_24h" value="1" <?php checked($notification_reminder_24h, 1); ?>>
+                                    Send an additional reminder 24 hours before the event
+                                </label>
                             </td>
                         </tr>
                     </table>

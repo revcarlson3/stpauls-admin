@@ -53,9 +53,10 @@ function spa_save_event_details_ajax() {
             'is_recurring'        => intval($_POST['is_recurring']),
             'recurrence_type'     => sanitize_text_field($_POST['recurrence_type']),
             'recurrence_end_date' => sanitize_text_field($_POST['recurrence_end_date']),
+            'notify_volunteers'   => isset($_POST['notify_volunteers']) ? 1 : 0,
         ),
         array('id' => $event_id),
-        array('%s','%s','%s','%s','%s','%s','%d','%s','%s'),
+        array('%s','%s','%s','%s','%s','%s','%d','%s','%s','%d'),
         array('%d')
     );
 
@@ -162,7 +163,8 @@ function spa_save_event_modal_ajax() {
         'end_time' => $end_time,
         'is_recurring' => $is_recurring,
         'recurrence_type' => $recurrence_type,
-        'recurrence_end_date' => $recurrence_end_date
+        'recurrence_end_date' => $recurrence_end_date,
+        'notify_volunteers' => isset($_POST['notify_volunteers']) ? 1 : 0
     );
 
     if ($event_id > 0) {

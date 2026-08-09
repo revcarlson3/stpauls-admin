@@ -432,6 +432,7 @@ $.post(spaAdmin.ajaxUrl, dataArray, function(response) {
        $('#spa-event-modal-start-time').val('');
        $('#spa-event-modal-end-time').val('');
        $('#spa-event-modal-recurring').prop('checked', false);
+       $('#spa-event-modal-notify-volunteers').prop('checked', false);
        $('#spa-event-modal-recurrence-type').val('');
        $('#spa-event-modal-recurrence-end').val('');
        $('#spa-event-modal-status').empty();
@@ -467,6 +468,7 @@ $.post(spaAdmin.ajaxUrl, dataArray, function(response) {
            start_time: $('#spa-event-modal-start-time').val(),
            end_time: $('#spa-event-modal-end-time').val(),
            is_recurring: $('#spa-event-modal-recurring').is(':checked') ? 1 : 0,
+           notify_volunteers: $('#spa-event-modal-notify-volunteers').is(':checked') ? 1 : 0,
            recurrence_type: $('#spa-event-modal-recurrence-type').val(),
            recurrence_end_date: $('#spa-event-modal-recurrence-end').val()
        };
@@ -533,6 +535,7 @@ $.post(spaAdmin.ajaxUrl, dataArray, function(response) {
            start_time: $('#spa-event-start-time').val(),
            end_time: $('#spa-event-end-time').val(),
            is_recurring: $('#spa-event-recurring').is(':checked') ? 1 : 0,
+           notify_volunteers: $('#spa-event-notify-volunteers').is(':checked') ? 1 : 0,
            recurrence_type: $('#spa-event-recurrence-type').val(),
            recurrence_end_date: $('#spa-event-recurrence-end').val(),
            teams: teams

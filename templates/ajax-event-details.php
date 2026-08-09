@@ -111,6 +111,17 @@
 
     </div>
 
+    <div class="spa-checkbox-field" style="margin-top:10px;">
+        <label>
+            <input
+                type="checkbox"
+                id="spa-event-notify-volunteers"
+                class="spa-event-field"
+                <?php checked(!empty($event->notify_volunteers), 1); ?>>
+            Notify Volunteers
+        </label>
+    </div>
+
     <div class="spa-event-recurrence-row">
 
         <div class="spa-form-field">
