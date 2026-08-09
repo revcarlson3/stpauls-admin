@@ -34,6 +34,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/sms.php';
 require_once plugin_dir_path(__FILE__) . 'includes/push.php';
 require_once plugin_dir_path(__FILE__) . 'includes/import.php';
 require_once plugin_dir_path(__FILE__) . 'includes/templates.php';
+require_once plugin_dir_path(__FILE__) . 'includes/notifications.php';
 require_once plugin_dir_path(__FILE__) . 'includes/settings.php';
 
 register_activation_hook(__FILE__, 'spa_activate_plugin');
