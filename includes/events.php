@@ -62,7 +62,6 @@ function spa_save_event_details_ajax() {
 
     // Save team assignments: delete existing then re-insert checked ones
     $wpdb->delete($wpdb->prefix . 'spa_events_teams', array('event_id' => $event_id), array('%d'));
-    $wpdb->delete($wpdb->prefix . 'spa_event_volunteers', array('event_id' => $event_id), array('%d'));
 
     $teams = isset($_POST['teams']) ? (array) $_POST['teams'] : array();
     foreach ( $teams as $team_id => $needed ) {
@@ -101,43 +100,7 @@ function spa_save_event_details_ajax() {
             $event_id
         )
     );
-    $assigned_volunteers = $wpdb->get_results(
-        $wpdb->prepare(
-            "SELECT team_id, volunteer_id
-             FROM {$wpdb->prefix}spa_event_volunteers
-             WHERE event_id = %d",
-            $event_id
-        )
-    );
-    $assigned_lookup = array();
-    foreach ( $assigned_volunteers as $assignment ) {
-        $assigned_lookup[$assignment->team_id][$assignment->volunteer_id] = true;
-    }
-    foreach ( $event_teams as $team ) {
-        $team->team_volunteers = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT
-                    v.id,
-                    v.first_name,
-                    v.last_name
-                 FROM {$wpdb->prefix}spa_volunteers v
-                 INNER JOIN {$wpdb->prefix}spa_volunteer_teams vt
-                    ON v.id = vt.volunteer_id
-                 WHERE vt.team_id = %d
-                 ORDER BY v.last_name, v.first_name",
-                $team->id
-            )
-        );
-    }
-
-    ob_start();
-    include SPA_TEMPLATE_DIR . 'ajax-event-volunteers.php';
-    $volunteers_html = ob_get_clean();
-
-    wp_send_json_success(array(
-        'message' => 'Event saved.',
-        'volunteers_html' => $volunteers_html,
-    ));
+    wp_send_json_success(array('message' => 'Event saved.'));
 }
 
 function spa_toggle_volunteer_ajax() {
