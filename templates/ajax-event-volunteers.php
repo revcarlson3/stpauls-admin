@@ -51,10 +51,10 @@
 
             </div>
 
-            <?php if (!empty($team->volunteers)) :
+            <?php if (!empty($team->team_volunteers)) :
                 $assigned_team_volunteers = array();
                 $unassigned_team_volunteers = array();
-                foreach($team->volunteers AS $volunteer) {
+                foreach($team->team_volunteers AS $volunteer) {
                     if(in_array(
                         $volunteer->id,
                         $assigned_volunteers)) {

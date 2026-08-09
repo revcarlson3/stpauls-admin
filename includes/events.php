@@ -80,7 +80,63 @@ function spa_save_event_details_ajax() {
         }
     }
 
-    wp_send_json_success(array('message' => 'Event saved.'));
+    $event = $wpdb->get_row(
+        $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}spa_events WHERE id = %d",
+            $event_id
+        )
+    );
+    $event_teams = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT
+                 t.id,
+                 t.name,
+                 et.volunteers_needed
+             FROM {$wpdb->prefix}spa_events_teams et
+             INNER JOIN {$wpdb->prefix}spa_teams t
+                 ON et.team_id = t.id
+             WHERE et.event_id = %d
+             ORDER BY t.name",
+            $event_id
+        )
+    );
+    $assigned_volunteers = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT team_id, volunteer_id
+             FROM {$wpdb->prefix}spa_event_volunteers
+             WHERE event_id = %d",
+            $event_id
+        )
+    );
+    $assigned_lookup = array();
+    foreach ( $assigned_volunteers as $assignment ) {
+        $assigned_lookup[$assignment->team_id][$assignment->volunteer_id] = true;
+    }
+    foreach ( $event_teams as $team ) {
+        $team->team_volunteers = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT
+                    v.id,
+                    v.first_name,
+                    v.last_name
+                 FROM {$wpdb->prefix}spa_volunteers v
+                 INNER JOIN {$wpdb->prefix}spa_volunteer_teams vt
+                    ON v.id = vt.volunteer_id
+                 WHERE vt.team_id = %d
+                 ORDER BY v.last_name, v.first_name",
+                $team->id
+            )
+        );
+    }
+
+    ob_start();
+    include SPA_TEMPLATE_DIR . 'ajax-event-volunteers.php';
+    $volunteers_html = ob_get_clean();
+
+    wp_send_json_success(array(
+        'message' => 'Event saved.',
+        'volunteers_html' => $volunteers_html,
+    ));
 }
 
 function spa_toggle_volunteer_ajax() {
@@ -121,6 +177,27 @@ function spa_toggle_volunteer_ajax() {
                 'volunteer_id' => $volunteer_id
             )
         );
+
+        $team->volunteers = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT
+                    v.id,
+                    v.first_name,
+                    v.last_name
+                 FROM {$wpdb->prefix}spa_event_volunteers ev
+                 INNER JOIN {$wpdb->prefix}spa_volunteers v
+                    ON ev.volunteer_id = v.id
+                 WHERE ev.event_id = %d
+                 AND ev.team_id = %d
+                 ORDER BY v.last_name, v.first_name",
+                $event_id,
+                $team->id
+            )
+        );
+
+        foreach ( $team->team_volunteers as $volunteer ) {
+            $volunteer->is_assigned = isset($assigned_lookup[$team->id][$volunteer->id]);
+        }
 
     }
 
@@ -282,11 +359,6 @@ function spa_load_event_ajax() {
         $team_volunteers_needed[$et->id] = intval($et->volunteers_needed);
     }
 
-    // All teams for checkboxes in the event details form
-    $all_teams = $wpdb->get_results(
-        "SELECT id, name FROM {$wpdb->prefix}spa_teams WHERE active = 1 ORDER BY name"
-    );
-
     $assigned_volunteers = $wpdb->get_results(
         $wpdb->prepare(
             "SELECT team_id, volunteer_id
@@ -297,14 +369,17 @@ function spa_load_event_ajax() {
     );
 
     $assigned_lookup = array();
-
-    foreach($assigned_volunteers AS $assignment) {
+    foreach ( $assigned_volunteers as $assignment ) {
         $assigned_lookup[$assignment->team_id][$assignment->volunteer_id] = true;
     }
 
-    foreach ($event_teams as $team) {
+    // All teams for checkboxes in the event details form
+    $all_teams = $wpdb->get_results(
+        "SELECT id, name FROM {$wpdb->prefix}spa_teams WHERE active = 1 ORDER BY name"
+    );
 
-        $team->volunteers = $wpdb->get_results(
+    foreach ($event_teams as $team) {
+        $team->team_volunteers = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT
                     v.id,
@@ -398,7 +473,8 @@ function spa_events_page() {
                     'location' => sanitize_text_field($_POST['spa_event_location']),
                     'is_recurring' => isset($_POST['spa_event_is_recurring']) ? 1 : 0,
                     'recurrence_type' => sanitize_text_field(wp_unslash($_POST['spa_event_recurrence_type'])),
-                    'recurrence_end_date' => sanitize_text_field(wp_unslash($_POST['spa_event_recurrence_end_date']))
+                    'recurrence_end_date' => sanitize_text_field(wp_unslash($_POST['spa_event_recurrence_end_date'])),
+                    'notify_volunteers' => isset($_POST['notify_volunteers']) ? 1 : 0
                 ), array('id' => intval($_POST['event_id'])
                 ));
                 $event_id = intval($_POST['event_id']);
@@ -406,6 +482,9 @@ function spa_events_page() {
                 $wpdb->delete($event_teams_table, array(
                     'event_id' => $event_id
                 ));
+                $event_volunteers_table = $wpdb->prefix . 'spa_event_volunteers';
+                $wpdb->delete($event_volunteers_table, array('event_id' => $event_id));
+
                 if(isset($_POST['event_teams'])) {
                     foreach($_POST['event_teams'] AS $team_id) {
                         $wpdb->insert($event_teams_table, array(
