@@ -161,7 +161,7 @@
 
 @media (max-width: 1200px) {
 
-    .spa-dashboard {
+    .spa-dashboard-widgets {
         grid-template-columns: 1fr;
     }
 
@@ -367,19 +367,6 @@
     font-weight: 600;
 }
 
-.spa-events-pagination {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.spa-page-number {
-    color: #666;
-    font-size: 13px;
-    font-weight: 600;
-}
-
 /* Date Column */
 
 .spa-event-date {
@@ -455,8 +442,7 @@
 .spa-form-field textarea {
     width: 100%;
     padding: 0 8px;
-    height: 36px;
-    line-height: 36px;
+    min-height: 36px;
     border: 1px solid #ccd0d4;
     border-radius: 4px;
     box-sizing: border-box;
@@ -512,10 +498,7 @@
     background-color: #2271b1 !important;
 }
 
-.spa-event-selected td {
-    color: #ffffff;
-}
-
+.spa-event-selected td,
 .spa-event-selected a {
     color: #ffffff !important;
 }
