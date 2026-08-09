@@ -613,6 +613,7 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                     break;
 
                 case 'templates':
+                    global $wpdb;
                     $all_templates = $wpdb->get_results(
                         "SELECT id, name, type, subject FROM {$wpdb->prefix}spa_notification_templates ORDER BY type, name"
                     );
