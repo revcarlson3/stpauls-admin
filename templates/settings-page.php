@@ -789,6 +789,23 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                             </td>
                         </tr>
                     </table>
+                    <h3>Test Notification</h3>
+                    <p>Send a test email and SMS using the active templates, the Clergy team, and the most recent event.</p>
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row"><label for="spa_test_notification_email">Test Email</label></th>
+                            <td><input type="email" name="spa_test_notification_email" id="spa_test_notification_email" class="regular-text"></td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><label for="spa_test_notification_phone">Test Phone</label></th>
+                            <td><input type="text" name="spa_test_notification_phone" id="spa_test_notification_phone" class="regular-text"></td>
+                        </tr>
+                    </table>
+                    <p class="description">Fill in whichever destination you want to test. Leave one blank to send only the other.</p>
+                    <p>
+                        <button type="button" class="button" id="spa-send-test-notification-btn">Send Test Notification</button>
+                        <span id="spa-test-notification-result" style="margin-left:12px;"></span>
+                    </p>
                     <?php
                     break;
             }

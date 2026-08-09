@@ -291,6 +291,40 @@ jQuery(function($) {
         });
     });
 
+    $(document).on('click', '#spa-send-test-notification-btn', function(e) {
+        e.preventDefault();
+        var $btn = $(this);
+        var email = ($('#spa_test_notification_email').val() || '').trim();
+        var phone = ($('#spa_test_notification_phone').val() || '').trim();
+        var $result = $('#spa-test-notification-result');
+
+        if ( email === '' && phone === '' ) {
+            $result.removeClass().addClass('spa-test-error').text('Enter an email address or phone number.');
+            return;
+        }
+
+        $btn.prop('disabled', true).text('Sending...');
+        $result.removeClass().text('');
+
+        $.post(spaAdmin.ajaxUrl, {
+            action: 'spa_send_test_notification',
+            nonce: spaAdmin.nonce,
+            spa_test_notification_email: email,
+            spa_test_notification_phone: phone
+        }, function(response) {
+            if ( response && response.success ) {
+                $result.addClass('spa-test-success').text('Test notification sent.');
+            } else {
+                var msg = response && response.data ? response.data : 'Unknown error';
+                $result.addClass('spa-test-error').text('Error: ' + msg);
+            }
+        }).fail(function(jqXHR) {
+            $result.addClass('spa-test-error').text('AJAX error: ' + (jqXHR.statusText || 'request failed'));
+        }).always(function() {
+            $btn.prop('disabled', false).text('Send Test Notification');
+        });
+    });
+
     // Push provider toggle
     function spa_toggle_push_provider() {
         var selected = $('#spa_push_provider').val();

@@ -427,6 +427,109 @@ function spa_ajax_send_test_sms() {
 }
 add_action('wp_ajax_spa_send_test_sms', 'spa_ajax_send_test_sms');
 
+function spa_ajax_send_test_notification() {
+    global $wpdb;
+
+    check_ajax_referer('spa_admin_nonce', 'nonce');
+    if ( ! current_user_can('manage_options') ) {
+        wp_send_json_error('Unauthorized', 403);
+    }
+
+    $email_to = isset($_POST['spa_test_notification_email']) ? sanitize_email(wp_unslash($_POST['spa_test_notification_email'])) : '';
+    $phone_to = isset($_POST['spa_test_notification_phone']) ? sanitize_text_field(wp_unslash($_POST['spa_test_notification_phone'])) : '';
+    if ( empty($email_to) && empty($phone_to) ) {
+        wp_send_json_error('missing_recipient');
+    }
+
+    $team = $wpdb->get_row($wpdb->prepare(
+        "SELECT id, name FROM {$wpdb->prefix}spa_teams WHERE name = %s LIMIT 1",
+        'Clergy'
+    ));
+
+    $volunteer = null;
+    if ( $team ) {
+        $volunteer = $wpdb->get_row($wpdb->prepare(
+            "SELECT v.first_name, v.last_name, v.email, v.phone
+             FROM {$wpdb->prefix}spa_volunteers v
+             INNER JOIN {$wpdb->prefix}spa_volunteer_teams vt ON vt.volunteer_id = v.id
+             WHERE vt.team_id = %d
+             ORDER BY v.last_name, v.first_name
+             LIMIT 1",
+            $team->id
+        ));
+    }
+
+    $event = $wpdb->get_row(
+        "SELECT id, name, event_date, start_time, location
+         FROM {$wpdb->prefix}spa_events
+         ORDER BY event_date DESC, start_time DESC
+         LIMIT 1"
+    );
+
+    if ( ! $event ) {
+        wp_send_json_error('no_events');
+    }
+
+    $sample_first = $volunteer ? $volunteer->first_name : 'Test';
+    $sample_last = $volunteer ? $volunteer->last_name : 'Volunteer';
+    $sample_full = trim($sample_first . ' ' . $sample_last);
+    $sample_phone = $volunteer && ! empty($volunteer->phone) ? $volunteer->phone : $phone_to;
+    $sample_email = $volunteer && ! empty($volunteer->email) ? $volunteer->email : $email_to;
+    $team_name = $team ? $team->name : 'Clergy';
+
+    $template_id = intval(get_option('spa_active_email_template', 0));
+    $sms_template_id = intval(get_option('spa_active_sms_template', 0));
+    $email_tpl = $template_id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}spa_notification_templates WHERE id = %d", $template_id)) : null;
+    $sms_tpl = $sms_template_id ? $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}spa_notification_templates WHERE id = %d", $sms_template_id)) : null;
+
+    if ( $email_to && $email_tpl ) {
+        $subject = spa_process_template($email_tpl->subject ?: 'Test Notification', array(
+            'first_name' => $sample_first,
+            'last_name' => $sample_last,
+            'full_name' => $sample_full,
+            'event_name' => $event->name,
+            'event_date' => $event->event_date,
+            'event_time' => $event->start_time,
+            'event_location' => $event->location,
+            'team_name' => $team_name,
+        ));
+        $body = spa_process_template($email_tpl->body, array(
+            'first_name' => $sample_first,
+            'last_name' => $sample_last,
+            'full_name' => $sample_full,
+            'event_name' => $event->name,
+            'event_date' => $event->event_date,
+            'event_time' => $event->start_time,
+            'event_location' => $event->location,
+            'team_name' => $team_name,
+        ));
+        $sent = spa_send_email($email_to, $subject, $body);
+        if ( is_wp_error($sent) ) {
+            wp_send_json_error($sent->get_error_message());
+        }
+    }
+
+    if ( $phone_to && $sms_tpl ) {
+        $sms_body = spa_process_template($sms_tpl->body, array(
+            'first_name' => $sample_first,
+            'last_name' => $sample_last,
+            'full_name' => $sample_full,
+            'event_name' => $event->name,
+            'event_date' => $event->event_date,
+            'event_time' => $event->start_time,
+            'event_location' => $event->location,
+            'team_name' => $team_name,
+        ));
+        $sent = spa_send_sms($phone_to, $sms_body);
+        if ( is_wp_error($sent) ) {
+            wp_send_json_error($sent->get_error_message());
+        }
+    }
+
+    wp_send_json_success(array('message' => 'Test notification sent.'));
+}
+add_action('wp_ajax_spa_send_test_notification', 'spa_ajax_send_test_notification');
+
 
 function spa_ajax_delete_secret() {
     check_ajax_referer('spa_save_settings', 'nonce');
