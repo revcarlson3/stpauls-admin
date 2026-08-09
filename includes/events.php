@@ -62,6 +62,7 @@ function spa_save_event_details_ajax() {
 
     // Save team assignments: delete existing then re-insert checked ones
     $wpdb->delete($wpdb->prefix . 'spa_events_teams', array('event_id' => $event_id), array('%d'));
+    $wpdb->delete($wpdb->prefix . 'spa_event_volunteers', array('event_id' => $event_id), array('%d'));
 
     $teams = isset($_POST['teams']) ? (array) $_POST['teams'] : array();
     foreach ( $teams as $team_id => $needed ) {
@@ -482,6 +483,8 @@ function spa_events_page() {
                 $wpdb->delete($event_teams_table, array(
                     'event_id' => $event_id
                 ));
+                $event_volunteers_table = $wpdb->prefix . 'spa_event_volunteers';
+                $wpdb->delete($event_volunteers_table, array('event_id' => $event_id));
                 if(isset($_POST['event_teams'])) {
                     foreach($_POST['event_teams'] AS $team_id) {
                         $wpdb->insert($event_teams_table, array(
