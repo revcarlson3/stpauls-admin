@@ -482,9 +482,6 @@ function spa_events_page() {
                 $wpdb->delete($event_teams_table, array(
                     'event_id' => $event_id
                 ));
-                $event_volunteers_table = $wpdb->prefix . 'spa_event_volunteers';
-                $wpdb->delete($event_volunteers_table, array('event_id' => $event_id));
-
                 if(isset($_POST['event_teams'])) {
                     foreach($_POST['event_teams'] AS $team_id) {
                         $wpdb->insert($event_teams_table, array(

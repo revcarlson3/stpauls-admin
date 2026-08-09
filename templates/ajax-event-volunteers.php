@@ -7,7 +7,7 @@
 
     <?php foreach ($event_teams as $team) :
         $assigned_count = 0;
-        foreach($team->volunteers as $volunteer) {
+        foreach($team->team_volunteers as $volunteer) {
             if(isset($assigned_lookup[$team->id][$volunteer->id])) {
                 $assigned_count++;
             }
@@ -51,27 +51,11 @@
 
             </div>
 
-            <?php if (!empty($team->team_volunteers)) :
-                $assigned_team_volunteers = array();
-                $unassigned_team_volunteers = array();
-                foreach($team->team_volunteers AS $volunteer) {
-                    if(in_array(
-                        $volunteer->id,
-                        $assigned_volunteers)) {
-                            $assigned_team_volunteers[] = $volunteer;
-                        } else {
-                            $unassigned_team_volunteers[] = $volunteer;
-                        }
-                }
-                $display_volunteers = array_merge(
-                    $assigned_team_volunteers,
-                    $unassigned_team_volunteers
-                );
-                ?>
+            <?php if (!empty($team->team_volunteers)) : ?>
 
                 <ul class="spa-volunteer-list">
 
-                    <?php foreach ($display_volunteers as $volunteer) : ?>
+                    <?php foreach ($team->team_volunteers as $volunteer) : ?>
 
                         <li>
 
