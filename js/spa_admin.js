@@ -78,6 +78,7 @@ jQuery(function($) {
                             .html(
                                 response.data.details
                             );
+                        $('#spa-event-notify-volunteers').prop('checked', false);
 
                         $('#spa-event-volunteers-container')
                             .html(
