@@ -41,6 +41,19 @@
                 </div>
 
                 <div class="spa-form-field">
+                    <label for="spa-event-modal-service-builder-url">Lutheran Service Builder Day URL</label>
+                    <input
+                        type="url"
+                        id="spa-event-modal-service-builder-url"
+                        class="spa-event-field"
+                        value=""
+                        placeholder="https://app.lutheranservicebuilder.com/holiday/...">
+                    <p class="description">
+                        Optional. Recurring copies are left blank because each date has a different public day link.
+                    </p>
+                </div>
+
+                <div class="spa-form-field">
                     <label for="spa-event-modal-description">Description</label>
                     <textarea id="spa-event-modal-description" class="spa-event-field" rows="5"></textarea>
                 </div>

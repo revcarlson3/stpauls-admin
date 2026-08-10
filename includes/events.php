@@ -30,6 +30,23 @@ add_action(
     'spa_override_event_volunteer_ajax'
 );
 
+function spa_get_posted_service_builder_url($field = 'service_builder_url') {
+    if ( ! array_key_exists($field, $_POST) ) {
+        return null;
+    }
+
+    $raw_url = trim((string) wp_unslash($_POST[$field]));
+    $url = spa_sanitize_service_builder_url($raw_url);
+    if ( $raw_url !== '' && $url === '' ) {
+        return new WP_Error(
+            'invalid_service_builder_url',
+            'Enter a valid Lutheran Service Builder day URL beginning with https://app.lutheranservicebuilder.com/holiday/.'
+        );
+    }
+
+    return $url;
+}
+
 function spa_save_event_details_ajax() {
     global $wpdb;
 
@@ -46,6 +63,10 @@ function spa_save_event_details_ajax() {
     }
 
     $service_type_id = isset($_POST['service_type_id']) ? intval($_POST['service_type_id']) : 0;
+    $service_builder_url = spa_get_posted_service_builder_url();
+    if ( is_wp_error($service_builder_url) ) {
+        wp_send_json_error(array('message' => $service_builder_url->get_error_message()));
+    }
 
     $update_scope = isset($_POST['update_scope']) ? sanitize_text_field($_POST['update_scope']) : 'parent';
     $event = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}spa_events WHERE id = %d", $event_id));
@@ -71,18 +92,23 @@ function spa_save_event_details_ajax() {
         'recurrence_end_date' => sanitize_text_field($_POST['recurrence_end_date']),
         'notify_volunteers'   => isset($_POST['notify_volunteers']) ? 1 : 0,
     );
+    $event_formats = array('%s','%s','%s','%s','%s','%s','%d','%d','%s','%s','%d');
+    if ( $service_builder_url !== null ) {
+        $event_data['service_builder_url'] = $service_builder_url ?: null;
+        $event_formats[] = '%s';
+    }
 
     if ($update_scope === 'series') {
         $child_events = $wpdb->get_results($wpdb->prepare("SELECT id FROM {$wpdb->prefix}spa_events WHERE parent_event_id = %d ORDER BY event_date, start_time", $event_id));
         $all_events = array_merge(array((object) array('id' => $event_id)), $child_events);
         foreach ($all_events as $series_event) {
             $series_event_data = $event_data;
-            $series_event_formats = array('%s','%s','%s','%s','%s','%s','%d','%d','%s','%s','%d');
+            $series_event_formats = $event_formats;
 
             if (intval($series_event->id) !== $event_id) {
                 unset($series_event_data['event_date']);
-                unset($series_event_formats[3]);
-                $series_event_formats = array_values($series_event_formats);
+                unset($series_event_data['service_builder_url']);
+                $series_event_formats = array('%s','%s','%s','%s','%s','%d','%d','%s','%s','%d');
             }
 
             $result = $wpdb->update(
@@ -112,7 +138,7 @@ function spa_save_event_details_ajax() {
             }
         }
     } else {
-        $result = $wpdb->update($wpdb->prefix . 'spa_events', $event_data, array('id' => $event_id), array('%s','%s','%s','%s','%s','%s','%d','%d','%s','%s','%d'), array('%d'));
+        $result = $wpdb->update($wpdb->prefix . 'spa_events', $event_data, array('id' => $event_id), $event_formats, array('%d'));
         if ( $result === false ) {
             wp_send_json_error(array('message' => 'Database update failed: ' . $wpdb->last_error));
         }
@@ -310,6 +336,10 @@ function spa_save_event_modal_ajax() {
     $recurrence_type = isset($_POST['recurrence_type']) ? sanitize_text_field(wp_unslash($_POST['recurrence_type'])) : '';
     $recurrence_end_date = isset($_POST['recurrence_end_date']) ? sanitize_text_field(wp_unslash($_POST['recurrence_end_date'])) : '';
     $service_type_id = isset($_POST['service_type_id']) ? intval($_POST['service_type_id']) : 0;
+    $service_builder_url = spa_get_posted_service_builder_url();
+    if ( is_wp_error($service_builder_url) ) {
+        wp_send_json_error(array('message' => $service_builder_url->get_error_message()));
+    }
 
     if (empty($name) || empty($event_date)) {
         wp_send_json_error('Event name and date are required');
@@ -349,6 +379,9 @@ function spa_save_event_modal_ajax() {
         'recurrence_end_date' => $recurrence_end_date,
         'notify_volunteers' => isset($_POST['notify_volunteers']) ? 1 : 0
     );
+    if ( $service_builder_url !== null ) {
+        $data['service_builder_url'] = $service_builder_url ?: null;
+    }
 
     if ($event_id > 0) {
         $wpdb->update($table_name, $data, array('id' => $event_id));
@@ -376,6 +409,7 @@ function spa_save_event_modal_ajax() {
                 $duplicate['event_date'] = $series_date->format('Y-m-d');
                 $duplicate['parent_event_id'] = $event_id;
                 $duplicate['is_recurring'] = 1;
+                $duplicate['service_builder_url'] = null;
                 $wpdb->insert($table_name, $duplicate);
                 $series_date->add($interval);
             }

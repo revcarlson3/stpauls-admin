@@ -61,6 +61,26 @@ $recurrence_end_date = (!empty($event->recurrence_end_date) && $event->recurrenc
 
     <div class="spa-form-field">
 
+        <label for="spa-event-service-builder-url">
+            Lutheran Service Builder Day URL
+        </label>
+
+        <input
+            type="url"
+            id="spa-event-service-builder-url"
+            class="spa-event-field"
+            value="<?php echo esc_url($event->service_builder_url ?? ''); ?>"
+            placeholder="https://app.lutheranservicebuilder.com/holiday/...">
+
+        <p class="description">
+            Optional. Paste the public day link used by the Readers <code>{readings}</code> notification tag.
+            Each recurring occurrence needs its own date-specific link.
+        </p>
+
+    </div>
+
+    <div class="spa-form-field">
+
         <label for="spa-event-description">
             Description
         </label>

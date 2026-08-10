@@ -86,8 +86,16 @@ function spa_send_event_notification_to_volunteer($event, $volunteer, $templates
     );
 
     if ( $templates['email'] && ! empty($volunteer->email) && intval($volunteer->email_enabled) === 1 ) {
-        $subject = spa_process_template($templates['email']->subject ?: 'Volunteer Reminder', $data);
-        $body = spa_process_template($templates['email']->body, $data);
+        $email_data = $data;
+        $email_data['readings'] = spa_get_readings_tag_value(
+            $volunteer->team_name,
+            $event->service_builder_url ?? '',
+            true
+        );
+        $subject_data = $email_data;
+        $subject_data['readings'] = '';
+        $subject = spa_process_template($templates['email']->subject ?: 'Volunteer Reminder', $subject_data);
+        $body = spa_process_template($templates['email']->body, $email_data);
         $result = spa_send_email($volunteer->email, $subject, $body);
         if ( is_wp_error($result) ) {
             $errors[] = 'Email: ' . $result->get_error_message();
@@ -97,7 +105,13 @@ function spa_send_event_notification_to_volunteer($event, $volunteer, $templates
     }
 
     if ( $templates['sms'] && ! empty($volunteer->phone) && intval($volunteer->phone_enabled) === 1 ) {
-        $body = spa_process_template($templates['sms']->body, $data);
+        $sms_data = $data;
+        $sms_data['readings'] = spa_get_readings_tag_value(
+            $volunteer->team_name,
+            $event->service_builder_url ?? '',
+            false
+        );
+        $body = spa_process_template($templates['sms']->body, $sms_data);
         $result = spa_send_sms($volunteer->phone, $body);
         if ( is_wp_error($result) ) {
             $errors[] = 'SMS: ' . $result->get_error_message();
