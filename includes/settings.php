@@ -507,10 +507,12 @@ function spa_get_report_rows($report_key, $filters = array()) {
                 $wpdb->prepare(
                     "SELECT DISTINCT t.id, t.name
                      FROM {$wpdb->prefix}spa_teams t
-                     INNER JOIN {$wpdb->prefix}spa_events_teams et
-                        ON et.team_id = t.id
+                     INNER JOIN {$wpdb->prefix}spa_event_volunteers ev
+                        ON ev.team_id = t.id
+                     INNER JOIN {$wpdb->prefix}spa_volunteers v
+                        ON v.id = ev.volunteer_id
                      INNER JOIN {$wpdb->prefix}spa_events e
-                        ON e.id = et.event_id
+                        ON e.id = ev.event_id
                         AND e.active = 1
                      WHERE e.event_date BETWEEN %s AND %s
                      ORDER BY t.name",
@@ -553,7 +555,7 @@ function spa_get_report_rows($report_key, $filters = array()) {
             foreach ( $events as $event ) {
                 $event_date = DateTimeImmutable::createFromFormat('!Y-m-d', $event['event_date']);
                 $row = array(
-                    $event_date ? $event_date->format('F j, Y') : $event['event_date'],
+                    $event_date ? $event_date->format('M j, y') : $event['event_date'],
                 );
                 foreach ( $teams as $team ) {
                     $names = isset($assigned_by_event_team[intval($event['id'])][intval($team['id'])])
@@ -750,6 +752,9 @@ function spa_export_report() {
     if ( $format === 'pdf' ) {
         header('Content-Type: text/html; charset=UTF-8');
         $printed_at = current_time('F j, Y g:i A');
+        $is_schedule_report = $report_key === 'schedule_report';
+        $schedule_font_size = count($headers) > 10 ? 7 : (count($headers) > 7 ? 8 : 9);
+        $schedule_zoom = count($headers) > 14 ? 0.7 : (count($headers) > 10 ? 0.8 : (count($headers) > 7 ? 0.9 : 1));
         ?>
         <!doctype html>
         <html>
@@ -757,21 +762,34 @@ function spa_export_report() {
             <meta charset="utf-8">
             <title><?php echo esc_html($definitions[$report_key]['label']); ?></title>
             <style>
-                @page { size: landscape; margin: 18px 18px 88px 18px; }
-                body { font-family: Arial, sans-serif; padding: 24px 24px 88px 24px; }
+                @page { size: landscape; margin: <?php echo $is_schedule_report ? '7mm' : '18px 18px 88px 18px'; ?>; }
+                body {
+                    font-family: Arial, sans-serif;
+                    padding: <?php echo $is_schedule_report ? '0 0 28px' : '24px 24px 88px 24px'; ?>;
+                    font-size: <?php echo $is_schedule_report ? intval($schedule_font_size) . 'px' : 'initial'; ?>;
+                    zoom: <?php echo $is_schedule_report ? esc_attr($schedule_zoom) : '1'; ?>;
+                }
                 h1 { margin-bottom: 16px; }
                 table { width: 100%; border-collapse: collapse; }
                 th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
                 th { background: #f5f5f5; }
                 tr, td, th { break-inside: avoid; page-break-inside: avoid; }
+                <?php if ( $is_schedule_report ) : ?>
+                    h1 { margin: 0 0 7px; font-size: 15px; }
+                    table { font-size: <?php echo intval($schedule_font_size); ?>px; line-height: 1.15; }
+                    th, td { padding: 2px 3px; }
+                    th { font-size: <?php echo max(7, intval($schedule_font_size) - 1); ?>px; }
+                    td { white-space: nowrap; }
+                    th:first-child, td:first-child { width: 58px; }
+                <?php endif; ?>
                 .spa-report-footer {
                     position: fixed;
-                    left: 24px;
-                    right: 24px;
+                    left: <?php echo $is_schedule_report ? '0' : '24px'; ?>;
+                    right: <?php echo $is_schedule_report ? '0' : '24px'; ?>;
                     bottom: -4px;
                     display: flex;
                     justify-content: space-between;
-                    font-size: 12px;
+                    font-size: <?php echo $is_schedule_report ? '8px' : '12px'; ?>;
                     line-height: 1.4;
                     color: #555;
                 }
