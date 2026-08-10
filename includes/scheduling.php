@@ -9,6 +9,30 @@ function spa_get_rotation_undo_option_key() {
     return 'spa_rotation_last_apply_undo';
 }
 
+function spa_get_rotation_applied_option_key($event_id) {
+    return 'spa_rotation_applied_' . intval($event_id);
+}
+
+function spa_event_rotation_is_applied($event_id) {
+    global $wpdb;
+
+    $applied_state = get_option(spa_get_rotation_applied_option_key($event_id), null);
+    if ( $applied_state !== null ) {
+        return intval($applied_state) === 1;
+    }
+
+    return intval(
+        $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*)
+                 FROM {$wpdb->prefix}spa_event_volunteers
+                 WHERE event_id = %d",
+                intval($event_id)
+            )
+        )
+    ) > 0;
+}
+
 function spa_begin_rotation_undo_transaction() {
     global $wpdb;
 
@@ -393,6 +417,11 @@ function spa_apply_event_rotation_ajax() {
         wp_send_json_error(array('message' => 'Unable to begin applying the rotation assignments.'));
     }
 
+    if ( spa_event_rotation_is_applied($event_id) ) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(array('message' => 'Rotation assignments have already been applied. Undo the last apply before applying them again.'));
+    }
+
     $preview_data = spa_get_rotation_preview_data($event_id);
     if ( is_wp_error($preview_data) ) {
         $wpdb->query('ROLLBACK');
@@ -484,6 +513,13 @@ function spa_apply_event_rotation_ajax() {
         }
         $changed_option_keys[] = $option_key;
     }
+
+    $applied_option_key = spa_get_rotation_applied_option_key($event_id);
+    if ( ! spa_write_rotation_option($applied_option_key, 1) ) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(array('message' => 'Unable to save the applied rotation state.'));
+    }
+    $changed_option_keys[] = $applied_option_key;
 
     $undo_option_key = spa_get_rotation_undo_option_key();
     if ( ! spa_write_rotation_option($undo_option_key, $undo_state) ) {
@@ -609,6 +645,13 @@ function spa_undo_event_rotation_ajax() {
         wp_send_json_error(array('message' => 'Unable to clear the rotation undo state.'));
     }
     $changed_option_keys[] = $option_key;
+
+    $applied_option_key = spa_get_rotation_applied_option_key($event_id);
+    if ( ! spa_write_rotation_option($applied_option_key, 0) ) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(array('message' => 'Unable to reset the applied rotation state.'));
+    }
+    $changed_option_keys[] = $applied_option_key;
 
     if ( $wpdb->query('COMMIT') === false ) {
         $wpdb->query('ROLLBACK');
