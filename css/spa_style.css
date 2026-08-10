@@ -42,7 +42,7 @@
 
 .spa-events-layout {
     display: grid;
-    grid-template-columns: minmax(300px, 20%) minmax(450px, 35%) 1fr;
+    grid-template-columns: minmax(260px, 16%) minmax(460px, 34%) minmax(260px, 20%) minmax(300px, 1fr);
     gap: 20px;
     margin-top: 20px;
     align-items: start;
@@ -54,6 +54,47 @@
     border-radius: 6px;
     padding:16px;
     box-sizing: border-box;
+    min-width: 0;
+}
+
+@media (max-width: 1600px) {
+    .spa-events-layout {
+        grid-template-columns: minmax(260px, 20%) minmax(420px, 40%) minmax(260px, 1fr);
+    }
+
+    .spa-event-volunteers {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 1200px) {
+    .spa-events-layout {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .spa-events-list,
+    .spa-event-details,
+    .spa-event-rotation,
+    .spa-event-volunteers {
+        grid-column: auto;
+    }
+
+    .spa-event-volunteers {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 900px) {
+    .spa-events-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .spa-events-list,
+    .spa-event-details,
+    .spa-event-rotation,
+    .spa-event-volunteers {
+        grid-column: 1;
+    }
 }
 
 #spa-add-event-button {
@@ -88,13 +129,15 @@
 
 .spa-sunday-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: minmax(240px, 1fr) minmax(320px, 1.3fr) minmax(240px, 1fr);
     gap: 25px;
+    align-items: start;
 }
 
 .spa-sunday-column {
     padding-right: 20px;
     border-right: 1px solid #dcdcde;
+    min-width: 0;
 }
 
 .spa-sunday-column:last-child {
@@ -180,7 +223,32 @@
     color: #2271b1;
 }
 
+.spa-dashboard-alert-list {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.spa-dashboard-alert-list li {
+    margin-bottom: 10px;
+}
+
 @media (max-width: 1200px) {
+
+    .spa-sunday-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .spa-sunday-column {
+        padding-right: 0;
+        border-right: none;
+        border-bottom: 1px solid #dcdcde;
+        padding-bottom: 16px;
+    }
+
+    .spa-sunday-column:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
 
     .spa-dashboard-widgets {
         grid-template-columns: 1fr;
@@ -471,11 +539,12 @@
 
 .spa-form-field select {
     width: 100%;
-    padding: 0 8px;
+    padding: 6px 28px 6px 10px;
     height: 36px;
     border: 1px solid #ccd0d4;
     border-radius: 4px;
     box-sizing: border-box;
+    line-height: 1.4;
 }
 
 .spa-form-field input:focus,
@@ -513,6 +582,26 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
+}
+
+.spa-event-recurrence-row select,
+.spa-event-recurrence-row input[type="date"] {
+    width: 100%;
+    min-height: 34px;
+    box-sizing: border-box;
+}
+
+.spa-event-recurrence-row select {
+    padding: 6px 10px;
+    line-height: 1.4;
+}
+
+.spa-event-service-type-select {
+    width: 100%;
+    min-height: 34px;
+    padding: 6px 28px 6px 10px;
+    line-height: 1.4;
+    box-sizing: border-box;
 }
 
 .spa-event-selected {

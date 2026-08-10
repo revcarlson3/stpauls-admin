@@ -214,6 +214,424 @@ function spa_handle_settings_post() {
 }
 add_action('admin_post_spa_save_settings', 'spa_handle_settings_post');
 
+add_action('wp_ajax_spa_get_report', 'spa_get_report_ajax');
+add_action('admin_post_spa_export_report', 'spa_export_report');
+
+function spa_get_report_definitions() {
+    return array(
+        'volunteers' => array(
+            'label' => 'Volunteers',
+            'columns' => array('First Name', 'Last Name', 'Email', 'Phone'),
+        ),
+        'teams' => array(
+            'label' => 'Teams',
+            'columns' => array('Team Name', 'Description'),
+        ),
+        'teams_with_volunteers' => array(
+            'label' => 'Team Assignments',
+            'columns' => array('Team Name', 'Volunteers'),
+        ),
+        'volunteers_with_teams' => array(
+            'label' => 'Volunteer Assignments',
+            'columns' => array('Volunteer Name', 'Email', 'Phone', 'Teams'),
+        ),
+        'rotation_report' => array(
+            'label' => 'Rotation Report',
+            'columns' => array(),
+        ),
+    );
+}
+
+function spa_get_report_rows($report_key) {
+    global $wpdb;
+
+    switch ($report_key) {
+        case 'volunteers':
+            return $wpdb->get_results(
+                "SELECT first_name, last_name, email, phone
+                 FROM {$wpdb->prefix}spa_volunteers
+                 WHERE active = 1
+                 ORDER BY last_name, first_name",
+                ARRAY_A
+            );
+
+        case 'teams':
+            return $wpdb->get_results(
+                "SELECT name, description
+                 FROM {$wpdb->prefix}spa_teams
+                 WHERE active = 1
+                 ORDER BY name",
+                ARRAY_A
+            );
+
+        case 'teams_with_volunteers':
+            $raw_rows = $wpdb->get_results(
+                "SELECT
+                    t.id,
+                    t.name AS team_name,
+                    CONCAT(v.first_name, ' ', v.last_name) AS volunteer_name,
+                    v.email,
+                    v.phone
+                 FROM {$wpdb->prefix}spa_teams t
+                 LEFT JOIN {$wpdb->prefix}spa_volunteer_teams vt
+                    ON vt.team_id = t.id
+                 LEFT JOIN {$wpdb->prefix}spa_volunteers v
+                    ON v.id = vt.volunteer_id
+                    AND v.active = 1
+                 WHERE t.active = 1
+                 ORDER BY t.name, v.last_name, v.first_name",
+                ARRAY_A
+            );
+
+            $grouped_rows = array();
+            foreach ( $raw_rows as $row ) {
+                $team_id = intval($row['id']);
+                if ( ! isset($grouped_rows[$team_id]) ) {
+                    $grouped_rows[$team_id] = array(
+                        'team_name' => $row['team_name'],
+                        'volunteers' => array(),
+                    );
+                }
+                if ( ! empty($row['volunteer_name']) ) {
+                    $grouped_rows[$team_id]['volunteers'][] = $row['volunteer_name'];
+                }
+            }
+
+            $formatted_rows = array();
+            foreach ( $grouped_rows as $grouped_row ) {
+                $formatted_rows[] = array(
+                    'team_name' => $grouped_row['team_name'],
+                    'volunteers' => ! empty($grouped_row['volunteers']) ? implode("\n", $grouped_row['volunteers']) : '',
+                );
+            }
+
+            return $formatted_rows;
+
+        case 'volunteers_with_teams':
+            $raw_rows = $wpdb->get_results(
+                "SELECT
+                    v.id,
+                    CONCAT(v.first_name, ' ', v.last_name) AS volunteer_name,
+                    v.email,
+                    v.phone,
+                    t.name AS team_name
+                 FROM {$wpdb->prefix}spa_volunteers v
+                 LEFT JOIN {$wpdb->prefix}spa_volunteer_teams vt
+                    ON vt.volunteer_id = v.id
+                 LEFT JOIN {$wpdb->prefix}spa_teams t
+                    ON t.id = vt.team_id
+                    AND t.active = 1
+                 WHERE v.active = 1
+                 ORDER BY v.last_name, v.first_name, t.name",
+                ARRAY_A
+            );
+
+            $grouped_rows = array();
+            foreach ( $raw_rows as $row ) {
+                $volunteer_id = intval($row['id']);
+                if ( ! isset($grouped_rows[$volunteer_id]) ) {
+                    $grouped_rows[$volunteer_id] = array(
+                        'volunteer_name' => $row['volunteer_name'],
+                        'email' => $row['email'],
+                        'phone' => $row['phone'],
+                        'teams' => array(),
+                    );
+                }
+                if ( ! empty($row['team_name']) ) {
+                    $grouped_rows[$volunteer_id]['teams'][] = $row['team_name'];
+                }
+            }
+
+            $formatted_rows = array();
+            foreach ( $grouped_rows as $grouped_row ) {
+                $formatted_rows[] = array(
+                    'volunteer_name' => $grouped_row['volunteer_name'],
+                    'email' => $grouped_row['email'],
+                    'phone' => $grouped_row['phone'],
+                    'teams' => ! empty($grouped_row['teams']) ? implode("\n", $grouped_row['teams']) : '',
+                );
+            }
+
+            return $formatted_rows;
+
+        case 'rotation_report':
+            $service_types = $wpdb->get_results(
+                "SELECT id, name
+                 FROM {$wpdb->prefix}spa_service_types
+                 WHERE active = 1
+                 ORDER BY name",
+                ARRAY_A
+            );
+
+            $teams = $wpdb->get_results(
+                "SELECT id, name
+                 FROM {$wpdb->prefix}spa_teams
+                 WHERE active = 1
+                 ORDER BY name",
+                ARRAY_A
+            );
+
+            $team_rotations = array();
+            $max_slots = 0;
+
+            foreach ( $teams as $team ) {
+                $team_rotations[$team['id']] = array();
+            }
+
+            foreach ( $service_types as $service_type ) {
+                foreach ( $teams as $team ) {
+                    $rotation_rows = $wpdb->get_results(
+                        $wpdb->prepare(
+                            "SELECT
+                                r.rotation_order,
+                                r.is_next,
+                                r.advance_rule,
+                                CONCAT(v.first_name, ' ', v.last_name) AS volunteer_name
+                             FROM {$wpdb->prefix}spa_team_rotations r
+                             INNER JOIN {$wpdb->prefix}spa_volunteers v
+                                ON v.id = r.volunteer_id
+                                AND v.active = 1
+                             WHERE r.service_type_id = %d
+                             AND r.team_id = %d
+                             ORDER BY r.rotation_order",
+                            $service_type['id'],
+                            $team['id']
+                        ),
+                        ARRAY_A
+                    );
+
+                    if ( empty($rotation_rows) ) {
+                        continue;
+                    }
+
+                    $next_position = 1;
+                    foreach ( $rotation_rows as $rotation_row ) {
+                        if ( intval($rotation_row['is_next']) === 1 ) {
+                            $next_position = intval($rotation_row['rotation_order']);
+                            break;
+                        }
+                    }
+
+                    $team_rotations[$team['id']][] = array(
+                        'service_type_name' => $service_type['name'],
+                        'advance_rule' => $rotation_rows[0]['advance_rule'],
+                        'next_position' => $next_position,
+                        'slots' => $rotation_rows,
+                    );
+
+                    $max_slots = max($max_slots, count($rotation_rows));
+                }
+            }
+
+            $headers = array('Rotation Slot');
+            foreach ( $teams as $team ) {
+                $headers[] = $team['name'];
+            }
+
+            $formatted_rows = array();
+            for ( $slot = 1; $slot <= $max_slots; $slot++ ) {
+                $row = array('slot' => 'Slot ' . $slot);
+                foreach ( $teams as $team ) {
+                    $cells = array();
+                    if ( ! empty($team_rotations[$team['id']]) ) {
+                        foreach ( $team_rotations[$team['id']] as $rotation_set ) {
+                            if ( isset($rotation_set['slots'][$slot - 1]) ) {
+                                $cell = $rotation_set['slots'][$slot - 1]['volunteer_name'];
+                                if ( intval($rotation_set['slots'][$slot - 1]['rotation_order']) === intval($rotation_set['next_position']) ) {
+                                    $cell .= ' ← Next';
+                                }
+                                $cells[] = $rotation_set['service_type_name'] . ': ' . $cell;
+                            }
+                        }
+                    }
+                    $row[$team['name']] = implode("\n", $cells);
+                }
+                $formatted_rows[] = $row;
+            }
+
+            return array(
+                'headers' => $headers,
+                'rows' => $formatted_rows,
+            );
+    }
+
+    return array();
+}
+
+function spa_get_report_ajax() {
+    if ( ! check_ajax_referer('spa_admin_nonce', 'nonce', false) ) {
+        wp_send_json_error(array('message' => 'Invalid nonce'), 403);
+    }
+    if ( ! current_user_can('manage_options') ) {
+        wp_send_json_error(array('message' => 'Unauthorized'), 403);
+    }
+
+    $report_key = isset($_POST['report_key']) ? sanitize_text_field(wp_unslash($_POST['report_key'])) : '';
+    $definitions = spa_get_report_definitions();
+    if ( empty($definitions[$report_key]) ) {
+        wp_send_json_error(array('message' => 'Invalid report.'));
+    }
+
+    $rows = spa_get_report_rows($report_key);
+    $custom_headers = array();
+    if ( $report_key === 'rotation_report' && isset($rows['headers'], $rows['rows']) ) {
+        $custom_headers = $rows['headers'];
+        $rows = $rows['rows'];
+    }
+
+    ob_start();
+    ?>
+    <div class="spa-report-modal-content">
+        <h2><?php echo esc_html($definitions[$report_key]['label']); ?></h2>
+        <div style="margin:0 0 12px;display:flex;gap:8px;flex-wrap:wrap;">
+            <a class="button button-primary" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=spa_export_report&report_key=' . rawurlencode($report_key) . '&format=xlsx'), 'spa_export_report_' . $report_key)); ?>">Export Excel</a>
+            <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=spa_export_report&report_key=' . rawurlencode($report_key) . '&format=csv'), 'spa_export_report_' . $report_key)); ?>">Export CSV</a>
+            <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=spa_export_report&report_key=' . rawurlencode($report_key) . '&format=pdf'), 'spa_export_report_' . $report_key)); ?>" target="_blank">Export PDF</a>
+            <button type="button" class="button spa-print-report">Print</button>
+        </div>
+        <div class="spa-report-table-wrap" style="max-height:58vh;overflow:auto;padding-bottom:24px;">
+            <table class="widefat striped" style="border-collapse:collapse;">
+                <thead>
+                    <tr>
+                        <?php if ( $report_key === 'rotation_report' ) : ?>
+                            <?php foreach ( $custom_headers as $column ) : ?>
+                                <th style="break-inside:avoid;page-break-inside:avoid;"><?php echo esc_html($column); ?></th>
+                            <?php endforeach; ?>
+                        <?php else : ?>
+                            <?php foreach ( $definitions[$report_key]['columns'] as $column ) : ?>
+                                <th style="break-inside:avoid;page-break-inside:avoid;"><?php echo esc_html($column); ?></th>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if ( empty($rows) ) : ?>
+                        <tr><td colspan="<?php echo intval($report_key === 'rotation_report' ? count($custom_headers) : count($definitions[$report_key]['columns'])); ?>" style="break-inside:avoid;page-break-inside:avoid;">No data found.</td></tr>
+                    <?php else : ?>
+                        <?php foreach ( $rows as $row ) : ?>
+                            <tr style="break-inside:avoid;page-break-inside:avoid;">
+                                <?php foreach ( $row as $value ) : ?>
+                                    <td style="vertical-align:top;break-inside:avoid;page-break-inside:avoid;"><?php echo nl2br(esc_html((string) $value)); ?></td>
+                                <?php endforeach; ?>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <?php
+    wp_send_json_success(array('html' => ob_get_clean()));
+}
+
+function spa_export_report() {
+    if ( ! current_user_can('manage_options') ) {
+        wp_die('Unauthorized');
+    }
+
+    $report_key = isset($_GET['report_key']) ? sanitize_text_field(wp_unslash($_GET['report_key'])) : '';
+    $format = isset($_GET['format']) ? sanitize_text_field(wp_unslash($_GET['format'])) : 'csv';
+    $definitions = spa_get_report_definitions();
+    if ( empty($definitions[$report_key]) ) {
+        wp_die('Invalid report');
+    }
+    if ( ! check_admin_referer('spa_export_report_' . $report_key) ) {
+        wp_die('Nonce failed');
+    }
+
+    $rows = spa_get_report_rows($report_key);
+    $headers = $definitions[$report_key]['columns'];
+    if ( $report_key === 'rotation_report' && isset($rows['headers'], $rows['rows']) ) {
+        $headers = $rows['headers'];
+        $rows = $rows['rows'];
+    }
+    $filename_base = 'spa-report-' . $report_key . '-' . date('Y-m-d');
+
+    if ( $format === 'xlsx' && class_exists('\PhpOffice\PhpSpreadsheet\Spreadsheet') && class_exists('\PhpOffice\PhpSpreadsheet\Writer\Xlsx') ) {
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->fromArray($headers, null, 'A1');
+        $row_index = 2;
+        foreach ( $rows as $row ) {
+            $sheet->fromArray(array_values($row), null, 'A' . $row_index);
+            $row_index++;
+        }
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename_base . '.xlsx"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit;
+    }
+
+    if ( $format === 'pdf' ) {
+        header('Content-Type: text/html; charset=UTF-8');
+        $printed_at = current_time('F j, Y g:i A');
+        ?>
+        <!doctype html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title><?php echo esc_html($definitions[$report_key]['label']); ?></title>
+            <style>
+                @page { size: landscape; margin: 18px 18px 88px 18px; }
+                body { font-family: Arial, sans-serif; padding: 24px 24px 88px 24px; }
+                h1 { margin-bottom: 16px; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
+                th { background: #f5f5f5; }
+                tr, td, th { break-inside: avoid; page-break-inside: avoid; }
+                .spa-report-footer {
+                    position: fixed;
+                    left: 24px;
+                    right: 24px;
+                    bottom: -4px;
+                    display: flex;
+                    justify-content: space-between;
+                    font-size: 12px;
+                    line-height: 1.4;
+                    color: #555;
+                }
+            </style>
+        </head>
+        <body onload="window.print();">
+            <h1><?php echo esc_html($definitions[$report_key]['label']); ?></h1>
+            <table>
+                <thead>
+                    <tr>
+                        <?php foreach ( $headers as $header ) : ?>
+                            <th><?php echo esc_html($header); ?></th>
+                        <?php endforeach; ?>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ( $rows as $row ) : ?>
+                        <tr>
+                            <?php foreach ( $row as $value ) : ?>
+                                <td><?php echo esc_html(str_replace("\n", ', ', (string) $value)); ?></td>
+                            <?php endforeach; ?>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+            <div class="spa-report-footer">
+                <div>Report export</div>
+                <div>Printed: <?php echo esc_html($printed_at); ?></div>
+            </div>
+        </body>
+        </html>
+        <?php
+        exit;
+    }
+
+    if ( function_exists('spa_export_csv') ) {
+        spa_export_csv($filename_base . '.csv', $headers, $rows);
+    }
+
+    wp_die('Unable to export report.');
+}
+
 
 function spa_settings_admin_notices() {
     // Only show on the plugin settings page
@@ -446,7 +864,7 @@ function spa_ajax_send_test_notification() {
     }
 
     $team = $wpdb->get_row($wpdb->prepare(
-        "SELECT id, name FROM {$wpdb->prefix}spa_teams WHERE name = %s LIMIT 1",
+        "SELECT id, name FROM {$wpdb->prefix}spa_teams WHERE name = %s AND active = 1 LIMIT 1",
         'Clergy'
     ));
 
@@ -457,6 +875,7 @@ function spa_ajax_send_test_notification() {
              FROM {$wpdb->prefix}spa_volunteers v
              INNER JOIN {$wpdb->prefix}spa_volunteer_teams vt ON vt.volunteer_id = v.id
              WHERE vt.team_id = %d
+             AND v.active = 1
              ORDER BY v.last_name, v.first_name
              LIMIT 1",
             $team->id

@@ -1,4 +1,21 @@
 
+<?php if ( ! empty($duplicate_assignment_alerts) ) : ?>
+    <div class="notice notice-warning inline" style="margin:0 0 16px;">
+        <p><strong>Volunteer assignment warning:</strong></p>
+        <ul style="margin:8px 0 0 18px;list-style:disc;">
+            <?php foreach ( $duplicate_assignment_alerts as $alert ) : ?>
+                <li>
+                    <strong><?php echo esc_html($alert['volunteer_name']); ?></strong>
+                    is assigned to
+                    <strong><?php echo esc_html($alert['team_count']); ?></strong>
+                    teams for this event:
+                    <?php echo esc_html($alert['team_names']); ?>.
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+<?php endif; ?>
+
 <?php if (empty($event_teams)) : ?>
 
     <p>No teams assigned to this event.</p>
@@ -78,6 +95,17 @@
                                 ); ?>
 
                                 </span>
+
+                                <?php if ( $is_assigned ) : ?>
+                                    <button
+                                        type="button"
+                                        class="button-link spa-override-volunteer"
+                                        data-event-id="<?php echo intval($event->id); ?>"
+                                        data-team-id="<?php echo intval($team->id); ?>"
+                                        data-volunteer-id="<?php echo intval($volunteer->id); ?>">
+                                        Override
+                                    </button>
+                                <?php endif; ?>
 
                             </label>
 

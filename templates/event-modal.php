@@ -15,6 +15,27 @@
                 </div>
 
                 <div class="spa-form-field">
+                    <label for="spa-event-modal-service-type">Service Type</label>
+                    <select id="spa-event-modal-service-type" class="spa-event-field">
+                        <option value="">Select</option>
+                        <?php
+                        global $wpdb;
+                        $modal_service_types = $wpdb->get_results(
+                            "SELECT id, name
+                             FROM {$wpdb->prefix}spa_service_types
+                             WHERE active = 1
+                             ORDER BY name"
+                        );
+                        foreach ( $modal_service_types as $service_type ) :
+                        ?>
+                            <option value="<?php echo intval($service_type->id); ?>">
+                                <?php echo esc_html($service_type->name); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="spa-form-field">
                     <label for="spa-event-modal-location">Location</label>
                     <input type="text" id="spa-event-modal-location" class="spa-event-field" value="">
                 </div>
@@ -43,17 +64,17 @@
 
                 <hr class="hr" />
 
-                <div class="spa-checkbox-field">
-                    <label>
-                        <input type="checkbox" id="spa-event-modal-recurring" class="spa-event-field">
-                        Recurring Event
-                    </label>
-                </div>
-
                 <div class="spa-checkbox-field" style="margin-top:10px;">
                     <label>
                         <input type="checkbox" id="spa-event-modal-notify-volunteers" class="spa-event-field">
                         Notify Volunteers
+                    </label>
+                </div>
+
+                <div class="spa-checkbox-field">
+                    <label>
+                        <input type="checkbox" id="spa-event-modal-recurring" class="spa-event-field">
+                        Recurring Event
                     </label>
                 </div>
 
@@ -199,6 +220,18 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
+}
+
+.spa-event-recurrence-row select,
+.spa-event-recurrence-row input[type="date"] {
+    width: 100%;
+    min-height: 34px;
+    box-sizing: border-box;
+}
+
+.spa-event-recurrence-row select {
+    padding: 6px 10px;
+    line-height: 1.4;
 }
 
 .spa-checkbox-field {

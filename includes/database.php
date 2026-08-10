@@ -60,6 +60,7 @@ function spa_activate_plugin() {
         end_time time NOT NULL,
         description text NULL,
         location varchar(255) NULL,
+        service_type_id mediumint(9) NULL,
         is_recurring tinyint(1) NOT NULL DEFAULT 0,
         recurrence_type varchar(20) NULL,
         recurrence_end_date date NULL,
@@ -90,9 +91,39 @@ function spa_activate_plugin() {
         event_id mediumint(9) NOT NULL,
         team_id mediumint(9) NOT NULL,
         volunteer_id mediumint(9) NOT NULL,
+        is_override tinyint(1) NOT NULL DEFAULT 0,
         PRIMARY KEY (event_id, team_id, volunteer_id)
         ) $charset_collate;";
     
+    dbDelta($sql);
+
+    $service_types_table = $wpdb->prefix . 'spa_service_types';
+
+    $sql = "CREATE TABLE $service_types_table (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        name varchar(255) NOT NULL,
+        description text NULL,
+        active tinyint(1) NOT NULL DEFAULT 1,
+        created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id)
+    ) $charset_collate;";
+
+    dbDelta($sql);
+
+    $rotation_table = $wpdb->prefix . 'spa_team_rotations';
+
+    $sql = "CREATE TABLE $rotation_table (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        service_type_id mediumint(9) NOT NULL,
+        team_id mediumint(9) NOT NULL,
+        volunteer_id mediumint(9) NOT NULL,
+        rotation_order mediumint(9) NOT NULL DEFAULT 0,
+        is_next tinyint(1) NOT NULL DEFAULT 0,
+        advance_rule varchar(20) NOT NULL DEFAULT 'every_event',
+        created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id)
+    ) $charset_collate;";
+
     dbDelta($sql);
 
     // Notification Templates Table
