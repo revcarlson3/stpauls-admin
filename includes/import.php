@@ -313,7 +313,7 @@ function spa_upgrade_complete_backup($backup) {
     return $backup;
 }
 
-function spa_validate_complete_backup($backup) {
+function spa_validate_complete_backup(&$backup, $discard_orphaned_relationships = false) {
     global $wpdb;
 
     $definitions = spa_get_complete_backup_table_definitions();
@@ -429,34 +429,72 @@ function spa_validate_complete_backup($backup) {
             return new WP_Error('broken_backup_reference', 'A recurring event references a missing parent event.');
         }
     }
+    $discarded_relationships = array(
+        'volunteer_teams' => 0,
+        'events_teams' => 0,
+        'event_volunteers' => 0,
+        'team_rotations' => 0,
+    );
+
+    $valid_rows = array();
     foreach ( $tables['volunteer_teams'] as $row ) {
         if ( ! isset($volunteer_ids[intval($row['volunteer_id'])], $team_ids[intval($row['team_id'])]) ) {
+            if ( $discard_orphaned_relationships ) {
+                $discarded_relationships['volunteer_teams']++;
+                continue;
+            }
             return new WP_Error('broken_backup_reference', 'A volunteer-team relationship references a missing record.');
         }
+        $valid_rows[] = $row;
     }
+    $tables['volunteer_teams'] = $valid_rows;
+
+    $valid_rows = array();
     foreach ( $tables['events_teams'] as $row ) {
         if ( ! isset($event_ids[intval($row['event_id'])], $team_ids[intval($row['team_id'])]) ) {
+            if ( $discard_orphaned_relationships ) {
+                $discarded_relationships['events_teams']++;
+                continue;
+            }
             return new WP_Error('broken_backup_reference', 'An event-team relationship references a missing record.');
         }
+        $valid_rows[] = $row;
     }
+    $tables['events_teams'] = $valid_rows;
+
+    $valid_rows = array();
     foreach ( $tables['event_volunteers'] as $row ) {
         if (
             ! isset($event_ids[intval($row['event_id'])])
             || ! isset($team_ids[intval($row['team_id'])])
             || ! isset($volunteer_ids[intval($row['volunteer_id'])])
         ) {
+            if ( $discard_orphaned_relationships ) {
+                $discarded_relationships['event_volunteers']++;
+                continue;
+            }
             return new WP_Error('broken_backup_reference', 'An event assignment references a missing record.');
         }
+        $valid_rows[] = $row;
     }
+    $tables['event_volunteers'] = $valid_rows;
+
+    $valid_rows = array();
     foreach ( $tables['team_rotations'] as $row ) {
         if (
             ! isset($service_type_ids[intval($row['service_type_id'])])
             || ! isset($team_ids[intval($row['team_id'])])
             || ! isset($volunteer_ids[intval($row['volunteer_id'])])
         ) {
+            if ( $discard_orphaned_relationships ) {
+                $discarded_relationships['team_rotations']++;
+                continue;
+            }
             return new WP_Error('broken_backup_reference', 'A team rotation references a missing record.');
         }
+        $valid_rows[] = $row;
     }
+    $tables['team_rotations'] = $valid_rows;
 
     $composite_checks = array(
         array('volunteer_teams', array('volunteer_id', 'team_id')),
@@ -469,7 +507,12 @@ function spa_validate_complete_backup($backup) {
         }
     }
 
-    return true;
+    if ( $discard_orphaned_relationships ) {
+        $backup['payload']['tables'] = $tables;
+        $backup['checksum'] = spa_get_complete_backup_checksum($backup['payload']);
+    }
+
+    return $discarded_relationships;
 }
 
 function spa_complete_backup_tables_support_transactions() {
@@ -534,7 +577,7 @@ function spa_handle_import_complete_backup() {
     if ( is_wp_error($backup) ) {
         spa_redirect_complete_backup_error($backup->get_error_message());
     }
-    $validation = spa_validate_complete_backup($backup);
+    $validation = spa_validate_complete_backup($backup, true);
     if ( is_wp_error($validation) ) {
         spa_redirect_complete_backup_error($validation->get_error_message());
     }
@@ -663,6 +706,7 @@ function spa_handle_import_complete_backup() {
             'records' => array_sum(array_map('count', $backup['payload']['tables'])),
             'options' => count($backup['payload']['options']),
             'user_meta' => count($backup['payload']['user_meta']),
+            'discarded_relationships' => array_sum($validation),
         ),
         HOUR_IN_SECONDS
     );

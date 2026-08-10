@@ -56,6 +56,10 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                         <?php echo intval($backup_result['tables']); ?> tables and
                         <?php echo intval($backup_result['options']); ?> settings, plus
                         <?php echo intval($backup_result['user_meta']); ?> user preferences.
+                        <?php if ( ! empty($backup_result['discarded_relationships']) ) : ?>
+                            Skipped <?php echo intval($backup_result['discarded_relationships']); ?>
+                            unusable relationship records whose referenced event, team, volunteer, or service type was absent from the backup.
+                        <?php endif; ?>
                     <?php endif; ?>
                 </p>
             </div>
