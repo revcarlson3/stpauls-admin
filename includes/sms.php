@@ -15,7 +15,17 @@ function spa_send_sms($to, $message, $provider = null) {
             $token = get_option('spa_twilio_token', '');
             $from = get_option('spa_twilio_from', '');
             if (empty($sid) || empty($token) || empty($from)) {
-                return new WP_Error('twilio_not_configured', 'Twilio not configured');
+                $missing = array();
+                if ( empty($sid) ) {
+                    $missing[] = 'Account SID';
+                }
+                if ( empty($token) ) {
+                    $missing[] = 'Auth Token';
+                }
+                if ( empty($from) ) {
+                    $missing[] = 'From Number';
+                }
+                return new WP_Error('twilio_not_configured', 'Twilio is missing: ' . implode(', ', $missing) . '.');
             }
             $url = "https://api.twilio.com/2010-04-01/Accounts/" . rawurlencode($sid) . "/Messages.json";
             $args = array(

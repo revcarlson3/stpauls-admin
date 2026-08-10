@@ -570,12 +570,16 @@ $('#spa-sms-example').text(ex);
         var $result = $('#spa-test-sms-result');
         $result.removeClass().text('');
 
-        $.post(spaAdmin.ajaxUrl, {
-            action: 'spa_send_test_sms',
-            nonce: spaAdmin.nonce,
-            spa_test_sms_recipient: cleaned,
-            spa_sms_provider: provider
-        }, function(response) {
+        var requestData = {};
+        $.each($btn.closest('form').serializeArray(), function(_, field) {
+            requestData[field.name] = field.value;
+        });
+        requestData.action = 'spa_send_test_sms';
+        requestData.nonce = spaAdmin.nonce;
+        requestData.spa_test_sms_recipient = cleaned;
+        requestData.spa_sms_provider = provider;
+
+        $.post(spaAdmin.ajaxUrl, requestData, function(response) {
             if ( response && response.success ) {
                 $result.addClass('spa-test-success').text('Test SMS sent successfully.');
             } else {
