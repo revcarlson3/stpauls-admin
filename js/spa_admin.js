@@ -133,7 +133,9 @@ jQuery(function($) {
         var eventId = $btn.data('event-id');
         var teamId = $btn.data('team-id');
         var oldVolunteerId = $btn.data('volunteer-id');
-        var newVolunteerId = $btn.closest('.spa-current-assignment').find('.spa-override-volunteer-select').val();
+        var $select = $btn.closest('.spa-current-assignment').find('.spa-override-volunteer-select');
+        var newVolunteerId = $select.val();
+        var newVolunteerName = $select.find('option:selected').text().trim();
 
         if (!newVolunteerId || String(newVolunteerId) === String(oldVolunteerId)) {
             return;
@@ -151,6 +153,19 @@ jQuery(function($) {
         }, function(response) {
             if (response && response.success) {
                 spaLoadEvent(eventId);
+                if (window.confirm('Override saved. Send a notification to ' + newVolunteerName + ' now?')) {
+                    $.post(spaAdmin.ajaxUrl, {
+                        action: 'spa_notify_event_volunteer',
+                        nonce: spaAdmin.nonce,
+                        event_id: eventId,
+                        team_id: teamId,
+                        volunteer_id: newVolunteerId
+                    }, function(notificationResponse) {
+                        alert(spaResponseMessage(notificationResponse, 'Notification sent.'));
+                    }).fail(function() {
+                        alert('The override was saved, but the notification request failed.');
+                    });
+                }
             } else {
                 alert(spaResponseMessage(response, 'Unable to save the override.'));
             }
