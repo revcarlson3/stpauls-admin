@@ -286,6 +286,7 @@ jQuery(function($) {
                 update_scope: scope || 'parent',
                 name: $('#spa-event-name').val(),
                 location: $('#spa-event-location').val(),
+                service_builder_url: $('#spa-event-service-builder-url').val(),
                 description: $('#spa-event-description').val(),
                 event_date: $('#spa-event-date').val(),
                 start_time: $('#spa-event-start-time').val(),
@@ -630,6 +631,7 @@ $('#spa-sms-example').text(ex);
        $('#spa-event-modal-name').val('');
        $('#spa-event-modal-service-type').val('');
        $('#spa-event-modal-location').val('');
+       $('#spa-event-modal-service-builder-url').val('');
        $('#spa-event-modal-description').val('');
        $('#spa-event-modal-date').val('');
        $('#spa-event-modal-start-time').val('');
@@ -666,6 +668,7 @@ $('#spa-sms-example').text(ex);
            event_id: $('#spa-event-modal-id').val(),
            name: $('#spa-event-modal-name').val(),
            location: $('#spa-event-modal-location').val(),
+           service_builder_url: $('#spa-event-modal-service-builder-url').val(),
            description: $('#spa-event-modal-description').val(),
            event_date: $('#spa-event-modal-date').val(),
            start_time: $('#spa-event-modal-start-time').val(),

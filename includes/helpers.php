@@ -116,3 +116,21 @@ function spa_get_example_number($country) {
     );
     return isset($map[$country]) ? $map[$country] : null;
 }
+
+function spa_sanitize_service_builder_url($url) {
+    $url = esc_url_raw(trim((string) $url), array('https'));
+    if ( $url === '' ) {
+        return '';
+    }
+
+    $host = wp_parse_url($url, PHP_URL_HOST);
+    $path = wp_parse_url($url, PHP_URL_PATH);
+    if (
+        strtolower((string) $host) !== 'app.lutheranservicebuilder.com'
+        || strpos((string) $path, '/holiday/') !== 0
+    ) {
+        return '';
+    }
+
+    return $url;
+}

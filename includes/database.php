@@ -60,6 +60,7 @@ function spa_activate_plugin() {
         end_time time NOT NULL,
         description text NULL,
         location varchar(255) NULL,
+        service_builder_url varchar(500) NULL,
         service_type_id mediumint(9) NULL,
         is_recurring tinyint(1) NOT NULL DEFAULT 0,
         recurrence_type varchar(20) NULL,

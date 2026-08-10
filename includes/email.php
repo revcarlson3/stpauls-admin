@@ -36,6 +36,16 @@ function spa_send_email($to, $subject, $message, $headers = array(), $attachment
     // Ensure From header
     $headers = (array) $headers;
     $headers[] = 'From: ' . $from_name . ' <' . $from_email . '>';
+    $has_content_type = false;
+    foreach ( $headers as $header ) {
+        if ( stripos($header, 'Content-Type:') === 0 ) {
+            $has_content_type = true;
+            break;
+        }
+    }
+    if ( ! $has_content_type ) {
+        $headers[] = 'Content-Type: text/html; charset=UTF-8';
+    }
 
     switch ($provider) {
         case 'smtp':

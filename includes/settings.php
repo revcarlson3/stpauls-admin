@@ -1063,10 +1063,14 @@ function spa_ajax_send_test_notification() {
         wp_send_json_error('missing_recipient');
     }
 
-    $team = $wpdb->get_row($wpdb->prepare(
-        "SELECT id, name FROM {$wpdb->prefix}spa_teams WHERE name = %s AND active = 1 LIMIT 1",
-        'Clergy'
-    ));
+    $team = $wpdb->get_row(
+        "SELECT id, name
+         FROM {$wpdb->prefix}spa_teams
+         WHERE name IN ('Readers', 'Clergy')
+         AND active = 1
+         ORDER BY CASE WHEN name = 'Readers' THEN 0 ELSE 1 END
+         LIMIT 1"
+    );
 
     $volunteer = null;
     if ( $team ) {
@@ -1083,7 +1087,7 @@ function spa_ajax_send_test_notification() {
     }
 
     $event = $wpdb->get_row(
-        "SELECT id, name, event_date, start_time, location
+        "SELECT id, name, event_date, start_time, location, service_builder_url
          FROM {$wpdb->prefix}spa_events
          ORDER BY event_date DESC, start_time DESC
          LIMIT 1"
@@ -1098,7 +1102,9 @@ function spa_ajax_send_test_notification() {
     $sample_full = trim($sample_first . ' ' . $sample_last);
     $sample_phone = $volunteer && ! empty($volunteer->phone) ? $volunteer->phone : $phone_to;
     $sample_email = $volunteer && ! empty($volunteer->email) ? $volunteer->email : $email_to;
-    $team_name = $team ? $team->name : 'Clergy';
+    $team_name = $team ? $team->name : 'Readers';
+    $email_readings = spa_get_readings_tag_value($team_name, $event->service_builder_url ?? '', true);
+    $sms_readings = spa_get_readings_tag_value($team_name, $event->service_builder_url ?? '', false);
 
     $template_id = intval(get_option('spa_active_email_template', 0));
     $sms_template_id = intval(get_option('spa_active_sms_template', 0));
@@ -1115,6 +1121,7 @@ function spa_ajax_send_test_notification() {
             'event_time' => $event->start_time,
             'event_location' => $event->location,
             'team_name' => $team_name,
+            'readings' => '',
         ));
         $body = spa_process_template($email_tpl->body, array(
             'first_name' => $sample_first,
@@ -1125,6 +1132,7 @@ function spa_ajax_send_test_notification() {
             'event_time' => $event->start_time,
             'event_location' => $event->location,
             'team_name' => $team_name,
+            'readings' => $email_readings,
         ));
         $sent = spa_send_email($email_to, $subject, $body);
         if ( is_wp_error($sent) ) {
@@ -1142,6 +1150,7 @@ function spa_ajax_send_test_notification() {
             'event_time' => $event->start_time,
             'event_location' => $event->location,
             'team_name' => $team_name,
+            'readings' => $sms_readings,
         ));
         $sent = spa_send_sms($phone_to, $sms_body);
         if ( is_wp_error($sent) ) {
