@@ -116,6 +116,19 @@ function spa_get_rotation_period_option_key($advance_rule, $service_type_id, $te
     return '';
 }
 
+function spa_get_rotation_period_value($advance_rule, $event_date) {
+    if ( $event_date === '' ) {
+        return '';
+    }
+    if ( $advance_rule === 'weekly' ) {
+        return gmdate('o-W', strtotime($event_date));
+    }
+    if ( $advance_rule === 'monthly' ) {
+        return gmdate('Y-m', strtotime($event_date));
+    }
+    return '';
+}
+
 function spa_capture_rotation_undo_state($preview_data) {
     global $wpdb;
 
@@ -249,12 +262,15 @@ function spa_get_rotation_preview_data($event_id) {
         );
 
         $team_result = array(
-            'team_id'           => intval($event_team->team_id),
-            'team_name'         => $event_team->team_name,
-            'volunteers_needed' => intval($event_team->volunteers_needed),
-            'assignments'       => array(),
-            'message'           => '',
-            'advance_rule'      => ! empty($rotation_rows[0]->advance_rule) ? $rotation_rows[0]->advance_rule : 'every_event',
+            'team_id'                    => intval($event_team->team_id),
+            'team_name'                  => $event_team->team_name,
+            'volunteers_needed'          => intval($event_team->volunteers_needed),
+            'assignments'                => array(),
+            'message'                    => '',
+            'advance_rule'               => ! empty($rotation_rows[0]->advance_rule) ? $rotation_rows[0]->advance_rule : 'every_event',
+            'pointer_rotation_id'        => 0,
+            'period_option_key'          => '',
+            'period_value'               => '',
         );
 
         if ( empty($rotation_rows) ) {
@@ -263,10 +279,10 @@ function spa_get_rotation_preview_data($event_id) {
             continue;
         }
 
-        $next_index = 0;
+        $current_index = 0;
         foreach ( $rotation_rows as $index => $rotation_row ) {
             if ( intval($rotation_row->is_next) === 1 ) {
-                $next_index = $index;
+                $current_index = $index;
                 break;
             }
         }
@@ -286,8 +302,36 @@ function spa_get_rotation_preview_data($event_id) {
             );
         }
 
+        $assignment_index = $current_index;
+        $period_option_key = spa_get_rotation_period_option_key(
+            $team_result['advance_rule'],
+            intval($event->service_type_id),
+            intval($event_team->team_id)
+        );
+        $period_value = spa_get_rotation_period_value(
+            $team_result['advance_rule'],
+            ! empty($event->event_date) ? $event->event_date : ''
+        );
+
+        if ( $period_option_key !== '' && $period_value !== '' ) {
+            $previous_period = get_option($period_option_key, '');
+            if ( $previous_period !== $period_value ) {
+                $team_result['period_option_key'] = $period_option_key;
+                $team_result['period_value'] = $period_value;
+
+                if ( $previous_period !== '' ) {
+                    $assignment_index = ($current_index + $needed) % $rotation_count;
+                    $team_result['pointer_rotation_id'] = intval($rotation_rows[$assignment_index]->id);
+                }
+            }
+        } elseif ( $team_result['advance_rule'] === 'every_event' ) {
+            $team_result['pointer_rotation_id'] = intval(
+                $rotation_rows[($current_index + $needed) % $rotation_count]->id
+            );
+        }
+
         for ( $offset = 0; $offset < $needed; $offset++ ) {
-            $row = $rotation_rows[($next_index + $offset) % $rotation_count];
+            $row = $rotation_rows[($assignment_index + $offset) % $rotation_count];
             $team_result['assignments'][] = array(
                 'volunteer_id'   => intval($row->volunteer_id),
                 'volunteer_name' => trim($row->first_name . ' ' . $row->last_name),
@@ -394,81 +438,40 @@ function spa_apply_event_rotation_ajax() {
             }
         }
 
-        $rotation_rows = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT id
-                 FROM {$wpdb->prefix}spa_team_rotations
-                 WHERE service_type_id = %d
-                 AND team_id = %d
-                 ORDER BY rotation_order",
-                intval($preview_data['event']->service_type_id),
-                $team_id
-            )
-        );
+        if ( ! empty($team_result['period_option_key']) && $team_result['period_value'] !== '' ) {
+            $period_updates[$team_result['period_option_key']] = $team_result['period_value'];
+        }
 
-        if ( ! empty($rotation_rows) ) {
-            $advance_rule = isset($team_result['advance_rule']) ? $team_result['advance_rule'] : 'every_event';
+        if ( ! empty($team_result['pointer_rotation_id']) ) {
+            $cleared = $wpdb->update(
+                $wpdb->prefix . 'spa_team_rotations',
+                array('is_next' => 0),
+                array(
+                    'service_type_id' => intval($preview_data['event']->service_type_id),
+                    'team_id'         => $team_id,
+                ),
+                array('%d'),
+                array('%d', '%d')
+            );
+            if ( $cleared === false ) {
+                $wpdb->query('ROLLBACK');
+                wp_send_json_error(array('message' => 'Unable to advance the team rotation.'));
+            }
 
-            if ( $advance_rule !== 'manual' ) {
-                $should_advance = true;
-                $event_date = ! empty($preview_data['event']->event_date) ? $preview_data['event']->event_date : '';
-
-                if ( $advance_rule === 'weekly' && $event_date !== '' ) {
-                    $year_week = gmdate('o-W', strtotime($event_date));
-                    $last_key = 'spa_rotation_last_week_' . intval($preview_data['event']->service_type_id) . '_' . $team_id;
-                    $previous_week = get_option($last_key, '');
-                    $should_advance = $previous_week !== $year_week;
-                    if ( $should_advance ) {
-                        $period_updates[$last_key] = $year_week;
-                    }
-                } elseif ( $advance_rule === 'monthly' && $event_date !== '' ) {
-                    $year_month = gmdate('Y-m', strtotime($event_date));
-                    $last_key = 'spa_rotation_last_month_' . intval($preview_data['event']->service_type_id) . '_' . $team_id;
-                    $previous_month = get_option($last_key, '');
-                    $should_advance = $previous_month !== $year_month;
-                    if ( $should_advance ) {
-                        $period_updates[$last_key] = $year_month;
-                    }
-                }
-
-                if ( $should_advance ) {
-                    $next_rotation_id = intval($team_result['assignments'][count($team_result['assignments']) - 1]['rotation_id']);
-                    $next_index = 0;
-
-                    foreach ( $rotation_rows as $index => $rotation_row ) {
-                        if ( intval($rotation_row->id) === $next_rotation_id ) {
-                            $next_index = ($index + 1) % count($rotation_rows);
-                            break;
-                        }
-                    }
-
-                    $cleared = $wpdb->update(
-                        $wpdb->prefix . 'spa_team_rotations',
-                        array('is_next' => 0),
-                        array(
-                            'service_type_id' => intval($preview_data['event']->service_type_id),
-                            'team_id'         => $team_id,
-                        ),
-                        array('%d'),
-                        array('%d', '%d')
-                    );
-                    if ( $cleared === false ) {
-                        $wpdb->query('ROLLBACK');
-                        wp_send_json_error(array('message' => 'Unable to advance the team rotation.'));
-                    }
-
-                    $advanced = $wpdb->update(
-                        $wpdb->prefix . 'spa_team_rotations',
-                        array('is_next' => 1),
-                        array('id' => intval($rotation_rows[$next_index]->id)),
-                        array('%d'),
-                        array('%d')
-                    );
-                    if ( $advanced === false ) {
-                        $wpdb->query('ROLLBACK');
-                        wp_send_json_error(array('message' => 'Unable to advance the team rotation.'));
-                    }
-                }
+            $advanced = $wpdb->update(
+                $wpdb->prefix . 'spa_team_rotations',
+                array('is_next' => 1),
+                array(
+                    'id'              => intval($team_result['pointer_rotation_id']),
+                    'service_type_id' => intval($preview_data['event']->service_type_id),
+                    'team_id'         => $team_id,
+                ),
+                array('%d'),
+                array('%d', '%d', '%d')
+            );
+            if ( $advanced !== 1 ) {
+                $wpdb->query('ROLLBACK');
+                wp_send_json_error(array('message' => 'Unable to advance the team rotation.'));
             }
         }
     }
