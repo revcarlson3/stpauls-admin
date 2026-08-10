@@ -376,8 +376,9 @@ jQuery(function($) {
             }, function(response) {
                 if (response && response.success) {
                     spaRenderStatus($status, 'success', spaResponseMessage(response, 'Saved successfully.'), true);
-                    spaLoadEvent(eventId);
-                    setTimeout(function() { $status.empty(); }, 3000);
+                    setTimeout(function() {
+                        spaLoadEvent(eventId);
+                    }, 2000);
                 } else {
                     spaRenderStatus($status, 'error', 'Error: ' + spaResponseMessage(response, 'Unknown error'), true);
                 }
