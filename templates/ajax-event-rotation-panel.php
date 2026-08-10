@@ -1,4 +1,4 @@
-<p style="margin-top:0;">
+<p class="spa-event-rotation-actions" style="margin-top:0;">
     <button type="button" id="spa-preview-event-rotation-btn" class="button">Preview Rotation Assignments</button>
     <button
         type="button"

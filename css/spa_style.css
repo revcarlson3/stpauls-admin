@@ -42,10 +42,21 @@
 
 .spa-events-layout {
     display: grid;
-    grid-template-columns: minmax(260px, 16%) minmax(460px, 34%) minmax(260px, 20%) minmax(300px, 1fr);
+    grid-template-columns: minmax(260px, 16%) minmax(460px, 34%) minmax(420px, 28%) minmax(300px, 1fr);
     gap: 20px;
     margin-top: 20px;
     align-items: start;
+}
+
+.spa-event-rotation-actions {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+}
+
+.spa-event-rotation-actions .button {
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .spa-events-column {
@@ -94,6 +105,10 @@
     .spa-event-rotation,
     .spa-event-volunteers {
         grid-column: 1;
+    }
+
+    .spa-event-rotation-actions {
+        flex-wrap: wrap;
     }
 }
 
