@@ -729,6 +729,37 @@ $('#spa-sms-example').text(ex);
        });
     });
 
+    $(document).on('click', '#spa-undo-event-rotation-btn', function() {
+       if (!window.confirm('Undo the last rotation application and restore the previous assignments and rotation positions?')) {
+           return;
+       }
+
+       var $btn = $(this);
+       var $preview = $('#spa-event-rotation-preview');
+       var eventId = $('#spa-event-id').val();
+
+       $btn.prop('disabled', true).text('Undoing...');
+
+       $.post(spaAdmin.ajaxUrl, {
+           action: 'spa_undo_event_rotation',
+           nonce: spaAdmin.nonce,
+           event_id: eventId
+       }, function(response) {
+           if (response && response.success) {
+               spaRenderStatus($preview, 'success', spaResponseMessage(response, 'Rotation application undone.'), true);
+               setTimeout(function() {
+                   spaLoadEvent(eventId);
+               }, 1500);
+           } else {
+               spaRenderStatus($preview, 'error', spaResponseMessage(response, 'Unable to undo the rotation application.'), true);
+           }
+       }).fail(function() {
+           spaRenderStatus($preview, 'error', 'AJAX error. Please try again.', true);
+       }).always(function() {
+           $btn.prop('disabled', false).text('Undo Last Apply');
+       });
+    });
+
     /* ── Notification Templates ── */
 
     function spaTemplateGetBody(type) {

@@ -563,6 +563,7 @@ function spa_load_event_ajax() {
     }
 
     $is_series_parent = is_null($event->parent_event_id) && intval($wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}spa_events WHERE parent_event_id = %d", $event_id))) > 0;
+    $can_undo_rotation = spa_get_rotation_undo_state($event_id) !== false;
 
     ob_start();
     include SPA_TEMPLATE_DIR . 'ajax-event-details.php';

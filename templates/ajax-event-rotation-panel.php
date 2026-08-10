@@ -1,6 +1,9 @@
 <p style="margin-top:0;">
     <button type="button" id="spa-preview-event-rotation-btn" class="button">Preview Rotation Assignments</button>
     <button type="button" id="spa-apply-event-rotation-btn" class="button">Apply Rotation Assignments</button>
+    <?php if ( $can_undo_rotation ) : ?>
+        <button type="button" id="spa-undo-event-rotation-btn" class="button">Undo Last Apply</button>
+    <?php endif; ?>
 </p>
 
 <div id="spa-event-rotation-preview"></div>
