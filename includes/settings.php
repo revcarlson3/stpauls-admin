@@ -1080,14 +1080,14 @@ function spa_ajax_send_test_notification() {
         wp_send_json_error('missing_recipient');
     }
 
-    $team = $wpdb->get_row(
+    $team = $wpdb->get_row($wpdb->prepare(
         "SELECT id, name
          FROM {$wpdb->prefix}spa_teams
-         WHERE name IN ('Readers', 'Clergy')
+         WHERE name = %s
          AND active = 1
-         ORDER BY CASE WHEN name = 'Readers' THEN 0 ELSE 1 END
-         LIMIT 1"
-    );
+         LIMIT 1",
+        'Clergy'
+    ));
 
     $volunteer = null;
     if ( $team ) {
@@ -1119,7 +1119,7 @@ function spa_ajax_send_test_notification() {
     $sample_full = trim($sample_first . ' ' . $sample_last);
     $sample_phone = $volunteer && ! empty($volunteer->phone) ? $volunteer->phone : $phone_to;
     $sample_email = $volunteer && ! empty($volunteer->email) ? $volunteer->email : $email_to;
-    $team_name = $team ? $team->name : 'Readers';
+    $team_name = $team ? $team->name : 'Clergy';
     $email_readings = spa_get_readings_tag_value($team_name, $event->service_builder_url ?? '', true);
     $sms_readings = spa_get_readings_tag_value($team_name, $event->service_builder_url ?? '', false);
 
