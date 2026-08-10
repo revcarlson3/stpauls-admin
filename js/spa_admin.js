@@ -133,7 +133,7 @@ jQuery(function($) {
         var eventId = $btn.data('event-id');
         var teamId = $btn.data('team-id');
         var oldVolunteerId = $btn.data('volunteer-id');
-        var newVolunteerId = $btn.closest('li').find('.spa-override-volunteer-select').val();
+        var newVolunteerId = $btn.closest('.spa-current-assignment').find('.spa-override-volunteer-select').val();
 
         if (!newVolunteerId || String(newVolunteerId) === String(oldVolunteerId)) {
             return;
