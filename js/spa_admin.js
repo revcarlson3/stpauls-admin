@@ -1,4 +1,61 @@
 jQuery(function($) {
+    function spaResponseMessage(response, fallback) {
+        var data = response && response.data;
+
+        if (data && typeof data === 'object' && data.message) {
+            return data.message;
+        }
+        if (typeof data === 'string' && data) {
+            return data;
+        }
+        return fallback;
+    }
+
+    function spaRenderStatus($status, type, message, inline) {
+        var classes = 'notice notice-' + type + (inline ? ' inline' : '');
+        var $notice = $('<div>').addClass(classes);
+
+        $('<p>').text(message).appendTo($notice);
+        $status.empty().append($notice);
+    }
+
+    function spaRenderEvent(response) {
+        if (!response || !response.success) {
+            return false;
+        }
+
+        $('#spa-event-details-container').html(response.data.details);
+        $('#spa-event-rotation-container').html(response.data.rotation);
+        $('#spa-event-volunteers-container').html(response.data.volunteers);
+        $('#spa-event-details-container').data('series-parent', response.data.is_series_parent ? '1' : '0');
+        return true;
+    }
+
+    function spaLoadEvent(eventId) {
+        return $.post(spaAdmin.ajaxUrl, {
+            action: 'spa_load_event',
+            event_id: eventId,
+            nonce: spaAdmin.nonce
+        }, spaRenderEvent);
+    }
+
+    function spaRenderEventsPage(response) {
+        if (!response || !response.success) {
+            return false;
+        }
+
+        $('#spa-events-list-container').html(response.data.html);
+        return true;
+    }
+
+    function spaReloadEventsPage(page) {
+        return $.post(spaAdmin.ajaxUrl, {
+            action: 'spa_load_events_page',
+            page: page,
+            nonce: spaAdmin.nonce
+        }, spaRenderEventsPage);
+    }
+
     $(document).on(
         'click',
         '.spa-tab-button',
@@ -43,21 +100,6 @@ jQuery(function($) {
         }
     });
 
-    function spaReloadSelectedEvent(eventId) {
-        $.post(spaAdmin.ajaxUrl, {
-            action: 'spa_load_event',
-            nonce: spaAdmin.nonce,
-            event_id: eventId
-        }, function(loadResponse) {
-            if (loadResponse && loadResponse.success) {
-                $('#spa-event-details-container').html(loadResponse.data.details);
-                $('#spa-event-rotation-container').html(loadResponse.data.rotation);
-                $('#spa-event-volunteers-container').html(loadResponse.data.final_assignments_html || '');
-                $('#spa-event-details-container').data('series-parent', loadResponse.data.is_series_parent ? '1' : '0');
-            }
-        });
-    }
-
     $(document).on(
         'click',
         '.spa-event-link',
@@ -79,25 +121,7 @@ jQuery(function($) {
                     'spa-event-selected'
                 );
 
-            $.post(
-                spaAdmin.ajaxUrl,
-                {
-                    action: 'spa_load_event',
-                    event_id: eventId,
-                    nonce: spaAdmin.nonce
-                },
-                function(response) {
-
-                    if (response.success) {
-                        $('#spa-event-details-container').html(response.data.details);
-                        $('#spa-event-rotation-container').html(response.data.rotation);
-                        $('#spa-event-volunteers-container').html(response.data.final_assignments_html || '');
-                        $('#spa-event-details-container').data('series-parent', response.data.is_series_parent ? '1' : '0');
-
-                    }
-
-                }
-            );
+            spaLoadEvent(eventId);
 
         }
     );
@@ -124,7 +148,7 @@ jQuery(function($) {
             new_volunteer_id: newVolunteerId
         }, function(response) {
             if (response && response.success) {
-                spaReloadSelectedEvent(eventId);
+                spaLoadEvent(eventId);
             }
         });
     });
@@ -136,18 +160,6 @@ jQuery(function($) {
         $('#spa-event-action-parent').toggle(!!buttons.parent);
         $('#spa-event-action-series').toggle(!!buttons.series);
         $('#spa-event-action-modal').show();
-    }
-
-    function spaReloadEventsList() {
-        $.post(spaAdmin.ajaxUrl, {
-            action: 'spa_load_events_page',
-            nonce: spaAdmin.nonce,
-            page: 1
-        }, function(data) {
-            if (data.success) {
-                $('#spa-events-list-container').html(data.data.html);
-            }
-        });
     }
 
     function spaRunDelete(scope) {
@@ -162,7 +174,7 @@ jQuery(function($) {
                 $('#spa-event-details-container').html('<p>Event deleted.</p>');
                 $('#spa-event-rotation-container').html($('#spa-event-rotation-empty-template').html());
                 $('#spa-event-volunteers-container').empty();
-                spaReloadEventsList();
+                spaReloadEventsPage(1);
             } else {
                 alert(response && response.data && response.data.message ? response.data.message : 'Delete failed');
             }
@@ -215,26 +227,7 @@ jQuery(function($) {
             let page =
                 $(this).data('page');
 
-            $.post(
-                spaAdmin.ajaxUrl,
-                {
-                    action: 'spa_load_events_page',
-                    page: page,
-                    nonce: spaAdmin.nonce
-                },
-                function(response) {
-
-                    if (response.success) {
-
-                        $('#spa-events-list-container')
-                            .html(
-                                response.data.html
-                            );
-
-                    }
-
-                }
-            );
+            spaReloadEventsPage(page);
 
         }
     );
@@ -382,27 +375,26 @@ jQuery(function($) {
                 teams: teams
             }, function(response) {
                 if (response && response.success) {
-                    var successMsg = (response.data && response.data.message) ? response.data.message : 'Saved successfully.';
-                    $status.html('<div class="notice notice-success inline"><p>' + successMsg + '</p></div>');
-                    if (response.data && response.data.final_assignments_html) {
-                        $('#spa-event-volunteers-container').html(response.data.final_assignments_html);
-                    }
+                    spaRenderStatus($status, 'success', spaResponseMessage(response, 'Saved successfully.'), true);
+                    spaLoadEvent(eventId);
                     setTimeout(function() { $status.empty(); }, 3000);
                 } else {
-                    // Silent failure: the save itself is still reaching the server,
-                    // so keep the UI from showing a misleading error box.
+                    spaRenderStatus($status, 'error', 'Error: ' + spaResponseMessage(response, 'Unknown error'), true);
                 }
-            }, 'json').always(function() {
+            }, 'json').fail(function() {
+                spaRenderStatus($status, 'error', 'AJAX error. Please try again.', true);
+            }).always(function() {
                 $btn.prop('disabled', false).text('Save Event');
             });
         };
 
         if (isParentSeries) {
-            spaOpenEventActionModal('This event is the parent of a recurring series. Update just this event or the entire series?', true, function(scope) {
-                $btn.prop('disabled', true).text('Saving...');
-                $status.empty();
-                savePayload(scope);
-            });
+            var updateSeries = window.confirm(
+                'Update the entire recurring series? Select Cancel to update only this event.'
+            );
+            $btn.prop('disabled', true).text('Saving...');
+            $status.empty();
+            savePayload(updateSeries ? 'series' : 'parent');
             return;
         }
 
@@ -457,7 +449,8 @@ jQuery(function($) {
         var $result = $('#spa-test-result');
         $result.removeClass().text('');
 
-        $.post(spaAdmin.ajaxUrl, dataArray, function(response) {
+
+        $.post(spaAdmin.ajaxUrl, dataArray, function(response) {
             if ( response && response.success ) {
                 $result.addClass('spa-test-success').text('Test email sent successfully.');
             } else {
@@ -658,13 +651,13 @@ $('#spa-sms-example').text(ex);
        var $btn = $(this);
        var field = $btn.data('field');
        var option = $btn.data('option');
-        
+
        if (!confirm('Are you sure? This will delete the saved credential.')) {
            return;
        }
-        
+
        $btn.prop('disabled', true).text('Deleting...');
-        
+
        $.post(spaAdmin.ajaxUrl, {
            action: 'spa_delete_secret',
            option: option,
@@ -719,7 +712,7 @@ $('#spa-sms-example').text(ex);
        e.preventDefault();
        var $btn = $(this);
        var $status = $('#spa-event-modal-status');
-        
+
        var eventData = {
            action: 'spa_save_event_modal',
            nonce: spaAdmin.nonce,
@@ -742,27 +735,16 @@ $('#spa-sms-example').text(ex);
 
        $.post(spaAdmin.ajaxUrl, eventData, function(response) {
            if (response && response.success) {
-               $status.html('<div class="notice notice-success"><p>Event saved successfully!</p></div>');
+               spaRenderStatus($status, 'success', 'Event saved successfully!', false);
                setTimeout(function() {
                    $('#spa-event-modal').hide();
-                   // Reload events list
-                   var page = 1;
-                   $.post(spaAdmin.ajaxUrl, {
-                       action: 'spa_load_events_page',
-                       nonce: spaAdmin.nonce,
-                       page: page
-                   }, function(data) {
-                       if (data.success) {
-                           $('#spa-events-list-container').html(data.data.html);
-                       }
-                   });
+                   spaReloadEventsPage(1);
                }, 1000);
            } else {
-               var msg = response && response.data ? response.data : 'Unknown error';
-               $status.html('<div class="notice notice-error"><p>Error: ' + msg + '</p></div>');
+               spaRenderStatus($status, 'error', 'Error: ' + spaResponseMessage(response, 'Unknown error'), false);
            }
        }).fail(function() {
-           $status.html('<div class="notice notice-error"><p>AJAX error</p></div>');
+           spaRenderStatus($status, 'error', 'AJAX error', false);
        }).always(function() {
            $btn.prop('disabled', false).text('Save Event');
        });
@@ -790,11 +772,10 @@ $('#spa-sms-example').text(ex);
            if (response && response.success && response.data && response.data.preview_html) {
                $preview.html(response.data.preview_html);
            } else {
-               var msg = response && response.data ? response.data.message : 'Unable to load preview.';
-               $preview.html('<div class="notice notice-error inline"><p>' + msg + '</p></div>');
+               spaRenderStatus($preview, 'error', spaResponseMessage(response, 'Unable to load preview.'), true);
            }
        }).fail(function() {
-           $preview.html('<div class="notice notice-error inline"><p>AJAX error. Please try again.</p></div>');
+           spaRenderStatus($preview, 'error', 'AJAX error. Please try again.', true);
        }).always(function() {
            $btn.prop('disabled', false).text('Preview Rotation Assignments');
        });
@@ -812,23 +793,13 @@ $('#spa-sms-example').text(ex);
            event_id: $('#spa-event-id').val()
        }, function(response) {
            if (response && response.success) {
-               $preview.html('<div class="notice notice-success inline"><p>' + (response.data && response.data.message ? response.data.message : 'Assignments applied.') + '</p></div>');
-               $.post(spaAdmin.ajaxUrl, {
-                   action: 'spa_load_event',
-                   nonce: spaAdmin.nonce,
-                   event_id: $('#spa-event-id').val()
-               }, function(loadResponse) {
-                   if (loadResponse && loadResponse.success) {
-                       $('#spa-event-rotation-container').html(loadResponse.data.rotation);
-                       $('#spa-event-volunteers-container').html(loadResponse.data.volunteers);
-                   }
-               });
+               spaRenderStatus($preview, 'success', spaResponseMessage(response, 'Assignments applied.'), true);
+               spaLoadEvent($('#spa-event-id').val());
            } else {
-               var msg = response && response.data ? response.data.message : 'Unable to apply assignments.';
-               $preview.html('<div class="notice notice-error inline"><p>' + msg + '</p></div>');
+               spaRenderStatus($preview, 'error', spaResponseMessage(response, 'Unable to apply assignments.'), true);
            }
        }).fail(function() {
-           $preview.html('<div class="notice notice-error inline"><p>AJAX error. Please try again.</p></div>');
+           spaRenderStatus($preview, 'error', 'AJAX error. Please try again.', true);
        }).always(function() {
            $btn.prop('disabled', false).text('Apply Rotation Assignments');
        });

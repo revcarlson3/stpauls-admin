@@ -126,66 +126,8 @@ function spa_save_event_details_ajax() {
         }
     }
 
-    $event = $wpdb->get_row(
-        $wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}spa_events WHERE id = %d",
-            $event_id
-        )
-    );
-    $event_teams = $wpdb->get_results(
-        $wpdb->prepare(
-            "SELECT
-                 t.id,
-                 t.name,
-                 MAX(et.volunteers_needed) AS volunteers_needed
-             FROM {$wpdb->prefix}spa_events_teams et
-             INNER JOIN {$wpdb->prefix}spa_teams t
-                 ON et.team_id = t.id
-                 AND t.active = 1
-             WHERE et.event_id = %d
-             GROUP BY t.id, t.name
-             ORDER BY t.name",
-            $event_id
-        )
-    );
-    $assigned_volunteers = $wpdb->get_results(
-        $wpdb->prepare(
-            "SELECT team_id, volunteer_id, is_override
-             FROM {$wpdb->prefix}spa_event_volunteers
-             WHERE event_id = %d",
-            $event_id
-        )
-    );
-    $assigned_lookup = array();
-    foreach ( $assigned_volunteers as $assignment ) {
-        $assigned_lookup[$assignment->team_id][$assignment->volunteer_id] = ! empty($assignment->is_override);
-    }
-    $final_assignments = $wpdb->get_results(
-        $wpdb->prepare(
-            "SELECT
-                t.name AS team_name,
-                CONCAT(v.first_name, ' ', v.last_name) AS volunteer_name,
-                ev.is_override
-             FROM {$wpdb->prefix}spa_event_volunteers ev
-             INNER JOIN {$wpdb->prefix}spa_teams t
-                ON t.id = ev.team_id
-                AND t.active = 1
-             INNER JOIN {$wpdb->prefix}spa_volunteers v
-                ON v.id = ev.volunteer_id
-                AND v.active = 1
-             WHERE ev.event_id = %d
-             ORDER BY t.name, v.last_name, v.first_name",
-            $event_id
-        )
-    );
-
-    ob_start();
-    include SPA_TEMPLATE_DIR . 'ajax-event-final-assignments.php';
-    $final_assignments_html = ob_get_clean();
-
     wp_send_json_success(array(
         'message' => $update_scope === 'series' ? 'Series saved.' : 'Event saved.',
-        'final_assignments_html' => $final_assignments_html,
     ));
 }
 
