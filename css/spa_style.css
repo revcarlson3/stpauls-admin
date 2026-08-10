@@ -7,6 +7,81 @@
 
 }
 
+/* Shared admin modal */
+.spa-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.spa-modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.spa-modal-content {
+    position: relative;
+    background: #fff;
+    border-radius: 5px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.spa-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #ddd;
+}
+
+.spa-modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.spa-modal-close {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    font-size: 28px;
+}
+
+.spa-modal-close:hover {
+    color: #000;
+}
+
+.spa-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.spa-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 20px;
+    border-top: 1px solid #ddd;
+    background: #f9f9f9;
+}
+
 /* Plugin Header */
 
 .spa-header {
@@ -42,10 +117,21 @@
 
 .spa-events-layout {
     display: grid;
-    grid-template-columns: minmax(260px, 16%) minmax(460px, 34%) minmax(260px, 20%) minmax(300px, 1fr);
+    grid-template-columns: minmax(260px, 16%) minmax(460px, 34%) minmax(420px, 28%) minmax(300px, 1fr);
     gap: 20px;
     margin-top: 20px;
     align-items: start;
+}
+
+.spa-event-rotation-actions {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+}
+
+.spa-event-rotation-actions .button {
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .spa-events-column {
@@ -94,6 +180,10 @@
     .spa-event-rotation,
     .spa-event-volunteers {
         grid-column: 1;
+    }
+
+    .spa-event-rotation-actions {
+        flex-wrap: wrap;
     }
 }
 
@@ -673,12 +763,53 @@
     font-weight: 600;
 }
 
-.spa-volunteer-checkbox:disabled + .spa-volunteer-name {
-    color: #999;
+.spa-current-assignments-table {
+    table-layout: fixed;
 }
 
-.spa-volunteer-checkbox:disabled {
-    opacity: 0.5;
+.spa-current-assignments-table th,
+.spa-current-assignments-table td {
+    vertical-align: middle;
+}
+
+.spa-current-assignments-table .spa-assignment-team-column {
+    width: 22%;
+}
+
+.spa-current-assignments-table .spa-assignment-volunteer-column {
+    width: 28%;
+}
+
+.spa-current-assignments-table .spa-assignment-override-column {
+    width: 50%;
+}
+
+.spa-assignment-override-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px;
+    align-items: center;
+}
+
+.spa-assignment-override-controls select {
+    width: 100%;
+    min-width: 0;
+}
+
+.spa-assignment-label {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.spa-assignment-inactive,
+.spa-no-override {
+    color: #646970;
+}
+
+.spa-assignment-overridden {
+    color: #b32d2e;
 }
 
 /* Settings */

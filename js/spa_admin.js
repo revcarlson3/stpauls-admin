@@ -26,7 +26,7 @@ jQuery(function($) {
 
         $('#spa-event-details-container').html(response.data.details);
         $('#spa-event-rotation-container').html(response.data.rotation);
-        $('#spa-event-volunteers-container').html(response.data.volunteers);
+        $('#spa-event-volunteers-container').html(response.data.final_assignments);
         $('#spa-event-details-container').data('series-parent', response.data.is_series_parent ? '1' : '0');
         return true;
     }
@@ -133,11 +133,15 @@ jQuery(function($) {
         var eventId = $btn.data('event-id');
         var teamId = $btn.data('team-id');
         var oldVolunteerId = $btn.data('volunteer-id');
-        var newVolunteerId = window.prompt('Enter the volunteer ID to use for this event instead:');
+        var $select = $btn.closest('.spa-current-assignment').find('.spa-override-volunteer-select');
+        var newVolunteerId = $select.val();
+        var newVolunteerName = $select.find('option:selected').text().trim();
 
-        if (!newVolunteerId) {
+        if (!newVolunteerId || String(newVolunteerId) === String(oldVolunteerId)) {
             return;
         }
+
+        $btn.prop('disabled', true).text('Saving...');
 
         $.post(spaAdmin.ajaxUrl, {
             action: 'spa_override_event_volunteer',
@@ -149,7 +153,26 @@ jQuery(function($) {
         }, function(response) {
             if (response && response.success) {
                 spaLoadEvent(eventId);
+                if (window.confirm('Override saved. Send a notification to ' + newVolunteerName + ' now?')) {
+                    $.post(spaAdmin.ajaxUrl, {
+                        action: 'spa_notify_event_volunteer',
+                        nonce: spaAdmin.nonce,
+                        event_id: eventId,
+                        team_id: teamId,
+                        volunteer_id: newVolunteerId
+                    }, function(notificationResponse) {
+                        alert(spaResponseMessage(notificationResponse, 'Notification sent.'));
+                    }).fail(function() {
+                        alert('The override was saved, but the notification request failed.');
+                    });
+                }
+            } else {
+                alert(spaResponseMessage(response, 'Unable to save the override.'));
             }
+        }).fail(function() {
+            alert('AJAX error. Please try again.');
+        }).always(function() {
+            $btn.prop('disabled', false).text('Override');
         });
     });
 
@@ -232,106 +255,6 @@ jQuery(function($) {
         }
     );
 
-    $(document).on(
-        'change',
-        '.spa-volunteer-checkbox',
-        function() {
-
-            let checkbox = $(this);
-
-            $.post(
-                spaAdmin.ajaxUrl,
-                {
-                    action: 'spa_toggle_volunteer',
-                    event_id: checkbox.data('event-id'),
-                    team_id: checkbox.data('team-id'),
-                    volunteer_id: checkbox.data('volunteer-id'),
-                    assigned: checkbox.is(':checked') ? 1 : 0,
-                    nonce: spaAdmin.nonce
-                },
-                function(response) {
-
-                if (response.success) {
-
-                    let teamCard = checkbox.closest('.spa-team-card');
-
-                    let countElement =
-                        teamCard.find('.spa-assigned-count');
-
-                    let assignedCount =
-                        teamCard.find(
-                            '.spa-volunteer-checkbox:checked'
-                        ).length;
-
-                    countElement.text(assignedCount);
-
-                    let countContainer =
-                        teamCard.find('.spa-team-count');
-
-                    let needed = parseInt(
-                        countContainer.data('needed')
-                    );
-
-                    let checkmark =
-                        teamCard.find('.spa-team-complete');
-
-                    countContainer.removeClass(
-                        'spa-team-full spa-team-short'
-                    );
-
-                    if (assignedCount >= needed) {
-
-                        countContainer.addClass(
-                            'spa-team-full'
-                        );
-
-                        checkmark.html('&#10003;');
-
-                    } else {
-
-                        countContainer.addClass(
-                            'spa-team-short'
-                        );
-
-                        checkmark.empty();
-
-                    }
-
-                    teamCard.find(
-                        '.spa-volunteer-checkbox'
-                    ).each(function() {
-
-                        let currentCheckbox = $(this);
-
-                        if (
-                            assignedCount >= needed &&
-                            !currentCheckbox.is(':checked')
-                        ) {
-
-                            currentCheckbox.prop(
-                                'disabled',
-                                true
-                            );
-
-                        } else {
-
-                            currentCheckbox.prop(
-                                'disabled',
-                                false
-                            );
-
-                        }
-
-                    });
-
-                }
-
-                }
-            );
-
-        }
-    );
-
     $(document).on('input', '#spa-uninstall-confirm', function() {
         var val = $(this).val();
         var $btn = $('.spa-danger-zone').find('.spa-uninstall-btn');
@@ -376,8 +299,9 @@ jQuery(function($) {
             }, function(response) {
                 if (response && response.success) {
                     spaRenderStatus($status, 'success', spaResponseMessage(response, 'Saved successfully.'), true);
-                    spaLoadEvent(eventId);
-                    setTimeout(function() { $status.empty(); }, 3000);
+                    setTimeout(function() {
+                        spaLoadEvent(eventId);
+                    }, 2000);
                 } else {
                     spaRenderStatus($status, 'error', 'Error: ' + spaResponseMessage(response, 'Unknown error'), true);
                 }
@@ -499,17 +423,21 @@ jQuery(function($) {
         });
     });
 
-    $(document).on('click', '.spa-open-report', function(e) {
-        e.preventDefault();
-        var reportKey = $(this).data('report-key');
-        $('#spa-report-modal-body').html('<p>Loading report...</p>');
-        $('#spa-report-modal').show();
-
-        $.post(spaAdmin.ajaxUrl, {
+    function spaLoadReport(reportKey, startDate, endDate) {
+        var request = {
             action: 'spa_get_report',
             nonce: spaAdmin.nonce,
             report_key: reportKey
-        }, function(response) {
+        };
+        if (startDate && endDate) {
+            request.start_date = startDate;
+            request.end_date = endDate;
+        }
+
+        $('#spa-report-modal-body').html('<p>Loading report...</p>');
+        $('#spa-report-modal').css('display', 'flex');
+
+        $.post(spaAdmin.ajaxUrl, request, function(response) {
             if (response && response.success && response.data && response.data.html) {
                 $('#spa-report-modal-body').html(response.data.html);
             } else {
@@ -519,6 +447,25 @@ jQuery(function($) {
         }).fail(function() {
             $('#spa-report-modal-body').html('<div class="notice notice-error inline"><p>AJAX error loading report.</p></div>');
         });
+    }
+
+    $(document).on('click', '.spa-open-report', function(e) {
+        e.preventDefault();
+        spaLoadReport($(this).data('report-key'));
+    });
+
+    $(document).on('click', '.spa-refresh-schedule-report', function() {
+        var startDate = $('#spa-schedule-report-start').val();
+        var endDate = $('#spa-schedule-report-end').val();
+        if (!startDate || !endDate || startDate > endDate) {
+            window.alert('Choose a valid date range with the start date on or before the end date.');
+            return;
+        }
+        spaLoadReport(
+            'schedule_report',
+            startDate,
+            endDate
+        );
     });
 
     $(document).on('click', '#spa-report-modal-close', function() {
@@ -802,6 +749,37 @@ $('#spa-sms-example').text(ex);
            spaRenderStatus($preview, 'error', 'AJAX error. Please try again.', true);
        }).always(function() {
            $btn.prop('disabled', false).text('Apply Rotation Assignments');
+       });
+    });
+
+    $(document).on('click', '#spa-undo-event-rotation-btn', function() {
+       if (!window.confirm('Undo the last rotation application and restore the previous assignments and rotation positions?')) {
+           return;
+       }
+
+       var $btn = $(this);
+       var $preview = $('#spa-event-rotation-preview');
+       var eventId = $('#spa-event-id').val();
+
+       $btn.prop('disabled', true).text('Undoing...');
+
+       $.post(spaAdmin.ajaxUrl, {
+           action: 'spa_undo_event_rotation',
+           nonce: spaAdmin.nonce,
+           event_id: eventId
+       }, function(response) {
+           if (response && response.success) {
+               spaRenderStatus($preview, 'success', spaResponseMessage(response, 'Rotation application undone.'), true);
+               setTimeout(function() {
+                   spaLoadEvent(eventId);
+               }, 1500);
+           } else {
+               spaRenderStatus($preview, 'error', spaResponseMessage(response, 'Unable to undo the rotation application.'), true);
+           }
+       }).fail(function() {
+           spaRenderStatus($preview, 'error', 'AJAX error. Please try again.', true);
+       }).always(function() {
+           $btn.prop('disabled', false).text('Undo Last Apply');
        });
     });
 

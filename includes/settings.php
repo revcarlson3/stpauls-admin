@@ -239,10 +239,38 @@ function spa_get_report_definitions() {
             'label' => 'Rotation Report',
             'columns' => array(),
         ),
+        'schedule_report' => array(
+            'label' => 'Schedule Report',
+            'columns' => array(),
+        ),
     );
 }
 
-function spa_get_report_rows($report_key) {
+function spa_get_schedule_report_date_range($start_date = '', $end_date = '') {
+    $today = current_datetime();
+    $default_start = $today->format('Y-m-d');
+    $default_end_date = clone $today;
+    $default_end = $default_end_date->modify('+2 months')->format('Y-m-d');
+    $start_date = $start_date !== '' ? $start_date : $default_start;
+    $end_date = $end_date !== '' ? $end_date : $default_end;
+
+    foreach ( array($start_date, $end_date) as $date ) {
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        if ( ! $parsed || $parsed->format('Y-m-d') !== $date ) {
+            return new WP_Error('invalid_schedule_report_date', 'Enter valid start and end dates.');
+        }
+    }
+    if ( $start_date > $end_date ) {
+        return new WP_Error('invalid_schedule_report_range', 'The schedule report start date must be on or before the end date.');
+    }
+
+    return array(
+        'start_date' => $start_date,
+        'end_date' => $end_date,
+    );
+}
+
+function spa_get_report_rows($report_key, $filters = array()) {
     global $wpdb;
 
     switch ($report_key) {
@@ -453,6 +481,96 @@ function spa_get_report_rows($report_key) {
                 'headers' => $headers,
                 'rows' => $formatted_rows,
             );
+
+        case 'schedule_report':
+            $date_range = spa_get_schedule_report_date_range(
+                isset($filters['start_date']) ? $filters['start_date'] : '',
+                isset($filters['end_date']) ? $filters['end_date'] : ''
+            );
+            if ( is_wp_error($date_range) ) {
+                return $date_range;
+            }
+
+            $events = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT id, event_date, start_time
+                     FROM {$wpdb->prefix}spa_events
+                     WHERE active = 1
+                     AND event_date BETWEEN %s AND %s
+                     ORDER BY event_date, start_time, id",
+                    $date_range['start_date'],
+                    $date_range['end_date']
+                ),
+                ARRAY_A
+            );
+            $teams = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT DISTINCT t.id, t.name
+                     FROM {$wpdb->prefix}spa_teams t
+                     INNER JOIN {$wpdb->prefix}spa_event_volunteers ev
+                        ON ev.team_id = t.id
+                     INNER JOIN {$wpdb->prefix}spa_volunteers v
+                        ON v.id = ev.volunteer_id
+                     INNER JOIN {$wpdb->prefix}spa_events e
+                        ON e.id = ev.event_id
+                        AND e.active = 1
+                     WHERE e.event_date BETWEEN %s AND %s
+                     ORDER BY t.name",
+                    $date_range['start_date'],
+                    $date_range['end_date']
+                ),
+                ARRAY_A
+            );
+            $assignments = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT
+                        ev.event_id,
+                        ev.team_id,
+                        CONCAT(v.first_name, ' ', v.last_name) AS volunteer_name
+                     FROM {$wpdb->prefix}spa_event_volunteers ev
+                     INNER JOIN {$wpdb->prefix}spa_events e
+                        ON e.id = ev.event_id
+                        AND e.active = 1
+                     INNER JOIN {$wpdb->prefix}spa_volunteers v
+                        ON v.id = ev.volunteer_id
+                     WHERE e.event_date BETWEEN %s AND %s
+                     ORDER BY ev.event_id, ev.team_id, v.last_name, v.first_name",
+                    $date_range['start_date'],
+                    $date_range['end_date']
+                ),
+                ARRAY_A
+            );
+
+            $assigned_by_event_team = array();
+            foreach ( $assignments as $assignment ) {
+                $assigned_by_event_team[intval($assignment['event_id'])][intval($assignment['team_id'])][] = $assignment['volunteer_name'];
+            }
+
+            $headers = array('Date');
+            foreach ( $teams as $team ) {
+                $headers[] = $team['name'];
+            }
+
+            $formatted_rows = array();
+            foreach ( $events as $event ) {
+                $event_date = DateTimeImmutable::createFromFormat('!Y-m-d', $event['event_date']);
+                $row = array(
+                    $event_date ? $event_date->format('M j, y') : $event['event_date'],
+                );
+                foreach ( $teams as $team ) {
+                    $names = isset($assigned_by_event_team[intval($event['id'])][intval($team['id'])])
+                        ? $assigned_by_event_team[intval($event['id'])][intval($team['id'])]
+                        : array();
+                    $row[] = implode(" /\r\n", $names);
+                }
+                $formatted_rows[] = $row;
+            }
+
+            return array(
+                'headers' => $headers,
+                'rows' => $formatted_rows,
+                'filters' => $date_range,
+            );
     }
 
     return array();
@@ -472,28 +590,75 @@ function spa_get_report_ajax() {
         wp_send_json_error(array('message' => 'Invalid report.'));
     }
 
-    $rows = spa_get_report_rows($report_key);
+    $report_filters = array();
+    if ( $report_key === 'schedule_report' ) {
+        $date_range = spa_get_schedule_report_date_range(
+            isset($_POST['start_date']) ? sanitize_text_field(wp_unslash($_POST['start_date'])) : '',
+            isset($_POST['end_date']) ? sanitize_text_field(wp_unslash($_POST['end_date'])) : ''
+        );
+        if ( is_wp_error($date_range) ) {
+            wp_send_json_error(array('message' => $date_range->get_error_message()));
+        }
+        $report_filters = $date_range;
+    }
+
+    $rows = spa_get_report_rows($report_key, $report_filters);
+    if ( is_wp_error($rows) ) {
+        wp_send_json_error(array('message' => $rows->get_error_message()));
+    }
     $custom_headers = array();
-    if ( $report_key === 'rotation_report' && isset($rows['headers'], $rows['rows']) ) {
+    if ( in_array($report_key, array('rotation_report', 'schedule_report'), true) && isset($rows['headers'], $rows['rows']) ) {
         $custom_headers = $rows['headers'];
+        if ( isset($rows['filters']) ) {
+            $report_filters = $rows['filters'];
+        }
         $rows = $rows['rows'];
     }
+
+    $export_url = function($format) use ($report_key, $report_filters) {
+        $args = array(
+            'action' => 'spa_export_report',
+            'report_key' => $report_key,
+            'format' => $format,
+        );
+        if ( $report_key === 'schedule_report' ) {
+            $args['start_date'] = $report_filters['start_date'];
+            $args['end_date'] = $report_filters['end_date'];
+        }
+        return wp_nonce_url(
+            add_query_arg($args, admin_url('admin-post.php')),
+            'spa_export_report_' . $report_key
+        );
+    };
 
     ob_start();
     ?>
     <div class="spa-report-modal-content">
         <h2><?php echo esc_html($definitions[$report_key]['label']); ?></h2>
+        <?php if ( $report_key === 'schedule_report' ) : ?>
+            <div class="spa-schedule-report-filters" style="margin:0 0 12px;display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+                <label>
+                    <span style="display:block;font-weight:600;margin-bottom:3px;">Start date</span>
+                    <input type="date" id="spa-schedule-report-start" value="<?php echo esc_attr($report_filters['start_date']); ?>" required>
+                </label>
+                <label>
+                    <span style="display:block;font-weight:600;margin-bottom:3px;">End date</span>
+                    <input type="date" id="spa-schedule-report-end" value="<?php echo esc_attr($report_filters['end_date']); ?>" required>
+                </label>
+                <button type="button" class="button spa-refresh-schedule-report">Update Report</button>
+            </div>
+        <?php endif; ?>
         <div style="margin:0 0 12px;display:flex;gap:8px;flex-wrap:wrap;">
-            <a class="button button-primary" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=spa_export_report&report_key=' . rawurlencode($report_key) . '&format=xlsx'), 'spa_export_report_' . $report_key)); ?>">Export Excel</a>
-            <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=spa_export_report&report_key=' . rawurlencode($report_key) . '&format=csv'), 'spa_export_report_' . $report_key)); ?>">Export CSV</a>
-            <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=spa_export_report&report_key=' . rawurlencode($report_key) . '&format=pdf'), 'spa_export_report_' . $report_key)); ?>" target="_blank">Export PDF</a>
+            <a class="button button-primary" href="<?php echo esc_url($export_url('xlsx')); ?>">Export Excel</a>
+            <a class="button" href="<?php echo esc_url($export_url('csv')); ?>">Export CSV</a>
+            <a class="button" href="<?php echo esc_url($export_url('pdf')); ?>" target="_blank">Export PDF</a>
             <button type="button" class="button spa-print-report">Print</button>
         </div>
         <div class="spa-report-table-wrap" style="max-height:58vh;overflow:auto;padding-bottom:24px;">
             <table class="widefat striped" style="border-collapse:collapse;">
                 <thead>
                     <tr>
-                        <?php if ( $report_key === 'rotation_report' ) : ?>
+                        <?php if ( in_array($report_key, array('rotation_report', 'schedule_report'), true) ) : ?>
                             <?php foreach ( $custom_headers as $column ) : ?>
                                 <th style="break-inside:avoid;page-break-inside:avoid;"><?php echo esc_html($column); ?></th>
                             <?php endforeach; ?>
@@ -506,7 +671,7 @@ function spa_get_report_ajax() {
                 </thead>
                 <tbody>
                     <?php if ( empty($rows) ) : ?>
-                        <tr><td colspan="<?php echo intval($report_key === 'rotation_report' ? count($custom_headers) : count($definitions[$report_key]['columns'])); ?>" style="break-inside:avoid;page-break-inside:avoid;">No data found.</td></tr>
+                        <tr><td colspan="<?php echo intval(in_array($report_key, array('rotation_report', 'schedule_report'), true) ? count($custom_headers) : count($definitions[$report_key]['columns'])); ?>" style="break-inside:avoid;page-break-inside:avoid;">No data found.</td></tr>
                     <?php else : ?>
                         <?php foreach ( $rows as $row ) : ?>
                             <tr style="break-inside:avoid;page-break-inside:avoid;">
@@ -539,9 +704,24 @@ function spa_export_report() {
         wp_die('Nonce failed');
     }
 
-    $rows = spa_get_report_rows($report_key);
+    $report_filters = array();
+    if ( $report_key === 'schedule_report' ) {
+        $date_range = spa_get_schedule_report_date_range(
+            isset($_GET['start_date']) ? sanitize_text_field(wp_unslash($_GET['start_date'])) : '',
+            isset($_GET['end_date']) ? sanitize_text_field(wp_unslash($_GET['end_date'])) : ''
+        );
+        if ( is_wp_error($date_range) ) {
+            wp_die(esc_html($date_range->get_error_message()));
+        }
+        $report_filters = $date_range;
+    }
+
+    $rows = spa_get_report_rows($report_key, $report_filters);
+    if ( is_wp_error($rows) ) {
+        wp_die(esc_html($rows->get_error_message()));
+    }
     $headers = $definitions[$report_key]['columns'];
-    if ( $report_key === 'rotation_report' && isset($rows['headers'], $rows['rows']) ) {
+    if ( in_array($report_key, array('rotation_report', 'schedule_report'), true) && isset($rows['headers'], $rows['rows']) ) {
         $headers = $rows['headers'];
         $rows = $rows['rows'];
     }
@@ -556,6 +736,10 @@ function spa_export_report() {
             $sheet->fromArray(array_values($row), null, 'A' . $row_index);
             $row_index++;
         }
+        $sheet->getStyle('A1:' . $sheet->getHighestColumn() . $sheet->getHighestRow())
+            ->getAlignment()
+            ->setWrapText(true)
+            ->setVertical('top');
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment; filename="' . $filename_base . '.xlsx"');
         header('Pragma: no-cache');
@@ -568,6 +752,9 @@ function spa_export_report() {
     if ( $format === 'pdf' ) {
         header('Content-Type: text/html; charset=UTF-8');
         $printed_at = current_time('F j, Y g:i A');
+        $is_schedule_report = $report_key === 'schedule_report';
+        $schedule_font_size = count($headers) > 10 ? 7 : (count($headers) > 7 ? 8 : 9);
+        $schedule_zoom = count($headers) > 14 ? 0.7 : (count($headers) > 10 ? 0.8 : (count($headers) > 7 ? 0.9 : 1));
         ?>
         <!doctype html>
         <html>
@@ -575,21 +762,34 @@ function spa_export_report() {
             <meta charset="utf-8">
             <title><?php echo esc_html($definitions[$report_key]['label']); ?></title>
             <style>
-                @page { size: landscape; margin: 18px 18px 88px 18px; }
-                body { font-family: Arial, sans-serif; padding: 24px 24px 88px 24px; }
+                @page { size: landscape; margin: <?php echo $is_schedule_report ? '7mm' : '18px 18px 88px 18px'; ?>; }
+                body {
+                    font-family: Arial, sans-serif;
+                    padding: <?php echo $is_schedule_report ? '0 0 28px' : '24px 24px 88px 24px'; ?>;
+                    font-size: <?php echo $is_schedule_report ? intval($schedule_font_size) . 'px' : 'initial'; ?>;
+                    zoom: <?php echo $is_schedule_report ? esc_attr($schedule_zoom) : '1'; ?>;
+                }
                 h1 { margin-bottom: 16px; }
                 table { width: 100%; border-collapse: collapse; }
                 th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
                 th { background: #f5f5f5; }
                 tr, td, th { break-inside: avoid; page-break-inside: avoid; }
+                <?php if ( $is_schedule_report ) : ?>
+                    h1 { margin: 0 0 7px; font-size: 15px; }
+                    table { font-size: <?php echo intval($schedule_font_size); ?>px; line-height: 1.15; }
+                    th, td { padding: 2px 3px; }
+                    th { font-size: <?php echo max(7, intval($schedule_font_size) - 1); ?>px; }
+                    td { white-space: nowrap; }
+                    th:first-child, td:first-child { width: 58px; }
+                <?php endif; ?>
                 .spa-report-footer {
                     position: fixed;
-                    left: 24px;
-                    right: 24px;
+                    left: <?php echo $is_schedule_report ? '0' : '24px'; ?>;
+                    right: <?php echo $is_schedule_report ? '0' : '24px'; ?>;
                     bottom: -4px;
                     display: flex;
                     justify-content: space-between;
-                    font-size: 12px;
+                    font-size: <?php echo $is_schedule_report ? '8px' : '12px'; ?>;
                     line-height: 1.4;
                     color: #555;
                 }
@@ -609,7 +809,7 @@ function spa_export_report() {
                     <?php foreach ( $rows as $row ) : ?>
                         <tr>
                             <?php foreach ( $row as $value ) : ?>
-                                <td><?php echo esc_html(str_replace("\n", ', ', (string) $value)); ?></td>
+                                <td><?php echo nl2br(esc_html(str_replace("\r\n", "\n", (string) $value))); ?></td>
                             <?php endforeach; ?>
                         </tr>
                     <?php endforeach; ?>

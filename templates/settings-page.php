@@ -43,6 +43,34 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
             <div class="notice notice-success is-dismissible"><p>Settings saved.</p></div>
         <?php endif; ?>
 
+        <?php if ( isset($_GET['backup_restored']) ) : ?>
+            <?php
+            $backup_result = get_transient('spa_complete_backup_restore_result');
+            delete_transient('spa_complete_backup_restore_result');
+            ?>
+            <div class="notice notice-success is-dismissible">
+                <p>
+                    <strong>Complete backup restored successfully.</strong>
+                    <?php if ( is_array($backup_result) ) : ?>
+                        Restored <?php echo intval($backup_result['records']); ?> records across
+                        <?php echo intval($backup_result['tables']); ?> tables and
+                        <?php echo intval($backup_result['options']); ?> settings, plus
+                        <?php echo intval($backup_result['user_meta']); ?> user preferences.
+                    <?php endif; ?>
+                </p>
+            </div>
+        <?php endif; ?>
+
+        <?php if ( isset($_GET['backup_error']) ) : ?>
+            <?php
+            $backup_error = get_transient('spa_complete_backup_restore_error');
+            delete_transient('spa_complete_backup_restore_error');
+            ?>
+            <div class="notice notice-error is-dismissible">
+                <p><strong>Complete restore was not performed.</strong> <?php echo esc_html($backup_error ?: 'The backup could not be restored.'); ?></p>
+            </div>
+        <?php endif; ?>
+
         <?php if ( isset($_GET['import_success']) ) : ?>
             <?php 
             $import_results = get_transient('spa_import_results');
@@ -553,13 +581,66 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                     <?php };
                     ?>
 
-                    <h2>Import / Export</h2>
+                    <h2>Complete Backup &amp; Restore</h2>
+                    <p>
+                        A complete JSON backup preserves all plugin records, IDs, relationships, rotations,
+                        event assignments, notification templates, settings, and dashboard preferences.
+                    </p>
+                    <div class="notice notice-warning inline">
+                        <p>
+                            <strong>Store complete backups securely.</strong>
+                            They include volunteer contact information and saved notification-provider credentials.
+                        </p>
+                    </div>
+
+                    <div style="display:flex;gap:2rem;flex-wrap:wrap;align-items:flex-start;margin:1.5rem 0 2rem;">
+                        <div style="flex:1;min-width:320px;border:1px solid #c3c4c7;background:#fff;padding:16px;">
+                            <h3 style="margin-top:0;">Download Complete Backup</h3>
+                            <p>Use this file to restore the plugin after a site or server failure.</p>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                                <?php wp_nonce_field('spa_export_complete_backup'); ?>
+                                <input type="hidden" name="action" value="spa_export_complete_backup">
+                                <button type="submit" class="button button-primary">Download Complete Backup</button>
+                            </form>
+                        </div>
+
+                        <div style="flex:1;min-width:360px;border:1px solid #d63638;background:#fff;padding:16px;">
+                            <h3 style="margin-top:0;color:#b32d2e;">Restore Complete Backup</h3>
+                            <p>
+                                The file is fully validated before restore. A successful restore replaces all current
+                                plugin tables and settings in one database transaction.
+                            </p>
+                            <p><strong>Download a current complete backup first if you may need to return to today’s data.</strong></p>
+                            <form
+                                method="post"
+                                enctype="multipart/form-data"
+                                action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+                                onsubmit="return window.confirm('Replace all current plugin data and settings with this backup?');">
+                                <?php wp_nonce_field('spa_import_complete_backup', 'spa_complete_backup_nonce'); ?>
+                                <input type="hidden" name="action" value="spa_import_complete_backup">
+                                <p>
+                                    <input type="file" name="spa_complete_backup_file" accept=".json,application/json" required>
+                                </p>
+                                <p>
+                                    <label>
+                                        <input type="checkbox" name="spa_confirm_complete_restore" value="1" required>
+                                        I understand this replaces all current plugin data and settings.
+                                    </label>
+                                </p>
+                                <button type="submit" class="button button-primary">Validate &amp; Restore Backup</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h2>CSV Bulk Tools</h2>
+                    <p>These CSV files are useful for spreadsheets and bulk additions, but they are not complete backups.</p>
 
                     <div style="display:flex;gap:2rem;flex-wrap:wrap;align-items:flex-start;">
 
                         <!-- EXPORT -->
                         <div style="flex:1;min-width:280px;">
-                            <h3 style="border-bottom:1px solid #ddd;padding-bottom:6px;">Export</h3>
+                            <h3 style="border-bottom:1px solid #ddd;padding-bottom:6px;">CSV Export</h3>
                             <p>Download your data as CSV files that can be reimported or opened in Excel/Sheets.</p>
 
                             <table class="widefat" style="margin-bottom:1.5rem;">
@@ -593,7 +674,7 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
 
                         <!-- IMPORT -->
                         <div style="flex:1;min-width:320px;">
-                            <h3 style="border-bottom:1px solid #ddd;padding-bottom:6px;">Import</h3>
+                            <h3 style="border-bottom:1px solid #ddd;padding-bottom:6px;">CSV Import</h3>
                             <p>Upload a CSV file to bulk-import data. Duplicates are skipped and detailed results shown after import.</p>
 
                             <h4 style="margin-bottom:4px;">Import Volunteers</h4>

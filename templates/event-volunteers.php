@@ -1,4 +1,4 @@
-<h2>Volunteers</h2>
+<h2>Final Assignments</h2>
 
 <div id="spa-event-volunteers-container">
 

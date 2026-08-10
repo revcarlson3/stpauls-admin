@@ -3,6 +3,224 @@
 add_action('admin_init', 'spa_handle_scheduling_forms');
 add_action('wp_ajax_spa_preview_event_rotation', 'spa_preview_event_rotation_ajax');
 add_action('wp_ajax_spa_apply_event_rotation', 'spa_apply_event_rotation_ajax');
+add_action('wp_ajax_spa_undo_event_rotation', 'spa_undo_event_rotation_ajax');
+
+function spa_get_rotation_undo_option_key() {
+    return 'spa_rotation_last_apply_undo';
+}
+
+function spa_get_rotation_applied_option_key($event_id) {
+    return 'spa_rotation_applied_' . intval($event_id);
+}
+
+function spa_event_rotation_is_applied($event_id) {
+    global $wpdb;
+
+    $applied_state = get_option(spa_get_rotation_applied_option_key($event_id), null);
+    if ( $applied_state !== null ) {
+        return intval($applied_state) === 1;
+    }
+
+    return intval(
+        $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*)
+                 FROM {$wpdb->prefix}spa_event_volunteers
+                 WHERE event_id = %d",
+                intval($event_id)
+            )
+        )
+    ) > 0;
+}
+
+function spa_begin_rotation_undo_transaction() {
+    global $wpdb;
+
+    $lock_key = 'spa_rotation_apply_undo_lock';
+    add_option($lock_key, 1, '', false);
+
+    if ( $wpdb->query('START TRANSACTION') === false ) {
+        return false;
+    }
+
+    $lock_id = $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT option_id
+             FROM {$wpdb->options}
+             WHERE option_name = %s
+             FOR UPDATE",
+            $lock_key
+        )
+    );
+
+    if ( ! $lock_id ) {
+        $wpdb->query('ROLLBACK');
+        return false;
+    }
+
+    return true;
+}
+
+function spa_write_rotation_option($option_name, $value) {
+    global $wpdb;
+
+    $option_id = $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT option_id
+             FROM {$wpdb->options}
+             WHERE option_name = %s
+             LIMIT 1",
+            $option_name
+        )
+    );
+    $serialized_value = maybe_serialize($value);
+
+    if ( $option_id ) {
+        return $wpdb->update(
+            $wpdb->options,
+            array('option_value' => $serialized_value),
+            array('option_id' => intval($option_id)),
+            array('%s'),
+            array('%d')
+        ) !== false;
+    }
+
+    return $wpdb->insert(
+        $wpdb->options,
+        array(
+            'option_name'  => $option_name,
+            'option_value' => $serialized_value,
+            'autoload'     => 'no',
+        ),
+        array('%s', '%s', '%s')
+    ) === 1;
+}
+
+function spa_delete_rotation_option($option_name) {
+    global $wpdb;
+
+    return $wpdb->delete(
+        $wpdb->options,
+        array('option_name' => $option_name),
+        array('%s')
+    ) !== false;
+}
+
+function spa_clear_rotation_option_caches($option_names) {
+    foreach ( array_unique($option_names) as $option_name ) {
+        wp_cache_delete($option_name, 'options');
+    }
+
+    wp_cache_delete('alloptions', 'options');
+    wp_cache_delete('notoptions', 'options');
+}
+
+function spa_get_rotation_undo_state($event_id) {
+    $undo_state = get_option(spa_get_rotation_undo_option_key(), false);
+
+    if (
+        ! is_array($undo_state)
+        || ! isset($undo_state['event_id'], $undo_state['service_type_id'])
+        || intval($undo_state['event_id']) !== intval($event_id)
+        || empty($undo_state['service_type_id'])
+    ) {
+        return false;
+    }
+
+    return $undo_state;
+}
+
+function spa_get_rotation_period_option_key($advance_rule, $service_type_id, $team_id) {
+    if ( $advance_rule === 'weekly' ) {
+        return 'spa_rotation_last_week_' . intval($service_type_id) . '_' . intval($team_id);
+    }
+    if ( $advance_rule === 'monthly' ) {
+        return 'spa_rotation_last_month_' . intval($service_type_id) . '_' . intval($team_id);
+    }
+    return '';
+}
+
+function spa_get_rotation_period_value($advance_rule, $event_date) {
+    if ( $event_date === '' ) {
+        return '';
+    }
+    if ( $advance_rule === 'weekly' ) {
+        return gmdate('o-W', strtotime($event_date));
+    }
+    if ( $advance_rule === 'monthly' ) {
+        return gmdate('Y-m', strtotime($event_date));
+    }
+    return '';
+}
+
+function spa_capture_rotation_undo_state($preview_data) {
+    global $wpdb;
+
+    $event_id = intval($preview_data['event']->id);
+    $service_type_id = intval($preview_data['event']->service_type_id);
+    $state = array(
+        'event_id'         => $event_id,
+        'service_type_id'  => $service_type_id,
+        'assignments'      => $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT event_id, team_id, volunteer_id, is_override
+                 FROM {$wpdb->prefix}spa_event_volunteers
+                 WHERE event_id = %d",
+                $event_id
+            ),
+            ARRAY_A
+        ),
+        'teams'             => array(),
+        'period_options'    => array(),
+    );
+
+    foreach ( $preview_data['teams'] as $team_result ) {
+        if ( empty($team_result['assignments']) ) {
+            continue;
+        }
+
+        $team_id = intval($team_result['team_id']);
+        $state['teams'][$team_id] = array(
+            'next_rotation_ids' => array_map(
+                'intval',
+                $wpdb->get_col(
+                    $wpdb->prepare(
+                        "SELECT id
+                         FROM {$wpdb->prefix}spa_team_rotations
+                         WHERE service_type_id = %d
+                         AND team_id = %d
+                         AND is_next = 1",
+                        $service_type_id,
+                        $team_id
+                    )
+                )
+            ),
+        );
+
+        $option_key = spa_get_rotation_period_option_key(
+            $team_result['advance_rule'],
+            $service_type_id,
+            $team_id
+        );
+        if ( $option_key !== '' ) {
+            $option_exists = (bool) $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT option_id
+                     FROM {$wpdb->options}
+                     WHERE option_name = %s
+                     LIMIT 1",
+                    $option_key
+                )
+            );
+            $state['period_options'][$option_key] = array(
+                'exists' => $option_exists,
+                'value'  => $option_exists ? get_option($option_key) : null,
+            );
+        }
+    }
+
+    return $state;
+}
 
 function spa_get_rotation_preview_data($event_id) {
     global $wpdb;
@@ -68,12 +286,15 @@ function spa_get_rotation_preview_data($event_id) {
         );
 
         $team_result = array(
-            'team_id'           => intval($event_team->team_id),
-            'team_name'         => $event_team->team_name,
-            'volunteers_needed' => intval($event_team->volunteers_needed),
-            'assignments'       => array(),
-            'message'           => '',
-            'advance_rule'      => ! empty($rotation_rows[0]->advance_rule) ? $rotation_rows[0]->advance_rule : 'every_event',
+            'team_id'                    => intval($event_team->team_id),
+            'team_name'                  => $event_team->team_name,
+            'volunteers_needed'          => intval($event_team->volunteers_needed),
+            'assignments'                => array(),
+            'message'                    => '',
+            'advance_rule'               => ! empty($rotation_rows[0]->advance_rule) ? $rotation_rows[0]->advance_rule : 'every_event',
+            'pointer_rotation_id'        => 0,
+            'period_option_key'          => '',
+            'period_value'               => '',
         );
 
         if ( empty($rotation_rows) ) {
@@ -82,10 +303,10 @@ function spa_get_rotation_preview_data($event_id) {
             continue;
         }
 
-        $next_index = 0;
+        $current_index = 0;
         foreach ( $rotation_rows as $index => $rotation_row ) {
             if ( intval($rotation_row->is_next) === 1 ) {
-                $next_index = $index;
+                $current_index = $index;
                 break;
             }
         }
@@ -105,8 +326,36 @@ function spa_get_rotation_preview_data($event_id) {
             );
         }
 
+        $assignment_index = $current_index;
+        $period_option_key = spa_get_rotation_period_option_key(
+            $team_result['advance_rule'],
+            intval($event->service_type_id),
+            intval($event_team->team_id)
+        );
+        $period_value = spa_get_rotation_period_value(
+            $team_result['advance_rule'],
+            ! empty($event->event_date) ? $event->event_date : ''
+        );
+
+        if ( $period_option_key !== '' && $period_value !== '' ) {
+            $previous_period = get_option($period_option_key, '');
+            if ( $previous_period !== $period_value ) {
+                $team_result['period_option_key'] = $period_option_key;
+                $team_result['period_value'] = $period_value;
+
+                if ( $previous_period !== '' ) {
+                    $assignment_index = ($current_index + $needed) % $rotation_count;
+                    $team_result['pointer_rotation_id'] = intval($rotation_rows[$assignment_index]->id);
+                }
+            }
+        } elseif ( $team_result['advance_rule'] === 'every_event' ) {
+            $team_result['pointer_rotation_id'] = intval(
+                $rotation_rows[($current_index + $needed) % $rotation_count]->id
+            );
+        }
+
         for ( $offset = 0; $offset < $needed; $offset++ ) {
-            $row = $rotation_rows[($next_index + $offset) % $rotation_count];
+            $row = $rotation_rows[($assignment_index + $offset) % $rotation_count];
             $team_result['assignments'][] = array(
                 'volunteer_id'   => intval($row->volunteer_id),
                 'volunteer_name' => trim($row->first_name . ' ' . $row->last_name),
@@ -164,10 +413,23 @@ function spa_apply_event_rotation_ajax() {
         wp_send_json_error(array('message' => 'Invalid event ID.'));
     }
 
+    if ( ! spa_begin_rotation_undo_transaction() ) {
+        wp_send_json_error(array('message' => 'Unable to begin applying the rotation assignments.'));
+    }
+
+    if ( spa_event_rotation_is_applied($event_id) ) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(array('message' => 'Rotation assignments have already been applied. Undo the last apply before applying them again.'));
+    }
+
     $preview_data = spa_get_rotation_preview_data($event_id);
     if ( is_wp_error($preview_data) ) {
+        $wpdb->query('ROLLBACK');
         wp_send_json_error(array('message' => $preview_data->get_error_message()));
     }
+
+    $undo_state = spa_capture_rotation_undo_state($preview_data);
+    $period_updates = array();
 
     foreach ( $preview_data['teams'] as $team_result ) {
         if ( empty($team_result['assignments']) ) {
@@ -176,7 +438,7 @@ function spa_apply_event_rotation_ajax() {
 
         $team_id = intval($team_result['team_id']);
 
-        $wpdb->delete(
+        $deleted = $wpdb->delete(
             $wpdb->prefix . 'spa_event_volunteers',
             array(
                 'event_id' => $event_id,
@@ -184,9 +446,13 @@ function spa_apply_event_rotation_ajax() {
             ),
             array('%d', '%d')
         );
+        if ( $deleted === false ) {
+            $wpdb->query('ROLLBACK');
+            wp_send_json_error(array('message' => 'Unable to replace the existing event assignments.'));
+        }
 
         foreach ( $team_result['assignments'] as $assignment ) {
-            $wpdb->insert(
+            $inserted = $wpdb->insert(
                 $wpdb->prefix . 'spa_event_volunteers',
                 array(
                     'event_id'     => $event_id,
@@ -195,80 +461,205 @@ function spa_apply_event_rotation_ajax() {
                 ),
                 array('%d', '%d', '%d')
             );
+            if ( $inserted !== 1 ) {
+                $wpdb->query('ROLLBACK');
+                wp_send_json_error(array('message' => 'Unable to save the new event assignments.'));
+            }
         }
 
-        $rotation_rows = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT id
-                 FROM {$wpdb->prefix}spa_team_rotations
-                 WHERE service_type_id = %d
-                 AND team_id = %d
-                 ORDER BY rotation_order",
-                intval($preview_data['event']->service_type_id),
-                $team_id
-            )
-        );
+        if ( ! empty($team_result['period_option_key']) && $team_result['period_value'] !== '' ) {
+            $period_updates[$team_result['period_option_key']] = $team_result['period_value'];
+        }
 
-        if ( ! empty($rotation_rows) ) {
-            $advance_rule = isset($team_result['advance_rule']) ? $team_result['advance_rule'] : 'every_event';
+        if ( ! empty($team_result['pointer_rotation_id']) ) {
+            $cleared = $wpdb->update(
+                $wpdb->prefix . 'spa_team_rotations',
+                array('is_next' => 0),
+                array(
+                    'service_type_id' => intval($preview_data['event']->service_type_id),
+                    'team_id'         => $team_id,
+                ),
+                array('%d'),
+                array('%d', '%d')
+            );
+            if ( $cleared === false ) {
+                $wpdb->query('ROLLBACK');
+                wp_send_json_error(array('message' => 'Unable to advance the team rotation.'));
+            }
 
-            if ( $advance_rule !== 'manual' ) {
-                $should_advance = true;
-                $event_date = ! empty($preview_data['event']->event_date) ? $preview_data['event']->event_date : '';
-
-                if ( $advance_rule === 'weekly' && $event_date !== '' ) {
-                    $year_week = gmdate('o-W', strtotime($event_date));
-                    $last_key = 'spa_rotation_last_week_' . intval($preview_data['event']->service_type_id) . '_' . $team_id;
-                    $previous_week = get_option($last_key, '');
-                    $should_advance = $previous_week !== $year_week;
-                    if ( $should_advance ) {
-                        update_option($last_key, $year_week, false);
-                    }
-                } elseif ( $advance_rule === 'monthly' && $event_date !== '' ) {
-                    $year_month = gmdate('Y-m', strtotime($event_date));
-                    $last_key = 'spa_rotation_last_month_' . intval($preview_data['event']->service_type_id) . '_' . $team_id;
-                    $previous_month = get_option($last_key, '');
-                    $should_advance = $previous_month !== $year_month;
-                    if ( $should_advance ) {
-                        update_option($last_key, $year_month, false);
-                    }
-                }
-
-                if ( $should_advance ) {
-                    $next_rotation_id = intval($team_result['assignments'][count($team_result['assignments']) - 1]['rotation_id']);
-                    $next_index = 0;
-
-                    foreach ( $rotation_rows as $index => $rotation_row ) {
-                        if ( intval($rotation_row->id) === $next_rotation_id ) {
-                            $next_index = ($index + 1) % count($rotation_rows);
-                            break;
-                        }
-                    }
-
-                    $wpdb->update(
-                        $wpdb->prefix . 'spa_team_rotations',
-                        array('is_next' => 0),
-                        array(
-                            'service_type_id' => intval($preview_data['event']->service_type_id),
-                            'team_id'         => $team_id,
-                        ),
-                        array('%d'),
-                        array('%d', '%d')
-                    );
-
-                    $wpdb->update(
-                        $wpdb->prefix . 'spa_team_rotations',
-                        array('is_next' => 1),
-                        array('id' => intval($rotation_rows[$next_index]->id)),
-                        array('%d'),
-                        array('%d')
-                    );
-                }
+            $advanced = $wpdb->update(
+                $wpdb->prefix . 'spa_team_rotations',
+                array('is_next' => 1),
+                array(
+                    'id'              => intval($team_result['pointer_rotation_id']),
+                    'service_type_id' => intval($preview_data['event']->service_type_id),
+                    'team_id'         => $team_id,
+                ),
+                array('%d'),
+                array('%d', '%d', '%d')
+            );
+            if ( $advanced !== 1 ) {
+                $wpdb->query('ROLLBACK');
+                wp_send_json_error(array('message' => 'Unable to advance the team rotation.'));
             }
         }
     }
 
+    $changed_option_keys = array();
+    foreach ( $period_updates as $option_key => $option_value ) {
+        if ( ! spa_write_rotation_option($option_key, $option_value) ) {
+            $wpdb->query('ROLLBACK');
+            wp_send_json_error(array('message' => 'Unable to save the rotation advancement marker.'));
+        }
+        $changed_option_keys[] = $option_key;
+    }
+
+    $applied_option_key = spa_get_rotation_applied_option_key($event_id);
+    if ( ! spa_write_rotation_option($applied_option_key, 1) ) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(array('message' => 'Unable to save the applied rotation state.'));
+    }
+    $changed_option_keys[] = $applied_option_key;
+
+    $undo_option_key = spa_get_rotation_undo_option_key();
+    if ( ! spa_write_rotation_option($undo_option_key, $undo_state) ) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(array('message' => 'Unable to save the rotation undo state.'));
+    }
+    $changed_option_keys[] = $undo_option_key;
+
+    if ( $wpdb->query('COMMIT') === false ) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(array('message' => 'Unable to apply the rotation assignments.'));
+    }
+    spa_clear_rotation_option_caches($changed_option_keys);
+
     wp_send_json_success(array('message' => 'Rotation assignments applied.'));
+}
+
+function spa_undo_event_rotation_ajax() {
+    global $wpdb;
+
+    if ( ! check_ajax_referer('spa_admin_nonce', 'nonce', false) ) {
+        wp_send_json_error(array('message' => 'Invalid nonce'), 403);
+    }
+    if ( ! current_user_can('manage_options') ) {
+        wp_send_json_error(array('message' => 'Unauthorized'), 403);
+    }
+
+    $event_id = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
+    if ( ! $event_id ) {
+        wp_send_json_error(array('message' => 'Invalid event ID.'));
+    }
+
+    if ( ! spa_begin_rotation_undo_transaction() ) {
+        wp_send_json_error(array('message' => 'Unable to begin undoing the rotation assignments.'));
+    }
+
+    $option_key = spa_get_rotation_undo_option_key();
+    $undo_state = spa_get_rotation_undo_state($event_id);
+
+    if ( $undo_state === false ) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(array('message' => 'There is no rotation application to undo.'));
+    }
+
+    $deleted = $wpdb->delete(
+        $wpdb->prefix . 'spa_event_volunteers',
+        array('event_id' => $event_id),
+        array('%d')
+    );
+    if ( $deleted === false ) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(array('message' => 'Unable to restore the previous assignments.'));
+    }
+
+    foreach ( $undo_state['assignments'] as $assignment ) {
+        $inserted = $wpdb->insert(
+            $wpdb->prefix . 'spa_event_volunteers',
+            array(
+                'event_id'     => intval($assignment['event_id']),
+                'team_id'      => intval($assignment['team_id']),
+                'volunteer_id' => intval($assignment['volunteer_id']),
+                'is_override'  => intval($assignment['is_override']),
+            ),
+            array('%d', '%d', '%d', '%d')
+        );
+        if ( $inserted !== 1 ) {
+            $wpdb->query('ROLLBACK');
+            wp_send_json_error(array('message' => 'Unable to restore the previous assignments.'));
+        }
+    }
+
+    foreach ( $undo_state['teams'] as $team_id => $team_state ) {
+        $cleared = $wpdb->update(
+            $wpdb->prefix . 'spa_team_rotations',
+            array('is_next' => 0),
+            array(
+                'service_type_id' => intval($undo_state['service_type_id']),
+                'team_id'         => intval($team_id),
+            ),
+            array('%d'),
+            array('%d', '%d')
+        );
+        if ( $cleared === false ) {
+            $wpdb->query('ROLLBACK');
+            wp_send_json_error(array('message' => 'Unable to restore the previous rotation positions.'));
+        }
+
+        foreach ( $team_state['next_rotation_ids'] as $next_rotation_id ) {
+            $restored = $wpdb->update(
+                $wpdb->prefix . 'spa_team_rotations',
+                array('is_next' => 1),
+                array(
+                    'id'              => intval($next_rotation_id),
+                    'service_type_id' => intval($undo_state['service_type_id']),
+                    'team_id'         => intval($team_id),
+                ),
+                array('%d'),
+                array('%d', '%d', '%d')
+            );
+            if ( $restored !== 1 ) {
+                $wpdb->query('ROLLBACK');
+                wp_send_json_error(array('message' => 'Unable to restore the previous rotation positions.'));
+            }
+        }
+    }
+
+    $changed_option_keys = array();
+    foreach ( $undo_state['period_options'] as $period_key => $period_state ) {
+        if ( $period_state['exists'] ) {
+            $option_restored = spa_write_rotation_option($period_key, $period_state['value']);
+        } else {
+            $option_restored = spa_delete_rotation_option($period_key);
+        }
+        if ( ! $option_restored ) {
+            $wpdb->query('ROLLBACK');
+            wp_send_json_error(array('message' => 'Unable to restore the rotation advancement markers.'));
+        }
+        $changed_option_keys[] = $period_key;
+    }
+
+    if ( ! spa_delete_rotation_option($option_key) ) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(array('message' => 'Unable to clear the rotation undo state.'));
+    }
+    $changed_option_keys[] = $option_key;
+
+    $applied_option_key = spa_get_rotation_applied_option_key($event_id);
+    if ( ! spa_write_rotation_option($applied_option_key, 0) ) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(array('message' => 'Unable to reset the applied rotation state.'));
+    }
+    $changed_option_keys[] = $applied_option_key;
+
+    if ( $wpdb->query('COMMIT') === false ) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(array('message' => 'Unable to undo the rotation assignments.'));
+    }
+    spa_clear_rotation_option_caches($changed_option_keys);
+
+    wp_send_json_success(array('message' => 'The last rotation application was undone.'));
 }
 
 function spa_handle_scheduling_forms() {
