@@ -435,7 +435,7 @@ jQuery(function($) {
         }
 
         $('#spa-report-modal-body').html('<p>Loading report...</p>');
-        $('#spa-report-modal').show();
+        $('#spa-report-modal').css('display', 'flex');
 
         $.post(spaAdmin.ajaxUrl, request, function(response) {
             if (response && response.success && response.data && response.data.html) {
