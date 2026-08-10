@@ -81,7 +81,22 @@ function spa_save_event_details_ajax() {
         $child_events = $wpdb->get_results($wpdb->prepare("SELECT id FROM {$wpdb->prefix}spa_events WHERE parent_event_id = %d ORDER BY event_date, start_time", $event_id));
         $all_events = array_merge(array((object) array('id' => $event_id)), $child_events);
         foreach ($all_events as $series_event) {
-            $result = $wpdb->update($wpdb->prefix . 'spa_events', $event_data, array('id' => $series_event->id), array('%s','%s','%s','%s','%s','%s','%d','%d','%s','%s','%d'), array('%d'));
+            $series_event_data = $event_data;
+            $series_event_formats = array('%s','%s','%s','%s','%s','%s','%d','%d','%s','%s','%d');
+
+            if (intval($series_event->id) !== $event_id) {
+                unset($series_event_data['event_date']);
+                unset($series_event_formats[3]);
+                $series_event_formats = array_values($series_event_formats);
+            }
+
+            $result = $wpdb->update(
+                $wpdb->prefix . 'spa_events',
+                $series_event_data,
+                array('id' => $series_event->id),
+                $series_event_formats,
+                array('%d')
+            );
             if ( $result === false ) {
                 wp_send_json_error(array('message' => 'Database update failed: ' . $wpdb->last_error));
             }

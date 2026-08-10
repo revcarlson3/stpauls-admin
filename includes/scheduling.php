@@ -93,6 +93,18 @@ function spa_get_rotation_preview_data($event_id) {
         $rotation_count = count($rotation_rows);
         $needed = intval($event_team->volunteers_needed);
 
+        if ( $rotation_count < $needed ) {
+            return new WP_Error(
+                'spa_rotation_too_short',
+                sprintf(
+                    '%s needs %d volunteers, but its rotation only has %d.',
+                    $event_team->team_name,
+                    $needed,
+                    $rotation_count
+                )
+            );
+        }
+
         for ( $offset = 0; $offset < $needed; $offset++ ) {
             $row = $rotation_rows[($next_index + $offset) % $rotation_count];
             $team_result['assignments'][] = array(
@@ -319,9 +331,9 @@ function spa_handle_scheduling_forms() {
         $volunteer_ids = isset($_POST['rotation_volunteer_ids']) ? array_map('intval', (array) wp_unslash($_POST['rotation_volunteer_ids'])) : array();
         $next_position = isset($_POST['rotation_next_position']) ? max(1, intval($_POST['rotation_next_position'])) : 1;
         $advance_rule = isset($_POST['rotation_advance_rule']) ? sanitize_text_field(wp_unslash($_POST['rotation_advance_rule'])) : 'every_event';
-        $volunteer_ids = array_values(array_filter($volunteer_ids));
+        $volunteer_ids = array_values(array_unique(array_filter($volunteer_ids)));
 
-        if ( $service_type_id > 0 && $team_id > 0 && ! empty($volunteer_ids) ) {
+        if ( $service_type_id > 0 && $team_id > 0 ) {
             $wpdb->delete(
                 $wpdb->prefix . 'spa_team_rotations',
                 array(
