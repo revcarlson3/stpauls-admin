@@ -26,7 +26,7 @@ jQuery(function($) {
 
         $('#spa-event-details-container').html(response.data.details);
         $('#spa-event-rotation-container').html(response.data.rotation);
-        $('#spa-event-volunteers-container').html(response.data.volunteers);
+        $('#spa-event-volunteers-container').html(response.data.final_assignments);
         $('#spa-event-details-container').data('series-parent', response.data.is_series_parent ? '1' : '0');
         return true;
     }
@@ -133,11 +133,13 @@ jQuery(function($) {
         var eventId = $btn.data('event-id');
         var teamId = $btn.data('team-id');
         var oldVolunteerId = $btn.data('volunteer-id');
-        var newVolunteerId = window.prompt('Enter the volunteer ID to use for this event instead:');
+        var newVolunteerId = $btn.closest('li').find('.spa-override-volunteer-select').val();
 
-        if (!newVolunteerId) {
+        if (!newVolunteerId || String(newVolunteerId) === String(oldVolunteerId)) {
             return;
         }
+
+        $btn.prop('disabled', true).text('Saving...');
 
         $.post(spaAdmin.ajaxUrl, {
             action: 'spa_override_event_volunteer',
@@ -149,7 +151,13 @@ jQuery(function($) {
         }, function(response) {
             if (response && response.success) {
                 spaLoadEvent(eventId);
+            } else {
+                alert(spaResponseMessage(response, 'Unable to save the override.'));
             }
+        }).fail(function() {
+            alert('AJAX error. Please try again.');
+        }).always(function() {
+            $btn.prop('disabled', false).text('Override');
         });
     });
 
@@ -228,106 +236,6 @@ jQuery(function($) {
                 $(this).data('page');
 
             spaReloadEventsPage(page);
-
-        }
-    );
-
-    $(document).on(
-        'change',
-        '.spa-volunteer-checkbox',
-        function() {
-
-            let checkbox = $(this);
-
-            $.post(
-                spaAdmin.ajaxUrl,
-                {
-                    action: 'spa_toggle_volunteer',
-                    event_id: checkbox.data('event-id'),
-                    team_id: checkbox.data('team-id'),
-                    volunteer_id: checkbox.data('volunteer-id'),
-                    assigned: checkbox.is(':checked') ? 1 : 0,
-                    nonce: spaAdmin.nonce
-                },
-                function(response) {
-
-                if (response.success) {
-
-                    let teamCard = checkbox.closest('.spa-team-card');
-
-                    let countElement =
-                        teamCard.find('.spa-assigned-count');
-
-                    let assignedCount =
-                        teamCard.find(
-                            '.spa-volunteer-checkbox:checked'
-                        ).length;
-
-                    countElement.text(assignedCount);
-
-                    let countContainer =
-                        teamCard.find('.spa-team-count');
-
-                    let needed = parseInt(
-                        countContainer.data('needed')
-                    );
-
-                    let checkmark =
-                        teamCard.find('.spa-team-complete');
-
-                    countContainer.removeClass(
-                        'spa-team-full spa-team-short'
-                    );
-
-                    if (assignedCount >= needed) {
-
-                        countContainer.addClass(
-                            'spa-team-full'
-                        );
-
-                        checkmark.html('&#10003;');
-
-                    } else {
-
-                        countContainer.addClass(
-                            'spa-team-short'
-                        );
-
-                        checkmark.empty();
-
-                    }
-
-                    teamCard.find(
-                        '.spa-volunteer-checkbox'
-                    ).each(function() {
-
-                        let currentCheckbox = $(this);
-
-                        if (
-                            assignedCount >= needed &&
-                            !currentCheckbox.is(':checked')
-                        ) {
-
-                            currentCheckbox.prop(
-                                'disabled',
-                                true
-                            );
-
-                        } else {
-
-                            currentCheckbox.prop(
-                                'disabled',
-                                false
-                            );
-
-                        }
-
-                    });
-
-                }
-
-                }
-            );
 
         }
     );

@@ -11,11 +11,6 @@ add_action(
 );
 
 add_action(
-    'wp_ajax_spa_toggle_volunteer',
-    'spa_toggle_volunteer_ajax'
-);
-
-add_action(
     'wp_ajax_spa_save_event_modal',
     'spa_save_event_modal_ajax'
 );
@@ -165,7 +160,65 @@ function spa_override_event_volunteer_ajax() {
         wp_send_json_error(array('message' => 'Invalid request.'));
     }
 
-    $wpdb->delete(
+    $is_current_event_team = $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT COUNT(*)
+             FROM {$wpdb->prefix}spa_events e
+             INNER JOIN {$wpdb->prefix}spa_events_teams et
+                ON et.event_id = e.id
+             INNER JOIN {$wpdb->prefix}spa_teams t
+                ON t.id = et.team_id
+             WHERE e.id = %d
+             AND e.active = 1
+             AND et.team_id = %d
+             AND t.active = 1",
+            $event_id,
+            $team_id
+        )
+    );
+    if ( ! $is_current_event_team ) {
+        wp_send_json_error(array('message' => 'Overrides are only available for active teams on this event.'));
+    }
+
+    $is_eligible = $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT COUNT(*)
+             FROM {$wpdb->prefix}spa_volunteer_teams vt
+             INNER JOIN {$wpdb->prefix}spa_volunteers v
+                ON v.id = vt.volunteer_id
+                AND v.active = 1
+             WHERE vt.team_id = %d
+             AND vt.volunteer_id = %d",
+            $team_id,
+            $new_volunteer_id
+        )
+    );
+    if ( ! $is_eligible ) {
+        wp_send_json_error(array('message' => 'Select an active volunteer from this team.'));
+    }
+
+    if ( $old_volunteer_id === $new_volunteer_id ) {
+        wp_send_json_success(array('message' => 'Volunteer assignment unchanged.'));
+    }
+
+    $has_existing_assignment = $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT COUNT(*)
+             FROM {$wpdb->prefix}spa_event_volunteers
+             WHERE event_id = %d
+             AND team_id = %d
+             AND volunteer_id = %d",
+            $event_id,
+            $team_id,
+            $old_volunteer_id
+        )
+    );
+    if ( ! $has_existing_assignment ) {
+        wp_send_json_error(array('message' => 'The assignment being replaced no longer exists.'));
+    }
+
+    $wpdb->query('START TRANSACTION');
+    $deleted = $wpdb->delete(
         $wpdb->prefix . 'spa_event_volunteers',
         array(
             'event_id'     => $event_id,
@@ -175,7 +228,7 @@ function spa_override_event_volunteer_ajax() {
         array('%d', '%d', '%d')
     );
 
-    $wpdb->insert(
+    $inserted = $wpdb->insert(
         $wpdb->prefix . 'spa_event_volunteers',
         array(
             'event_id'     => $event_id,
@@ -186,6 +239,12 @@ function spa_override_event_volunteer_ajax() {
         array('%d', '%d', '%d', '%d')
     );
 
+    if ( $deleted !== 1 || $inserted !== 1 ) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(array('message' => 'Unable to save the volunteer override.'));
+    }
+
+    $wpdb->query('COMMIT');
     wp_send_json_success(array('message' => 'Volunteer override saved.'));
 }
 
@@ -226,71 +285,6 @@ function spa_delete_event_ajax() {
     }
 
     wp_send_json_success(array('message' => $delete_scope === 'series' ? 'Series deleted.' : 'Event deleted.'));
-}
-
-function spa_toggle_volunteer_ajax() {
-    global $wpdb;
-
-    if (! check_ajax_referer('spa_admin_nonce', 'nonce', false)) {
-        wp_send_json_error(array('message' => 'Invalid nonce'), 403);
-    }
-    if (! current_user_can('manage_options')) {
-        wp_send_json_error(array('message' => 'Unauthorized'), 403);
-    }
-
-    $event_id = intval($_POST['event_id']);
-    $team_id = intval($_POST['team_id']);
-    $volunteer_id = intval($_POST['volunteer_id']);
-    $assigned = intval($_POST['assigned']);
-
-    $table = $wpdb->prefix . 'spa_event_volunteers';
-
-    if ($assigned) {
-
-        $wpdb->replace(
-            $table,
-            array(
-                'event_id' => $event_id,
-                'team_id' => $team_id,
-                'volunteer_id' => $volunteer_id
-            )
-        );
-
-    } else {
-
-        $wpdb->delete(
-            $table,
-            array(
-                'event_id' => $event_id,
-                'team_id' => $team_id,
-                'volunteer_id' => $volunteer_id
-            )
-        );
-
-        $team->volunteers = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT
-                    v.id,
-                    v.first_name,
-                    v.last_name
-                 FROM {$wpdb->prefix}spa_event_volunteers ev
-                 INNER JOIN {$wpdb->prefix}spa_volunteers v
-                    ON ev.volunteer_id = v.id
-                 WHERE ev.event_id = %d
-                 AND ev.team_id = %d
-                 ORDER BY v.last_name, v.first_name",
-                $event_id,
-                $team->id
-            )
-        );
-
-        foreach ( $team->team_volunteers as $volunteer ) {
-            $volunteer->is_assigned = isset($assigned_lookup[$team->id][$volunteer->id]);
-        }
-
-    }
-
-    wp_send_json_success();
 }
 
 function spa_save_event_modal_ajax() {
@@ -502,50 +496,30 @@ function spa_load_event_ajax() {
         $team_volunteers_needed[$et->id] = intval($et->volunteers_needed);
     }
 
-    $assigned_volunteers = $wpdb->get_results(
-        $wpdb->prepare(
-            "SELECT team_id, volunteer_id
-             FROM {$wpdb->prefix}spa_event_volunteers
-             WHERE event_id = %d",
-            $event_id
-        )
-    );
-
-    $assigned_lookup = array();
-    foreach ( $assigned_volunteers as $assignment ) {
-        $assigned_lookup[$assignment->team_id][$assignment->volunteer_id] = true;
-    }
-
-    $duplicate_assignment_rows = $wpdb->get_results(
+    $final_assignments = $wpdb->get_results(
         $wpdb->prepare(
             "SELECT
+                ev.team_id,
                 ev.volunteer_id,
-                v.first_name,
-                v.last_name,
-                COUNT(DISTINCT ev.team_id) AS team_count,
-                GROUP_CONCAT(DISTINCT t.name ORDER BY t.name SEPARATOR ', ') AS team_names
+                ev.is_override,
+                t.name AS team_name,
+                t.active AS team_active,
+                CONCAT(v.first_name, ' ', v.last_name) AS volunteer_name,
+                v.active AS volunteer_active
              FROM {$wpdb->prefix}spa_event_volunteers ev
-             INNER JOIN {$wpdb->prefix}spa_volunteers v
-                ON ev.volunteer_id = v.id
-                AND v.active = 1
              INNER JOIN {$wpdb->prefix}spa_teams t
-                ON ev.team_id = t.id
-                AND t.active = 1
+                ON t.id = ev.team_id
+             INNER JOIN {$wpdb->prefix}spa_volunteers v
+                ON v.id = ev.volunteer_id
              WHERE ev.event_id = %d
-             GROUP BY ev.volunteer_id, v.first_name, v.last_name
-             HAVING COUNT(DISTINCT ev.team_id) > 1
-             ORDER BY v.last_name, v.first_name",
+             ORDER BY t.name, v.last_name, v.first_name",
             $event_id
         )
     );
 
-    $duplicate_assignment_alerts = array();
-    foreach ( $duplicate_assignment_rows as $duplicate_assignment_row ) {
-        $duplicate_assignment_alerts[] = array(
-            'volunteer_name' => trim($duplicate_assignment_row->first_name . ' ' . $duplicate_assignment_row->last_name),
-            'team_names'     => $duplicate_assignment_row->team_names,
-            'team_count'     => intval($duplicate_assignment_row->team_count),
-        );
+    $assigned_volunteer_ids_by_team = array();
+    foreach ( $final_assignments as $assignment ) {
+        $assigned_volunteer_ids_by_team[$assignment->team_id][] = intval($assignment->volunteer_id);
     }
 
     // All teams for checkboxes in the event details form
@@ -560,8 +534,9 @@ function spa_load_event_ajax() {
          ORDER BY name"
     );
 
+    $override_candidates = array();
     foreach ($event_teams as $team) {
-        $team->team_volunteers = $wpdb->get_results(
+        $override_candidates[$team->id] = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT
                     v.id,
@@ -598,14 +573,14 @@ function spa_load_event_ajax() {
     $rotation_html = ob_get_clean();
 
     ob_start();
-    include SPA_TEMPLATE_DIR .'ajax-event-volunteers.php';
-    $volunteers_html = ob_get_clean();
+    include SPA_TEMPLATE_DIR . 'ajax-event-final-assignments.php';
+    $final_assignments_html = ob_get_clean();
 
     wp_send_json_success(
         array(
             'details' => $details_html,
             'rotation' => $rotation_html,
-            'volunteers' => $volunteers_html,
+            'final_assignments' => $final_assignments_html,
             'is_series_parent' => $is_series_parent ? 1 : 0
         )
     );

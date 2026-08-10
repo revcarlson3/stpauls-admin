@@ -673,14 +673,6 @@
     font-weight: 600;
 }
 
-.spa-volunteer-checkbox:disabled + .spa-volunteer-name {
-    color: #999;
-}
-
-.spa-volunteer-checkbox:disabled {
-    opacity: 0.5;
-}
-
 /* Settings */
 .spa-settings {
     margin-top: 20px;

@@ -1,4 +1,4 @@
-<h2>Rotation Preview</h2>
+<h2>Rotation Assignments</h2>
 
 <div id="spa-event-rotation-container">
 
