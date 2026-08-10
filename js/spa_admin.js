@@ -423,17 +423,21 @@ jQuery(function($) {
         });
     });
 
-    $(document).on('click', '.spa-open-report', function(e) {
-        e.preventDefault();
-        var reportKey = $(this).data('report-key');
-        $('#spa-report-modal-body').html('<p>Loading report...</p>');
-        $('#spa-report-modal').show();
-
-        $.post(spaAdmin.ajaxUrl, {
+    function spaLoadReport(reportKey, startDate, endDate) {
+        var request = {
             action: 'spa_get_report',
             nonce: spaAdmin.nonce,
             report_key: reportKey
-        }, function(response) {
+        };
+        if (startDate && endDate) {
+            request.start_date = startDate;
+            request.end_date = endDate;
+        }
+
+        $('#spa-report-modal-body').html('<p>Loading report...</p>');
+        $('#spa-report-modal').show();
+
+        $.post(spaAdmin.ajaxUrl, request, function(response) {
             if (response && response.success && response.data && response.data.html) {
                 $('#spa-report-modal-body').html(response.data.html);
             } else {
@@ -443,6 +447,25 @@ jQuery(function($) {
         }).fail(function() {
             $('#spa-report-modal-body').html('<div class="notice notice-error inline"><p>AJAX error loading report.</p></div>');
         });
+    }
+
+    $(document).on('click', '.spa-open-report', function(e) {
+        e.preventDefault();
+        spaLoadReport($(this).data('report-key'));
+    });
+
+    $(document).on('click', '.spa-refresh-schedule-report', function() {
+        var startDate = $('#spa-schedule-report-start').val();
+        var endDate = $('#spa-schedule-report-end').val();
+        if (!startDate || !endDate || startDate > endDate) {
+            window.alert('Choose a valid date range with the start date on or before the end date.');
+            return;
+        }
+        spaLoadReport(
+            'schedule_report',
+            startDate,
+            endDate
+        );
     });
 
     $(document).on('click', '#spa-report-modal-close', function() {
