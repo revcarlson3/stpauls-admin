@@ -29,6 +29,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/dashboard.php';
 require_once plugin_dir_path(__FILE__) . 'includes/teams.php';
 require_once plugin_dir_path(__FILE__) . 'includes/volunteers.php';
 require_once plugin_dir_path(__FILE__) . 'includes/events.php';
+require_once plugin_dir_path(__FILE__) . 'includes/scheduling.php';
 require_once plugin_dir_path(__FILE__) . 'includes/email.php';
 require_once plugin_dir_path(__FILE__) . 'includes/sms.php';
 require_once plugin_dir_path(__FILE__) . 'includes/push.php';

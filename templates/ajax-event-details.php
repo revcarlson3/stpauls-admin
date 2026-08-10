@@ -1,3 +1,9 @@
+<?php
+$event_date = (!empty($event->event_date) && $event->event_date !== '0000-00-00') ? $event->event_date : '';
+$start_time = (!empty($event->start_time) && $event->start_time !== '00:00:00') ? substr($event->start_time, 0, 5) : '';
+$end_time = (!empty($event->end_time) && $event->end_time !== '00:00:00') ? substr($event->end_time, 0, 5) : '';
+$recurrence_end_date = (!empty($event->recurrence_end_date) && $event->recurrence_end_date !== '0000-00-00') ? $event->recurrence_end_date : '';
+?>
 
 <div class="spa-event-form">
 
@@ -17,6 +23,25 @@
             id="spa-event-name"
             class="spa-event-field"
             value="<?php echo esc_attr(wp_unslash($event->name)); ?>">
+
+    </div>
+
+    <div class="spa-form-field">
+
+        <label for="spa-event-service-type">
+            Service Type
+        </label>
+
+        <select
+            id="spa-event-service-type"
+            class="spa-event-field spa-event-service-type-select">
+            <option value="">Select</option>
+            <?php foreach ( $service_types as $service_type ) : ?>
+                <option value="<?php echo intval($service_type->id); ?>" <?php selected(intval($event->service_type_id), intval($service_type->id)); ?>>
+                    <?php echo esc_html($service_type->name); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
 
     </div>
 
@@ -59,7 +84,7 @@
                 type="date"
                 id="spa-event-date"
                 class="spa-event-field"
-                value="<?php echo esc_attr($event->event_date); ?>">
+                value="<?php echo esc_attr($event_date); ?>">
 
         </div>
 
@@ -73,7 +98,7 @@
                 type="time"
                 id="spa-event-start-time"
                 class="spa-event-field"
-                value="<?php echo esc_attr($event->start_time); ?>">
+                value="<?php echo esc_attr($start_time); ?>">
 
         </div>
 
@@ -87,13 +112,26 @@
                 type="time"
                 id="spa-event-end-time"
                 class="spa-event-field"
-                value="<?php echo esc_attr($event->end_time); ?>">
+                value="<?php echo esc_attr($end_time); ?>">
 
         </div>
 
     </div>
 
     <hr class="hr" />
+
+    <div class="spa-checkbox-field" style="margin-top:10px;">
+        <label>
+            <input
+                type="checkbox"
+                id="spa-event-notify-volunteers"
+                class="spa-event-field"
+                <?php checked(!empty($event->notify_volunteers), 1); ?>>
+            Notify Volunteers
+        </label>
+    </div>
+
+    <input type="hidden" id="spa-event-series-parent" value="<?php echo !empty($is_series_parent) ? '1' : '0'; ?>">
 
     <div class="spa-checkbox-field">
 
@@ -109,17 +147,6 @@
 
         </label>
 
-    </div>
-
-    <div class="spa-checkbox-field" style="margin-top:10px;">
-        <label>
-            <input
-                type="checkbox"
-                id="spa-event-notify-volunteers"
-                class="spa-event-field"
-                <?php checked(!empty($event->notify_volunteers), 1); ?>>
-            Notify Volunteers
-        </label>
     </div>
 
     <div class="spa-event-recurrence-row">
@@ -151,7 +178,7 @@
                 type="date"
                 id="spa-event-recurrence-end"
                 class="spa-event-field"
-                value="<?php echo esc_attr($event->recurrence_end_date); ?>">
+                value="<?php echo esc_attr($recurrence_end_date); ?>">
 
         </div>
 
@@ -160,6 +187,7 @@
     <div id="spa-save-status"></div>
     <p style="margin-top:12px;">
         <button type="button" id="spa-save-event-details-btn" class="button button-primary">Save Event</button>
+        <button type="button" id="spa-delete-event-btn" class="button">Delete Event</button>
     </p>
 
     <hr class="hr" />

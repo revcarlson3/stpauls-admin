@@ -33,6 +33,7 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=sms')); ?>" class="nav-tab <?php echo ($active_tab === 'sms') ? 'nav-tab-active' : ''; ?>">SMS</a>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=push')); ?>" class="nav-tab <?php echo ($active_tab === 'push') ? 'nav-tab-active' : ''; ?>">Push Notifications</a>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=import')); ?>" class="nav-tab <?php echo ($active_tab === 'import') ? 'nav-tab-active' : ''; ?>">Import / Export</a>
+        <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=reports')); ?>" class="nav-tab <?php echo ($active_tab === 'reports') ? 'nav-tab-active' : ''; ?>">Reports</a>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=templates')); ?>" class="nav-tab <?php echo ($active_tab === 'templates') ? 'nav-tab-active' : ''; ?>">Templates</a>
     </nav>
 
@@ -608,6 +609,47 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                             <?php $render_import_form('spa_import_events', 'spa_import_events', 'spa_import_nonce', 'Import Events'); ?>
                         </div>
 
+                    </div>
+                    <?php
+                    break;
+
+                case 'reports':
+                    $report_definitions = function_exists('spa_get_report_definitions') ? spa_get_report_definitions() : array();
+                    ?>
+                    <h2>Reports</h2>
+                    <p>Open a report in a modal, then export it to Excel, CSV, or PDF, or print it.</p>
+                    <style>
+                        .spa-settings-content form p.submit { display: none !important; }
+                    </style>
+                    <table class="widefat striped">
+                        <thead>
+                            <tr>
+                                <th>Report</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ( $report_definitions as $report_key => $report ) : ?>
+                                <tr>
+                                    <td><?php echo esc_html($report['label']); ?></td>
+                                    <td><button type="button" class="button button-primary spa-open-report" data-report-key="<?php echo esc_attr($report_key); ?>">Open Report</button></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                    <style>
+                        .spa-settings-page .submit { display: none; }
+                    </style>
+
+                    <div id="spa-report-modal" class="spa-modal" style="display:none;">
+                        <div class="spa-modal-overlay"></div>
+                        <div class="spa-modal-content" style="max-width:1000px;">
+                            <div class="spa-modal-header">
+                                <h2>Report</h2>
+                                <button type="button" class="spa-modal-close" id="spa-report-modal-close">×</button>
+                            </div>
+                            <div class="spa-modal-body" id="spa-report-modal-body"></div>
+                        </div>
                     </div>
                     <?php
                     break;

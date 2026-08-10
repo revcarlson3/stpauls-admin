@@ -43,96 +43,118 @@
 
                 <div class="spa-sunday-column">
 
-                    <div class="spa-volunteer-tabs">
+                    <h4>Team Assignments</h4>
 
-                        <div class="spa-tab-buttons">
+                    <?php if (!empty($sunday_teams)) : ?>
+                        <div class="spa-volunteer-tabs">
+
+                            <div class="spa-tab-buttons">
+
+                                <?php foreach ($sunday_teams as $index => $team) : ?>
+
+                                <?php
+
+                                if ($team['assigned'] == 0) {
+
+                                    $status_class = 'spa-tab-empty';
+
+                                } elseif ($team['assigned'] < $team['needed']) {
+
+                                    $status_class = 'spa-tab-partial';
+
+                                } else {
+
+                                    $status_class = 'spa-tab-full';
+
+                                }
+
+                                ?>
+
+                                <button
+                                    class="spa-tab-button <?php echo $status_class; ?> <?php echo ($index === 0) ? 'active' : ''; ?>"
+                                    data-tab="team-<?php echo $index; ?>"><span class="spa-tab-dot"></span>
+                                    <?php echo esc_html($team['name']) ?>
+
+                                    </button>
+
+                                <?php endforeach; ?>
+
+                            </div>
 
                             <?php foreach ($sunday_teams as $index => $team) : ?>
 
-                            <?php
+                                <div
+                                    class="spa-tab-panel <?php echo ($index === 0) ? 'active' : ''; ?>"
+                                    id="team-<?php echo $index; ?>">
 
-                            if ($team['assigned'] == 0) {
+                                    <p class="spa-tab-status">
 
-                                $status_class = 'spa-tab-empty';
+                                        Assigned:
+                                        <?php echo intval($team['assigned']); ?>
+                                        /
+                                        <?php echo intval($team['needed']); ?>
 
-                            } elseif ($team['assigned'] < $team['needed']) {
+                                    </p>
 
-                                $status_class = 'spa-tab-partial';
+                                    <?php if (!empty($team['volunteers'])) : ?>
 
-                            } else {
+                                        <ul class="spa-tab-volunteers">
 
-                                $status_class = 'spa-tab-full';
+                                            <?php foreach ($team['volunteers'] as $volunteer) : ?>
 
-                            }
+                                                <li>
 
-                            ?>
+                                                    <?php echo esc_html(
+                                                        $volunteer->first_name . ' ' . $volunteer->last_name
+                                                    ); ?>
 
-                            <button
-                                class="spa-tab-button <?php echo $status_class; ?> <?php echo ($index === 0) ? 'active' : ''; ?>"
-                                data-tab="team-<?php echo $index; ?>"><span class="spa-tab-dot"></span>
-                                <?php echo esc_html($team['name']) ?>
+                                                </li>
 
-                                </button>
+                                            <?php endforeach; ?>
+
+                                        </ul>
+
+                                    <?php else : ?>
+
+                                        <div class="spa-unassigned">
+
+                                            Volunteer Needed
+
+                                        </div>
+
+                                    <?php endif; ?>
+
+                                </div>
 
                             <?php endforeach; ?>
 
                         </div>
-
-                        <?php foreach ($sunday_teams as $index => $team) : ?>
-
-                            <div
-                                class="spa-tab-panel <?php echo ($index === 0) ? 'active' : ''; ?>"
-                                id="team-<?php echo $index; ?>">
-
-                                <p class="spa-tab-status">
-
-                                    Assigned:
-                                    <?php echo intval($team['assigned']); ?>
-                                    /
-                                    <?php echo intval($team['needed']); ?>
-
-                                </p>
-
-                                <?php if (!empty($team['volunteers'])) : ?>
-
-                                    <ul class="spa-tab-volunteers">
-
-                                        <?php foreach ($team['volunteers'] as $volunteer) : ?>
-
-                                            <li>
-
-                                                <?php echo esc_html(
-                                                    $volunteer->first_name . ' ' . $volunteer->last_name
-                                                ); ?>
-
-                                            </li>
-
-                                        <?php endforeach; ?>
-
-                                    </ul>
-
-                                <?php else : ?>
-
-                                    <div class="spa-unassigned">
-
-                                        Volunteer Needed
-
-                                    </div>
-
-                                <?php endif; ?>
-
-                            </div>
-
-                        <?php endforeach; ?>
-
-                    </div>
-
+                    <?php else : ?>
+                        <p>No team assignments available.</p>
+                    <?php endif; ?>
 
                 </div>
 
                 <div class="spa-sunday-column">
 
-                    <h4>Additional Information</h4>
+                    <h4>Assignment Conflicts</h4>
+
+                    <?php if ( ! empty($duplicate_assignment_alerts) ) : ?>
+                        <ul class="spa-dashboard-alert-list">
+                            <?php foreach ( $duplicate_assignment_alerts as $alert ) : ?>
+                                <li>
+                                    <strong><?php echo esc_html($alert['volunteer_name']); ?></strong>
+                                    is assigned to
+                                    <strong><?php echo esc_html($alert['team_count']); ?></strong>
+                                    teams for
+                                    <strong><?php echo esc_html($alert['event_name']); ?></strong>:
+                                    <?php echo esc_html($alert['team_names']); ?>.
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php else : ?>
+                        <p>No duplicate volunteer team assignments detected for this service.</p>
+                    <?php endif; ?>
 
                 </div>
 
@@ -166,4 +188,3 @@
     </div>
 
 </div>
-

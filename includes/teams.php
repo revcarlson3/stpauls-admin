@@ -24,9 +24,22 @@ function spa_handle_teams_post() {
         ), array('id' => $team_id));
         wp_redirect(admin_url('admin.php?page=spa-teams&updated=1'));
     } else {
+        $existing_team_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$table_name} WHERE name = %s LIMIT 1",
+            $team_name
+        ));
+        if ($existing_team_id) {
+            $wpdb->update($table_name, array(
+                'description' => $team_description,
+                'active' => 1
+            ), array('id' => $existing_team_id), array('%s', '%d'), array('%d'));
+            wp_redirect(admin_url('admin.php?page=spa-teams&updated=1'));
+            exit;
+        }
         $wpdb->insert($table_name, array(
             'name' => $team_name,
-            'description' => $team_description
+            'description' => $team_description,
+            'active' => 1
         ));
         wp_redirect(admin_url('admin.php?page=spa-teams&added=1'));
     }
@@ -58,7 +71,8 @@ function spa_teams_page() {
         if(isset($_GET['_wpnonce']) && wp_verify_nonce($_GET['_wpnonce'], 'edit_team_'. $team_id)) {
             $current_team = $wpdb->get_row(
                 $wpdb->prepare(
-                    "SELECT * FROM {$table_name} WHERE id = %d", intval($_GET['id'])
+                    "SELECT * FROM {$table_name} WHERE id = %d AND active = 1",
+                    intval($_GET['id'])
                 )
             );
         }
@@ -68,7 +82,7 @@ function spa_teams_page() {
 		$team_id = intval($_GET['id']);
 		
 		if(isset($_GET['_wpnonce']) && wp_verify_nonce($_GET['_wpnonce'], 'delete_team_'. $team_id)) {
-			$wpdb->delete($table_name, array('id' => $team_id));		
+			$wpdb->update($table_name, array('active' => 0), array('id' => $team_id), array('%d'), array('%d'));		
 			wp_redirect(admin_url('admin.php?page=spa-teams&deleted=1'));
 			exit;
 		}

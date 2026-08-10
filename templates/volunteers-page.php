@@ -45,8 +45,8 @@
                     <label for="spa_volunteer_phone">Cell Phone/SMS Number</label>
                     </th>
                     <td>
-                    <input type="tel" pattern="^\+[1-9]\d{1,14}$" id="spa_volunteer_phone" name="spa_volunteer_phone" class="regular-text" value="<?php echo $editing ? esc_attr(wp_unslash($current_volunteer->phone)) : ''; ?>" required />
-                    <p class="description">Enter phone number in E.164 format (example: +13209999999) without dashes or perantheses.</p>
+                    <input type="tel" id="spa_volunteer_phone" name="spa_volunteer_phone" class="regular-text" value="<?php echo $editing ? esc_attr(wp_unslash($current_volunteer->phone)) : ''; ?>" required />
+                    <p class="description">You can enter common formats like (320) 123-4567, 320-123-4567, or +13201234567. It will be saved in E.164 format.</p>
                     </td>
                     <td>
                     <label>
@@ -72,7 +72,7 @@
             <h2>Teams</h2>
 
             <?php
-            $teams = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}spa_teams ORDER BY name");
+            $teams = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}spa_teams WHERE active = 1 ORDER BY name");
 
             echo '<div class="spa-team-columns">';
 
@@ -103,7 +103,7 @@
 
     // Display existing volunteers
     if(!$editing) {
-        $volunteers = $wpdb->get_results("SELECT * FROM {$table_name} ORDER BY last_name");
+        $volunteers = $wpdb->get_results("SELECT * FROM {$table_name} WHERE active = 1 ORDER BY last_name");
 
         if($volunteers) {
             echo '<h2>Existing Volunteers</h2>';
@@ -172,3 +172,38 @@
         echo '</div>';
     }
 ?>
+
+<script>
+jQuery(function($) {
+    function spaNormalizeVolunteerPhone(value) {
+        var phone = $.trim(value || '');
+        if (!phone) {
+            return '';
+        }
+
+        var hasPlus = phone.charAt(0) === '+';
+        var digits = phone.replace(/\D+/g, '');
+
+        if (!digits) {
+            return '';
+        }
+
+        if (hasPlus) {
+            phone = '+' + digits;
+        } else if (digits.length === 10) {
+            phone = '+1' + digits;
+        } else if (digits.length === 11 && digits.charAt(0) === '1') {
+            phone = '+' + digits;
+        } else {
+            return value;
+        }
+
+        return /^\+[1-9]\d{1,14}$/.test(phone) ? phone : value;
+    }
+
+    $(document).on('blur', '#spa_volunteer_phone', function() {
+        var normalized = spaNormalizeVolunteerPhone($(this).val());
+        $(this).val(normalized);
+    });
+});
+</script>

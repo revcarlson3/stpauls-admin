@@ -65,12 +65,14 @@ function spa_dashboard_page() {
     $sunday_service = $wpdb->get_row(
         "SELECT *
          FROM {$wpdb->prefix}spa_events
-         WHERE event_date >= CURDATE()
+         WHERE active = 1
+         AND event_date >= CURDATE()
          ORDER BY event_date
          LIMIT 1"
     );
     $sunday_teams = array();
     $open_volunteer_needs = 0;
+    $duplicate_assignment_alerts = array();
 
     if ($sunday_service) {
 
@@ -83,6 +85,7 @@ function spa_dashboard_page() {
                  FROM {$wpdb->prefix}spa_events_teams et
                  INNER JOIN {$wpdb->prefix}spa_teams t
                      ON et.team_id = t.id
+                    AND t.active = 1
                  WHERE et.event_id = %d",
                 $sunday_service->id
             )
@@ -129,6 +132,38 @@ function spa_dashboard_page() {
                 'assigned'   => $assigned,
                 'needed'     => $needed,
                 'volunteers' => $volunteers
+            );
+        }
+
+        $duplicate_rows = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT
+                    ev.volunteer_id,
+                    v.first_name,
+                    v.last_name,
+                    COUNT(DISTINCT ev.team_id) AS team_count,
+                    GROUP_CONCAT(DISTINCT t.name ORDER BY t.name SEPARATOR ', ') AS team_names
+                 FROM {$wpdb->prefix}spa_event_volunteers ev
+                 INNER JOIN {$wpdb->prefix}spa_volunteers v
+                    ON ev.volunteer_id = v.id
+                    AND v.active = 1
+                 INNER JOIN {$wpdb->prefix}spa_teams t
+                    ON ev.team_id = t.id
+                    AND t.active = 1
+                 WHERE ev.event_id = %d
+                 GROUP BY ev.volunteer_id, v.first_name, v.last_name
+                 HAVING COUNT(DISTINCT ev.team_id) > 1
+                 ORDER BY v.last_name, v.first_name",
+                $sunday_service->id
+            )
+        );
+
+        foreach ( $duplicate_rows as $duplicate_row ) {
+            $duplicate_assignment_alerts[] = array(
+                'event_name'      => $sunday_service->name,
+                'volunteer_name'  => trim($duplicate_row->first_name . ' ' . $duplicate_row->last_name),
+                'team_names'      => $duplicate_row->team_names,
+                'team_count'      => intval($duplicate_row->team_count),
             );
         }
     }

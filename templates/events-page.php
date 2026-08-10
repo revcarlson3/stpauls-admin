@@ -14,6 +14,12 @@
 
     </div>
 
+    <div class="spa-events-column spa-event-rotation">
+
+        <?php include SPA_TEMPLATE_DIR . 'event-rotation.php'; ?>
+
+    </div>
+
     <div class="spa-events-column spa-event-volunteers">
 
         <?php include SPA_TEMPLATE_DIR . 'event-volunteers.php'; ?>

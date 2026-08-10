@@ -42,6 +42,22 @@ jQuery(function($) {
             });
         }
     });
+
+    function spaReloadSelectedEvent(eventId) {
+        $.post(spaAdmin.ajaxUrl, {
+            action: 'spa_load_event',
+            nonce: spaAdmin.nonce,
+            event_id: eventId
+        }, function(loadResponse) {
+            if (loadResponse && loadResponse.success) {
+                $('#spa-event-details-container').html(loadResponse.data.details);
+                $('#spa-event-rotation-container').html(loadResponse.data.rotation);
+                $('#spa-event-volunteers-container').html(loadResponse.data.final_assignments_html || '');
+                $('#spa-event-details-container').data('series-parent', loadResponse.data.is_series_parent ? '1' : '0');
+            }
+        });
+    }
+
     $(document).on(
         'click',
         '.spa-event-link',
@@ -73,15 +89,10 @@ jQuery(function($) {
                 function(response) {
 
                     if (response.success) {
-
-                        $('#spa-event-details-container')
-                            .html(
-                                response.data.details
-                            );
-                        $('#spa-event-volunteers-container')
-                            .html(
-                                response.data.volunteers
-                            );
+                        $('#spa-event-details-container').html(response.data.details);
+                        $('#spa-event-rotation-container').html(response.data.rotation);
+                        $('#spa-event-volunteers-container').html(response.data.final_assignments_html || '');
+                        $('#spa-event-details-container').data('series-parent', response.data.is_series_parent ? '1' : '0');
 
                     }
 
@@ -90,6 +101,111 @@ jQuery(function($) {
 
         }
     );
+
+    $(document).on('click', '.spa-override-volunteer', function(e) {
+        e.preventDefault();
+
+        var $btn = $(this);
+        var eventId = $btn.data('event-id');
+        var teamId = $btn.data('team-id');
+        var oldVolunteerId = $btn.data('volunteer-id');
+        var newVolunteerId = window.prompt('Enter the volunteer ID to use for this event instead:');
+
+        if (!newVolunteerId) {
+            return;
+        }
+
+        $.post(spaAdmin.ajaxUrl, {
+            action: 'spa_override_event_volunteer',
+            nonce: spaAdmin.nonce,
+            event_id: eventId,
+            team_id: teamId,
+            old_volunteer_id: oldVolunteerId,
+            new_volunteer_id: newVolunteerId
+        }, function(response) {
+            if (response && response.success) {
+                spaReloadSelectedEvent(eventId);
+            }
+        });
+    });
+
+    function spaOpenEventActionModal(message, buttons) {
+        $('#spa-event-action-message').text(message);
+        $('#spa-event-action-single').toggle(!!buttons.single);
+        $('#spa-event-action-delete').toggle(!!buttons.delete);
+        $('#spa-event-action-parent').toggle(!!buttons.parent);
+        $('#spa-event-action-series').toggle(!!buttons.series);
+        $('#spa-event-action-modal').show();
+    }
+
+    function spaReloadEventsList() {
+        $.post(spaAdmin.ajaxUrl, {
+            action: 'spa_load_events_page',
+            nonce: spaAdmin.nonce,
+            page: 1
+        }, function(data) {
+            if (data.success) {
+                $('#spa-events-list-container').html(data.data.html);
+            }
+        });
+    }
+
+    function spaRunDelete(scope) {
+        var eventId = $('#spa-event-id').val();
+        $.post(spaAdmin.ajaxUrl, {
+            action: 'spa_delete_event',
+            nonce: spaAdmin.nonce,
+            event_id: eventId,
+            delete_scope: scope
+        }, function(response) {
+            if (response && response.success) {
+                $('#spa-event-details-container').html('<p>Event deleted.</p>');
+                $('#spa-event-rotation-container').html($('#spa-event-rotation-empty-template').html());
+                $('#spa-event-volunteers-container').empty();
+                spaReloadEventsList();
+            } else {
+                alert(response && response.data && response.data.message ? response.data.message : 'Delete failed');
+            }
+        });
+    }
+
+    function spaDeleteEventPrompt(eventId) {
+        var isRecurring = $('#spa-event-recurring').is(':checked');
+        var isParent = $('#spa-event-details-container').data('series-parent') === 1 || $('#spa-event-details-container').data('series-parent') === '1' || $('#spa-event-series-parent').val() === '1';
+        if (!isRecurring) {
+            spaOpenEventActionModal('Delete this event?', { single: true, series: false, delete: false, parent: false });
+        } else if (isParent) {
+            spaOpenEventActionModal('Delete this event only, or delete the entire recurring series?', { single: false, series: true, delete: false, parent: true });
+        } else {
+            spaOpenEventActionModal('Delete this recurring occurrence?', { single: false, series: false, delete: true, parent: false });
+        }
+    }
+
+    $(document).on('click', '#spa-event-action-cancel', function() {
+        $('#spa-event-action-modal').hide();
+    });
+    $(document).on('click', '#spa-event-action-single', function() {
+        $('#spa-event-action-modal').hide();
+        spaRunDelete('single');
+    });
+    $(document).on('click', '#spa-event-action-delete', function() {
+        $('#spa-event-action-modal').hide();
+        spaRunDelete('single');
+    });
+    $(document).on('click', '#spa-event-action-parent', function() {
+        $('#spa-event-action-modal').hide();
+        spaRunDelete('single');
+    });
+    $(document).on('click', '#spa-event-action-series', function() {
+        $('#spa-event-action-modal').hide();
+        spaRunDelete('series');
+    });
+
+    $(document).on('click', '.spa-modal-overlay, #spa-event-action-modal', function(e) {
+        if (e.target === this) {
+            $('#spa-event-action-modal').hide();
+        }
+    });
 
     $(document).on(
         'click',
@@ -234,6 +350,73 @@ jQuery(function($) {
         }
     });
 
+    $(document).on('click', '#spa-save-event-details-btn', function() {
+        var $btn = $(this);
+        var $status = $('#spa-save-status');
+        var eventId = $('#spa-event-id').val();
+        var isParentSeries = $('#spa-event-series-parent').val() === '1';
+        var teams = {};
+        $('.spa-event-team-check:checked').each(function() {
+            var teamId = $(this).data('team-id');
+            var needed = $(this).closest('.spa-event-team-row').find('.spa-event-team-needed').val() || 1;
+            teams[teamId] = needed;
+        });
+
+        var savePayload = function(scope) {
+            $.post(spaAdmin.ajaxUrl, {
+                action: 'spa_save_event_details',
+                nonce: spaAdmin.nonce,
+                event_id: eventId,
+                update_scope: scope || 'parent',
+                name: $('#spa-event-name').val(),
+                location: $('#spa-event-location').val(),
+                description: $('#spa-event-description').val(),
+                event_date: $('#spa-event-date').val(),
+                start_time: $('#spa-event-start-time').val(),
+                end_time: $('#spa-event-end-time').val(),
+                service_type_id: $('#spa-event-service-type').val(),
+                is_recurring: $('#spa-event-recurring').is(':checked') ? 1 : 0,
+                notify_volunteers: $('#spa-event-notify-volunteers').is(':checked') ? 1 : 0,
+                recurrence_type: $('#spa-event-recurrence-type').val(),
+                recurrence_end_date: $('#spa-event-recurrence-end').val(),
+                teams: teams
+            }, function(response) {
+                if (response && response.success) {
+                    var successMsg = (response.data && response.data.message) ? response.data.message : 'Saved successfully.';
+                    $status.html('<div class="notice notice-success inline"><p>' + successMsg + '</p></div>');
+                    if (response.data && response.data.final_assignments_html) {
+                        $('#spa-event-volunteers-container').html(response.data.final_assignments_html);
+                    }
+                    setTimeout(function() { $status.empty(); }, 3000);
+                } else {
+                    // Silent failure: the save itself is still reaching the server,
+                    // so keep the UI from showing a misleading error box.
+                }
+            }, 'json').always(function() {
+                $btn.prop('disabled', false).text('Save Event');
+            });
+        };
+
+        if (isParentSeries) {
+            spaOpenEventActionModal('This event is the parent of a recurring series. Update just this event or the entire series?', true, function(scope) {
+                $btn.prop('disabled', true).text('Saving...');
+                $status.empty();
+                savePayload(scope);
+            });
+            return;
+        }
+
+        $btn.prop('disabled', true).text('Saving...');
+        $status.empty();
+        savePayload('parent');
+    });
+
+    $(document).on('click', '#spa-delete-event-btn', function(e) {
+        e.preventDefault();
+        var eventId = $('#spa-event-id').val();
+        spaDeleteEventPrompt(eventId);
+    });
+
     $(document).on('click', '.spa-uninstall-btn', function(e) {
         var $btn = $(this);
         if ($btn.hasClass('disabled') || $btn.prop('disabled')) {
@@ -321,6 +504,60 @@ jQuery(function($) {
         }).always(function() {
             $btn.prop('disabled', false).text('Send Test Notification');
         });
+    });
+
+    $(document).on('click', '.spa-open-report', function(e) {
+        e.preventDefault();
+        var reportKey = $(this).data('report-key');
+        $('#spa-report-modal-body').html('<p>Loading report...</p>');
+        $('#spa-report-modal').show();
+
+        $.post(spaAdmin.ajaxUrl, {
+            action: 'spa_get_report',
+            nonce: spaAdmin.nonce,
+            report_key: reportKey
+        }, function(response) {
+            if (response && response.success && response.data && response.data.html) {
+                $('#spa-report-modal-body').html(response.data.html);
+            } else {
+                var msg = response && response.data && response.data.message ? response.data.message : 'Unable to load report.';
+                $('#spa-report-modal-body').html('<div class="notice notice-error inline"><p>' + msg + '</p></div>');
+            }
+        }).fail(function() {
+            $('#spa-report-modal-body').html('<div class="notice notice-error inline"><p>AJAX error loading report.</p></div>');
+        });
+    });
+
+    $(document).on('click', '#spa-report-modal-close', function() {
+        $('#spa-report-modal').hide();
+    });
+
+    $(document).on('click', '#spa-report-modal .spa-modal-overlay', function(e) {
+        if (e.target === this) {
+            $('#spa-report-modal').hide();
+        }
+    });
+
+    $(document).on('click', '.spa-print-report', function() {
+        var reportHtml = $('#spa-report-modal-body .spa-report-modal-content').html();
+        if (!reportHtml) {
+            return;
+        }
+
+        var printWindow = window.open('', '_blank', 'width=900,height=700');
+        if (!printWindow) {
+            return;
+        }
+
+        printWindow.document.open();
+        printWindow.document.write(
+            '<!doctype html><html><head><meta charset="utf-8"><title>Print Report</title>' +
+            '<style>@page{size:landscape;margin:18px 18px 88px 18px;}body{font-family:Arial,sans-serif;padding:24px 24px 88px 24px;}.spa-report-table-wrap{max-height:none !important;overflow:visible !important;height:auto !important;}.spa-report-modal-content, .spa-report-modal-content *{overflow:visible !important;}table{width:100%;border-collapse:collapse;}tr,td,th{break-inside:avoid;page-break-inside:avoid;}th,td{border:1px solid #ccc;padding:8px;text-align:left;}th{background:#f5f5f5;}button,a{display:none !important;}.spa-report-footer{bottom:-4px !important;line-height:1.4;}</style>' +
+            '</head><body>' + reportHtml + '</body></html>'
+        );
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
     });
 
     // Push provider toggle
@@ -451,6 +688,7 @@ $('#spa-sms-example').text(ex);
        $('#spa-event-modal-title').text('Add Event');
        $('#spa-event-modal-id').val('');
        $('#spa-event-modal-name').val('');
+       $('#spa-event-modal-service-type').val('');
        $('#spa-event-modal-location').val('');
        $('#spa-event-modal-description').val('');
        $('#spa-event-modal-date').val('');
@@ -492,6 +730,7 @@ $('#spa-sms-example').text(ex);
            event_date: $('#spa-event-modal-date').val(),
            start_time: $('#spa-event-modal-start-time').val(),
            end_time: $('#spa-event-modal-end-time').val(),
+            service_type_id: $('#spa-event-modal-service-type').val(),
            is_recurring: $('#spa-event-modal-recurring').is(':checked') ? 1 : 0,
            notify_volunteers: $('#spa-event-modal-notify-volunteers').is(':checked') ? 1 : 0,
            recurrence_type: $('#spa-event-modal-recurrence-type').val(),
@@ -536,54 +775,62 @@ $('#spa-sms-example').text(ex);
        $needed.css('opacity', this.checked ? '1' : '0.4');
     });
 
-    // Event details panel - Save Event button
-    $(document).on('click', '#spa-save-event-details-btn', function() {
+    $(document).on('click', '#spa-preview-event-rotation-btn', function() {
        var $btn = $(this);
-       var $status = $('#spa-save-status');
+       var $preview = $('#spa-event-rotation-preview');
 
-       // Collect team assignments: only checked teams
-       var teams = {};
-       $('.spa-event-team-check:checked').each(function() {
-           var teamId = $(this).data('team-id');
-           var needed = $(this).closest('.spa-event-team-row').find('.spa-event-team-needed').val() || 1;
-           teams[teamId] = needed;
-       });
+       $btn.prop('disabled', true).text('Loading...');
+       $preview.html('<p>Loading preview...</p>');
 
-       var data = {
-           action: 'spa_save_event_details',
+       $.post(spaAdmin.ajaxUrl, {
+           action: 'spa_preview_event_rotation',
            nonce: spaAdmin.nonce,
-           event_id: $('#spa-event-id').val(),
-           name: $('#spa-event-name').val(),
-           location: $('#spa-event-location').val(),
-           description: $('#spa-event-description').val(),
-           event_date: $('#spa-event-date').val(),
-           start_time: $('#spa-event-start-time').val(),
-           end_time: $('#spa-event-end-time').val(),
-           is_recurring: $('#spa-event-recurring').is(':checked') ? 1 : 0,
-           notify_volunteers: $('#spa-event-notify-volunteers').is(':checked') ? 1 : 0,
-           recurrence_type: $('#spa-event-recurrence-type').val(),
-           recurrence_end_date: $('#spa-event-recurrence-end').val(),
-           teams: teams
-       };
-
-       $btn.prop('disabled', true).text('Saving...');
-       $status.empty();
-
-       $.post(spaAdmin.ajaxUrl, data, function(response) {
-           if (response && response.success) {
-               $status.html('<div class="notice notice-success inline"><p>Saved successfully.</p></div>');
-               if (response.data && response.data.volunteers_html) {
-                   $('#spa-event-volunteers-container').html(response.data.volunteers_html);
-               }
-               setTimeout(function() { $status.empty(); }, 3000);
+           event_id: $('#spa-event-id').val()
+       }, function(response) {
+           if (response && response.success && response.data && response.data.preview_html) {
+               $preview.html(response.data.preview_html);
            } else {
-               var msg = response && response.data ? response.data.message : 'Unknown error';
-               $status.html('<div class="notice notice-error inline"><p>Error: ' + msg + '</p></div>');
+               var msg = response && response.data ? response.data.message : 'Unable to load preview.';
+               $preview.html('<div class="notice notice-error inline"><p>' + msg + '</p></div>');
            }
        }).fail(function() {
-           $status.html('<div class="notice notice-error inline"><p>AJAX error. Please try again.</p></div>');
+           $preview.html('<div class="notice notice-error inline"><p>AJAX error. Please try again.</p></div>');
        }).always(function() {
-           $btn.prop('disabled', false).text('Save Event');
+           $btn.prop('disabled', false).text('Preview Rotation Assignments');
+       });
+    });
+
+    $(document).on('click', '#spa-apply-event-rotation-btn', function() {
+       var $btn = $(this);
+       var $preview = $('#spa-event-rotation-preview');
+
+       $btn.prop('disabled', true).text('Applying...');
+
+       $.post(spaAdmin.ajaxUrl, {
+           action: 'spa_apply_event_rotation',
+           nonce: spaAdmin.nonce,
+           event_id: $('#spa-event-id').val()
+       }, function(response) {
+           if (response && response.success) {
+               $preview.html('<div class="notice notice-success inline"><p>' + (response.data && response.data.message ? response.data.message : 'Assignments applied.') + '</p></div>');
+               $.post(spaAdmin.ajaxUrl, {
+                   action: 'spa_load_event',
+                   nonce: spaAdmin.nonce,
+                   event_id: $('#spa-event-id').val()
+               }, function(loadResponse) {
+                   if (loadResponse && loadResponse.success) {
+                       $('#spa-event-rotation-container').html(loadResponse.data.rotation);
+                       $('#spa-event-volunteers-container').html(loadResponse.data.volunteers);
+                   }
+               });
+           } else {
+               var msg = response && response.data ? response.data.message : 'Unable to apply assignments.';
+               $preview.html('<div class="notice notice-error inline"><p>' + msg + '</p></div>');
+           }
+       }).fail(function() {
+           $preview.html('<div class="notice notice-error inline"><p>AJAX error. Please try again.</p></div>');
+       }).always(function() {
+           $btn.prop('disabled', false).text('Apply Rotation Assignments');
        });
     });
 

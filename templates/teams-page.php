@@ -38,7 +38,7 @@
     <?php
 
     // Display existing teams
-    $teams = $wpdb->get_results("SELECT * FROM {$table_name} ORDER BY name");
+    $teams = $wpdb->get_results("SELECT * FROM {$table_name} WHERE active = 1 ORDER BY name");
 
     if($teams) {
         echo '<h2>Existing Teams</h2>';
