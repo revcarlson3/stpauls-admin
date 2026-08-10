@@ -1,4 +1,634 @@
 <?php
+
+function spa_get_complete_backup_table_definitions() {
+    return array(
+        'teams' => array(
+            'suffix' => 'spa_teams',
+            'columns' => array('id', 'name', 'description', 'active', 'created_at'),
+            'formats' => array('%d', '%s', '%s', '%d', '%s'),
+            'order_by' => 'id',
+        ),
+        'volunteers' => array(
+            'suffix' => 'spa_volunteers',
+            'columns' => array('id', 'first_name', 'last_name', 'email', 'phone', 'email_enabled', 'phone_enabled', 'active', 'created_at'),
+            'formats' => array('%d', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s'),
+            'order_by' => 'id',
+        ),
+        'service_types' => array(
+            'suffix' => 'spa_service_types',
+            'columns' => array('id', 'name', 'description', 'active', 'created_at'),
+            'formats' => array('%d', '%s', '%s', '%d', '%s'),
+            'order_by' => 'id',
+        ),
+        'notification_templates' => array(
+            'suffix' => 'spa_notification_templates',
+            'columns' => array('id', 'name', 'type', 'subject', 'body', 'created_at', 'updated_at'),
+            'formats' => array('%d', '%s', '%s', '%s', '%s', '%s', '%s'),
+            'order_by' => 'id',
+        ),
+        'events' => array(
+            'suffix' => 'spa_events',
+            'columns' => array('id', 'name', 'event_date', 'start_time', 'end_time', 'description', 'location', 'service_type_id', 'is_recurring', 'recurrence_type', 'recurrence_end_date', 'parent_event_id', 'notify_volunteers', 'active', 'created_at'),
+            'formats' => array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%d', '%d', '%d', '%s'),
+            'order_by' => 'id',
+        ),
+        'volunteer_teams' => array(
+            'suffix' => 'spa_volunteer_teams',
+            'columns' => array('volunteer_id', 'team_id'),
+            'formats' => array('%d', '%d'),
+            'order_by' => 'volunteer_id, team_id',
+        ),
+        'events_teams' => array(
+            'suffix' => 'spa_events_teams',
+            'columns' => array('id', 'event_id', 'team_id', 'volunteers_needed'),
+            'formats' => array('%d', '%d', '%d', '%d'),
+            'order_by' => 'id',
+        ),
+        'event_volunteers' => array(
+            'suffix' => 'spa_event_volunteers',
+            'columns' => array('event_id', 'team_id', 'volunteer_id', 'is_override'),
+            'formats' => array('%d', '%d', '%d', '%d'),
+            'order_by' => 'event_id, team_id, volunteer_id',
+        ),
+        'team_rotations' => array(
+            'suffix' => 'spa_team_rotations',
+            'columns' => array('id', 'service_type_id', 'team_id', 'volunteer_id', 'rotation_order', 'is_next', 'advance_rule', 'created_at'),
+            'formats' => array('%d', '%d', '%d', '%d', '%d', '%d', '%s', '%s'),
+            'order_by' => 'id',
+        ),
+    );
+}
+
+function spa_complete_backup_json_supported() {
+    return function_exists('json_encode')
+        && function_exists('json_decode')
+        && function_exists('json_last_error')
+        && defined('JSON_PRETTY_PRINT')
+        && defined('JSON_UNESCAPED_SLASHES')
+        && defined('JSON_ERROR_NONE');
+}
+
+function spa_begin_complete_backup_export_transaction() {
+    global $wpdb;
+
+    $lock_key = 'spa_rotation_apply_undo_lock';
+    add_option($lock_key, 1, '', false);
+
+    if ( $wpdb->query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ') === false ) {
+        return false;
+    }
+    if ( $wpdb->query('START TRANSACTION WITH CONSISTENT SNAPSHOT') === false ) {
+        return false;
+    }
+
+    $lock_id = $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT option_id
+             FROM {$wpdb->options}
+             WHERE option_name = %s
+             FOR UPDATE",
+            $lock_key
+        )
+    );
+    if ( ! $lock_id ) {
+        $wpdb->query('ROLLBACK');
+        return false;
+    }
+
+    return true;
+}
+
+function spa_begin_complete_backup_restore_transaction() {
+    global $wpdb;
+
+    $lock_key = 'spa_rotation_apply_undo_lock';
+    add_option($lock_key, 1, '', false);
+
+    if ( $wpdb->query('SET TRANSACTION ISOLATION LEVEL SERIALIZABLE') === false ) {
+        return false;
+    }
+    if ( $wpdb->query('START TRANSACTION') === false ) {
+        return false;
+    }
+
+    $lock_id = $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT option_id
+             FROM {$wpdb->options}
+             WHERE option_name = %s
+             FOR UPDATE",
+            $lock_key
+        )
+    );
+    if ( ! $lock_id ) {
+        $wpdb->query('ROLLBACK');
+        return false;
+    }
+
+    return true;
+}
+
+function spa_get_complete_backup_payload() {
+    global $wpdb;
+
+    $payload = array(
+        'tables' => array(),
+        'options' => array(),
+        'user_meta' => array(),
+    );
+
+    foreach ( spa_get_complete_backup_table_definitions() as $key => $definition ) {
+        $table = $wpdb->prefix . $definition['suffix'];
+        $columns = implode(', ', array_map(function($column) {
+            return '`' . $column . '`';
+        }, $definition['columns']));
+        $wpdb->last_error = '';
+        $rows = $wpdb->get_results(
+            "SELECT {$columns} FROM {$table} ORDER BY {$definition['order_by']}",
+            ARRAY_A
+        );
+        if ( $wpdb->last_error !== '' ) {
+            return new WP_Error('backup_read_failed', sprintf('Unable to read the %s table.', $key));
+        }
+        $payload['tables'][$key] = $rows;
+    }
+
+    $option_like = $wpdb->esc_like('spa_') . '%';
+    $wpdb->last_error = '';
+    $option_rows = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT option_name, option_value, autoload
+             FROM {$wpdb->options}
+             WHERE option_name LIKE %s
+             AND option_name <> %s
+             ORDER BY option_name",
+            $option_like,
+            'spa_rotation_apply_undo_lock'
+        ),
+        ARRAY_A
+    );
+    if ( $wpdb->last_error !== '' ) {
+        return new WP_Error('backup_read_failed', 'Unable to read plugin settings.');
+    }
+    $payload['options'] = $option_rows;
+    $user_meta_like = $wpdb->esc_like('spa_') . '%';
+    $wpdb->last_error = '';
+    $user_meta_rows = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT user_id, meta_key, meta_value
+             FROM {$wpdb->usermeta}
+             WHERE meta_key LIKE %s
+             ORDER BY user_id, meta_key",
+            $user_meta_like
+        ),
+        ARRAY_A
+    );
+    if ( $wpdb->last_error !== '' ) {
+        return new WP_Error('backup_read_failed', 'Unable to read plugin user preferences.');
+    }
+    $payload['user_meta'] = $user_meta_rows;
+
+    return $payload;
+}
+
+function spa_get_complete_backup_checksum($payload) {
+    return hash('sha256', wp_json_encode($payload, JSON_UNESCAPED_SLASHES));
+}
+
+function spa_handle_export_complete_backup() {
+    global $wpdb;
+
+    if ( ! current_user_can('manage_options') ) {
+        wp_die('Unauthorized', 'Error', array('response' => 403));
+    }
+    check_admin_referer('spa_export_complete_backup');
+    if ( ! spa_complete_backup_json_supported() ) {
+        wp_die('JSON support is required to create a complete backup.', 'Backup Error', array('response' => 500));
+    }
+    if ( ! spa_complete_backup_tables_support_transactions() ) {
+        wp_die('Complete backup was blocked because one or more database tables cannot guarantee a consistent snapshot.', 'Backup Error', array('response' => 500));
+    }
+    if ( ! spa_begin_complete_backup_export_transaction() ) {
+        wp_die('Unable to begin a consistent backup transaction.', 'Backup Error', array('response' => 500));
+    }
+
+    $payload = spa_get_complete_backup_payload();
+    if ( is_wp_error($payload) ) {
+        $wpdb->query('ROLLBACK');
+        wp_die(esc_html($payload->get_error_message()), 'Backup Error', array('response' => 500));
+    }
+    if ( $wpdb->query('COMMIT') === false ) {
+        $wpdb->query('ROLLBACK');
+        wp_die('Unable to complete the consistent backup transaction.', 'Backup Error', array('response' => 500));
+    }
+    $backup = array(
+        'format' => 'stpauls-admin-complete-backup',
+        'format_version' => 1,
+        'plugin_version' => defined('SPA_VERSION') ? SPA_VERSION : '',
+        'exported_at' => gmdate('c'),
+        'site_url' => home_url(),
+        'payload' => $payload,
+        'checksum' => spa_get_complete_backup_checksum($payload),
+    );
+    $json = wp_json_encode($backup, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    if ( $json === false ) {
+        wp_die('Unable to encode the complete backup.', 'Backup Error', array('response' => 500));
+    }
+
+    while ( ob_get_level() ) {
+        ob_end_clean();
+    }
+    nocache_headers();
+    header('Content-Type: application/json; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="stpauls-admin-complete-backup-' . gmdate('Y-m-d-His') . '.json"');
+    header('X-Content-Type-Options: nosniff');
+    echo $json;
+    exit;
+}
+add_action('admin_post_spa_export_complete_backup', 'spa_handle_export_complete_backup');
+
+function spa_complete_backup_collect_ids($rows, $table_key) {
+    $ids = array();
+    foreach ( $rows as $index => $row ) {
+        $id = intval($row['id']);
+        if ( $id < 1 || isset($ids[$id]) ) {
+            return new WP_Error('invalid_backup_id', sprintf('Invalid or duplicate ID in %s row %d.', $table_key, $index + 1));
+        }
+        $ids[$id] = true;
+    }
+    return $ids;
+}
+
+function spa_complete_backup_validate_composite_keys($rows, $table_key, $columns) {
+    $seen = array();
+    foreach ( $rows as $index => $row ) {
+        $parts = array();
+        foreach ( $columns as $column ) {
+            $parts[] = (string) $row[$column];
+        }
+        $key = implode(':', $parts);
+        if ( isset($seen[$key]) ) {
+            return new WP_Error('duplicate_backup_relation', sprintf('Duplicate relationship in %s row %d.', $table_key, $index + 1));
+        }
+        $seen[$key] = true;
+    }
+    return true;
+}
+
+function spa_validate_complete_backup($backup) {
+    global $wpdb;
+
+    $definitions = spa_get_complete_backup_table_definitions();
+
+    if (
+        ! is_array($backup)
+        || ! isset($backup['format'], $backup['format_version'], $backup['payload'], $backup['checksum'])
+        || $backup['format'] !== 'stpauls-admin-complete-backup'
+        || intval($backup['format_version']) !== 1
+        || ! is_array($backup['payload'])
+        || ! isset($backup['payload']['tables'], $backup['payload']['options'], $backup['payload']['user_meta'])
+        || ! is_array($backup['payload']['tables'])
+        || ! is_array($backup['payload']['options'])
+        || ! is_array($backup['payload']['user_meta'])
+    ) {
+        return new WP_Error('invalid_backup_format', 'This is not a supported St. Paul\'s Admin complete backup.');
+    }
+    if (
+        ! is_string($backup['checksum'])
+        || ! preg_match('/^[a-f0-9]{64}$/', $backup['checksum'])
+        || ! hash_equals($backup['checksum'], spa_get_complete_backup_checksum($backup['payload']))
+    ) {
+        return new WP_Error('invalid_backup_checksum', 'The backup integrity check failed. The file may be incomplete or altered.');
+    }
+    if ( array_keys($backup['payload']['tables']) !== array_keys($definitions) ) {
+        return new WP_Error('incomplete_backup_tables', 'The backup does not contain the complete required table set.');
+    }
+
+    foreach ( $definitions as $table_key => $definition ) {
+        $rows = $backup['payload']['tables'][$table_key];
+        if ( ! is_array($rows) ) {
+            return new WP_Error('invalid_backup_table', sprintf('The %s table data is invalid.', $table_key));
+        }
+        foreach ( $rows as $index => $row ) {
+            if ( ! is_array($row) || array_keys($row) !== $definition['columns'] ) {
+                return new WP_Error('invalid_backup_columns', sprintf('Unexpected columns in %s row %d.', $table_key, $index + 1));
+            }
+            foreach ( $definition['columns'] as $column_index => $column ) {
+                $value = $row[$column];
+                if ( ! is_scalar($value) && $value !== null ) {
+                    return new WP_Error('invalid_backup_value', sprintf('Invalid value in %s row %d.', $table_key, $index + 1));
+                }
+                if (
+                    $value !== null
+                    && $definition['formats'][$column_index] === '%d'
+                    && ! preg_match('/^-?\d+$/', (string) $value)
+                ) {
+                    return new WP_Error('invalid_backup_number', sprintf('Invalid numeric value in %s row %d.', $table_key, $index + 1));
+                }
+            }
+        }
+    }
+
+    foreach ( $backup['payload']['options'] as $option_row ) {
+        if (
+            ! is_array($option_row)
+            || array_keys($option_row) !== array('option_name', 'option_value', 'autoload')
+            || ! is_string($option_row['option_name'])
+            || strpos($option_row['option_name'], 'spa_') !== 0
+            || $option_row['option_name'] === 'spa_rotation_apply_undo_lock'
+            || ! is_string($option_row['option_value'])
+            || ! is_string($option_row['autoload'])
+        ) {
+            return new WP_Error('invalid_backup_option', 'The backup contains an invalid plugin option.');
+        }
+    }
+    foreach ( $backup['payload']['user_meta'] as $meta_row ) {
+        if (
+            ! is_array($meta_row)
+            || array_keys($meta_row) !== array('user_id', 'meta_key', 'meta_value')
+            || ! is_scalar($meta_row['user_id'])
+            || ! preg_match('/^[1-9]\d*$/', (string) $meta_row['user_id'])
+            || ! is_string($meta_row['meta_key'])
+            || strpos($meta_row['meta_key'], 'spa_') !== 0
+            || ! is_string($meta_row['meta_value'])
+        ) {
+            return new WP_Error('invalid_backup_user_meta', 'The backup contains invalid plugin user preferences.');
+        }
+        if (
+            ! $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT ID FROM {$wpdb->users} WHERE ID = %d",
+                    intval($meta_row['user_id'])
+                )
+            )
+        ) {
+            return new WP_Error('missing_backup_user', 'The backup references a WordPress user that does not exist on this site.');
+        }
+    }
+
+    $tables = $backup['payload']['tables'];
+    $team_ids = spa_complete_backup_collect_ids($tables['teams'], 'teams');
+    $volunteer_ids = spa_complete_backup_collect_ids($tables['volunteers'], 'volunteers');
+    $service_type_ids = spa_complete_backup_collect_ids($tables['service_types'], 'service_types');
+    $event_ids = spa_complete_backup_collect_ids($tables['events'], 'events');
+    foreach ( array($team_ids, $volunteer_ids, $service_type_ids, $event_ids) as $id_result ) {
+        if ( is_wp_error($id_result) ) {
+            return $id_result;
+        }
+    }
+    foreach ( array('notification_templates', 'events_teams', 'team_rotations') as $table_key ) {
+        $id_result = spa_complete_backup_collect_ids($tables[$table_key], $table_key);
+        if ( is_wp_error($id_result) ) {
+            return $id_result;
+        }
+    }
+
+    foreach ( $tables['events'] as $row ) {
+        if ( $row['service_type_id'] !== null && intval($row['service_type_id']) > 0 && ! isset($service_type_ids[intval($row['service_type_id'])]) ) {
+            return new WP_Error('broken_backup_reference', 'An event references a missing service type.');
+        }
+        if ( $row['parent_event_id'] !== null && intval($row['parent_event_id']) > 0 && ! isset($event_ids[intval($row['parent_event_id'])]) ) {
+            return new WP_Error('broken_backup_reference', 'A recurring event references a missing parent event.');
+        }
+    }
+    foreach ( $tables['volunteer_teams'] as $row ) {
+        if ( ! isset($volunteer_ids[intval($row['volunteer_id'])], $team_ids[intval($row['team_id'])]) ) {
+            return new WP_Error('broken_backup_reference', 'A volunteer-team relationship references a missing record.');
+        }
+    }
+    foreach ( $tables['events_teams'] as $row ) {
+        if ( ! isset($event_ids[intval($row['event_id'])], $team_ids[intval($row['team_id'])]) ) {
+            return new WP_Error('broken_backup_reference', 'An event-team relationship references a missing record.');
+        }
+    }
+    foreach ( $tables['event_volunteers'] as $row ) {
+        if (
+            ! isset($event_ids[intval($row['event_id'])])
+            || ! isset($team_ids[intval($row['team_id'])])
+            || ! isset($volunteer_ids[intval($row['volunteer_id'])])
+        ) {
+            return new WP_Error('broken_backup_reference', 'An event assignment references a missing record.');
+        }
+    }
+    foreach ( $tables['team_rotations'] as $row ) {
+        if (
+            ! isset($service_type_ids[intval($row['service_type_id'])])
+            || ! isset($team_ids[intval($row['team_id'])])
+            || ! isset($volunteer_ids[intval($row['volunteer_id'])])
+        ) {
+            return new WP_Error('broken_backup_reference', 'A team rotation references a missing record.');
+        }
+    }
+
+    $composite_checks = array(
+        array('volunteer_teams', array('volunteer_id', 'team_id')),
+        array('event_volunteers', array('event_id', 'team_id', 'volunteer_id')),
+    );
+    foreach ( $composite_checks as $check ) {
+        $result = spa_complete_backup_validate_composite_keys($tables[$check[0]], $check[0], $check[1]);
+        if ( is_wp_error($result) ) {
+            return $result;
+        }
+    }
+
+    return true;
+}
+
+function spa_complete_backup_tables_support_transactions() {
+    global $wpdb;
+
+    $tables = array($wpdb->options, $wpdb->usermeta);
+    foreach ( spa_get_complete_backup_table_definitions() as $definition ) {
+        $tables[] = $wpdb->prefix . $definition['suffix'];
+    }
+    foreach ( $tables as $table ) {
+        $status = $wpdb->get_row($wpdb->prepare('SHOW TABLE STATUS WHERE Name = %s', $table));
+        if ( ! $status || strtoupper((string) $status->Engine) !== 'INNODB' ) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function spa_redirect_complete_backup_error($message) {
+    set_transient('spa_complete_backup_restore_error', sanitize_text_field($message), HOUR_IN_SECONDS);
+    wp_safe_redirect(admin_url('admin.php?page=spa-settings&tab=import&backup_error=1'));
+    exit;
+}
+
+function spa_handle_import_complete_backup() {
+    global $wpdb;
+
+    if ( ! current_user_can('manage_options') ) {
+        wp_die('Unauthorized', 'Error', array('response' => 403));
+    }
+    if ( ! isset($_POST['spa_complete_backup_nonce']) || ! wp_verify_nonce(wp_unslash($_POST['spa_complete_backup_nonce']), 'spa_import_complete_backup') ) {
+        wp_die('Invalid nonce', 'Error', array('response' => 403));
+    }
+    if ( ! spa_complete_backup_json_supported() ) {
+        spa_redirect_complete_backup_error('JSON support is required to restore a complete backup.');
+    }
+    if ( empty($_POST['spa_confirm_complete_restore']) ) {
+        spa_redirect_complete_backup_error('Confirm that the restore may replace all current plugin data.');
+    }
+
+    $file = isset($_FILES['spa_complete_backup_file']) ? $_FILES['spa_complete_backup_file'] : null;
+    if ( ! $file || $file['error'] !== UPLOAD_ERR_OK || ! is_uploaded_file($file['tmp_name']) ) {
+        spa_redirect_complete_backup_error('The backup file upload failed.');
+    }
+    if ( intval($file['size']) < 1 || intval($file['size']) > 25 * 1024 * 1024 ) {
+        spa_redirect_complete_backup_error('Complete backup files must be between 1 byte and 25 MB.');
+    }
+    if ( strtolower(pathinfo(basename($file['name']), PATHINFO_EXTENSION)) !== 'json' ) {
+        spa_redirect_complete_backup_error('Select a St. Paul\'s Admin JSON backup file.');
+    }
+
+    $json = file_get_contents($file['tmp_name']);
+    if ( $json === false ) {
+        spa_redirect_complete_backup_error('The uploaded backup could not be read.');
+    }
+    $backup = json_decode($json, true);
+    if ( json_last_error() !== JSON_ERROR_NONE ) {
+        spa_redirect_complete_backup_error('The uploaded backup is not valid JSON.');
+    }
+
+    $validation = spa_validate_complete_backup($backup);
+    if ( is_wp_error($validation) ) {
+        spa_redirect_complete_backup_error($validation->get_error_message());
+    }
+    if ( ! spa_complete_backup_tables_support_transactions() ) {
+        spa_redirect_complete_backup_error('Restore was blocked because one or more database tables cannot guarantee transaction rollback.');
+    }
+    if ( ! spa_begin_complete_backup_restore_transaction() ) {
+        spa_redirect_complete_backup_error('Unable to begin a protected restore transaction.');
+    }
+
+    $definitions = spa_get_complete_backup_table_definitions();
+    $delete_order = array('event_volunteers', 'events_teams', 'team_rotations', 'volunteer_teams', 'events', 'notification_templates', 'service_types', 'volunteers', 'teams');
+    foreach ( $delete_order as $table_key ) {
+        $table = $wpdb->prefix . $definitions[$table_key]['suffix'];
+        if ( $wpdb->query("DELETE FROM {$table}") === false ) {
+            $wpdb->query('ROLLBACK');
+            spa_redirect_complete_backup_error('The restore could not clear the existing plugin tables.');
+        }
+    }
+
+    foreach ( $definitions as $table_key => $definition ) {
+        $table = $wpdb->prefix . $definition['suffix'];
+        foreach ( $backup['payload']['tables'][$table_key] as $row ) {
+            if ( $wpdb->insert($table, $row, $definition['formats']) !== 1 ) {
+                $wpdb->query('ROLLBACK');
+                spa_redirect_complete_backup_error(sprintf('The restore failed while writing %s data. No changes were kept.', $table_key));
+            }
+        }
+    }
+
+    $option_like = $wpdb->esc_like('spa_') . '%';
+    $old_option_names = $wpdb->get_col(
+        $wpdb->prepare(
+            "SELECT option_name
+             FROM {$wpdb->options}
+             WHERE option_name LIKE %s
+             AND option_name <> %s",
+            $option_like,
+            'spa_rotation_apply_undo_lock'
+        )
+    );
+    $deleted_options = $wpdb->query(
+        $wpdb->prepare(
+            "DELETE FROM {$wpdb->options}
+             WHERE option_name LIKE %s
+             AND option_name <> %s",
+            $option_like,
+            'spa_rotation_apply_undo_lock'
+        )
+    );
+    if ( $deleted_options === false ) {
+        $wpdb->query('ROLLBACK');
+        spa_redirect_complete_backup_error('The restore could not replace the plugin settings.');
+    }
+    $restored_option_names = array();
+    foreach ( $backup['payload']['options'] as $option_row ) {
+        $inserted = $wpdb->insert(
+            $wpdb->options,
+            array(
+                'option_name' => $option_row['option_name'],
+                'option_value' => $option_row['option_value'],
+                'autoload' => $option_row['autoload'],
+            ),
+            array('%s', '%s', '%s')
+        );
+        if ( $inserted !== 1 ) {
+            $wpdb->query('ROLLBACK');
+            spa_redirect_complete_backup_error('The restore failed while writing plugin settings. No changes were kept.');
+        }
+        $restored_option_names[] = $option_row['option_name'];
+    }
+
+    $user_meta_like = $wpdb->esc_like('spa_') . '%';
+    $old_user_ids = $wpdb->get_col(
+        $wpdb->prepare(
+            "SELECT DISTINCT user_id
+             FROM {$wpdb->usermeta}
+             WHERE meta_key LIKE %s",
+            $user_meta_like
+        )
+    );
+    if (
+        $wpdb->query(
+            $wpdb->prepare(
+                "DELETE FROM {$wpdb->usermeta}
+                 WHERE meta_key LIKE %s",
+                $user_meta_like
+            )
+        ) === false
+    ) {
+        $wpdb->query('ROLLBACK');
+        spa_redirect_complete_backup_error('The restore could not replace plugin user preferences.');
+    }
+    $restored_user_ids = array();
+    foreach ( $backup['payload']['user_meta'] as $meta_row ) {
+        if (
+            $wpdb->insert(
+                $wpdb->usermeta,
+                array(
+                    'user_id' => intval($meta_row['user_id']),
+                    'meta_key' => $meta_row['meta_key'],
+                    'meta_value' => $meta_row['meta_value'],
+                ),
+                array('%d', '%s', '%s')
+            ) !== 1
+        ) {
+            $wpdb->query('ROLLBACK');
+            spa_redirect_complete_backup_error('The restore failed while writing plugin user preferences. No changes were kept.');
+        }
+        $restored_user_ids[] = intval($meta_row['user_id']);
+    }
+
+    if ( $wpdb->query('COMMIT') === false ) {
+        $wpdb->query('ROLLBACK');
+        spa_redirect_complete_backup_error('The database could not commit the restore. No changes were kept.');
+    }
+
+    spa_clear_rotation_option_caches(array_merge($old_option_names, $restored_option_names));
+    foreach ( array_unique(array_merge($old_user_ids, $restored_user_ids)) as $user_id ) {
+        clean_user_cache(intval($user_id));
+    }
+    set_transient(
+        'spa_complete_backup_restore_result',
+        array(
+            'tables' => count($definitions),
+            'records' => array_sum(array_map('count', $backup['payload']['tables'])),
+            'options' => count($backup['payload']['options']),
+            'user_meta' => count($backup['payload']['user_meta']),
+        ),
+        HOUR_IN_SECONDS
+    );
+    wp_safe_redirect(admin_url('admin.php?page=spa-settings&tab=import&backup_restored=1'));
+    exit;
+}
+add_action('admin_post_spa_import_complete_backup', 'spa_handle_import_complete_backup');
+
 function spa_handle_import_volunteers() {
     if ( ! current_user_can('manage_options') ) {
         wp_die('Unauthorized');
@@ -501,4 +1131,3 @@ function spa_handle_import_events() {
     exit;
 }
 add_action('admin_post_spa_import_events', 'spa_handle_import_events');
-
