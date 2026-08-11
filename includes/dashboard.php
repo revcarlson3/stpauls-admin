@@ -88,7 +88,7 @@ function spa_dashboard_page() {
          WHERE e.active = 1
          AND e.event_date >= %s
          ORDER BY e.event_date, e.start_time, e.id
-         LIMIT 10",
+         LIMIT 8",
             current_time('Y-m-d')
         )
     );
@@ -96,7 +96,8 @@ function spa_dashboard_page() {
     $communication_deliveries = $wpdb->get_results(
         "SELECT channel, created_at, volunteer_name, status, failure_reason
          FROM {$wpdb->prefix}spa_notification_delivery_logs
-         ORDER BY created_at DESC, id DESC"
+         ORDER BY created_at DESC, id DESC
+         LIMIT 8"
     );
 
     $activity_filter = isset($_GET['activity_filter']) ? sanitize_key(wp_unslash($_GET['activity_filter'])) : 'all';
@@ -120,7 +121,7 @@ function spa_dashboard_page() {
            AND log.status IN ('sent', 'delivered')
            " . ($activity_filter === 'all' || $activity_filter === 'communications' ? '' : 'AND 1 = 0') . "
          ORDER BY activity_time DESC
-         LIMIT 20"
+         LIMIT 8"
     );
 
     $sunday_service = $wpdb->get_row(
