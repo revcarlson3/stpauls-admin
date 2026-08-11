@@ -384,6 +384,18 @@
     color: #2271b1;
 }
 
+.spa-sunday-column .spa-service-church-day {
+    margin: 0 0 5px;
+    color: #50575e;
+    font-size: 15px;
+    font-style: italic;
+}
+
+.spa-sunday-column .spa-service-church-day span {
+    font-style: normal;
+    font-weight: 700;
+}
+
 .spa-dashboard-alert-list {
     margin: 0;
     padding-left: 18px;

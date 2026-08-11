@@ -115,10 +115,10 @@
         }
 
         function summary(event) {
+            var churchDay = event.special_day || event.season;
             return '<strong>' + escapeHtml(event.name) + '</strong><div>' +
                 formatTime(event.start_time) + ' - ' + formatTime(event.end_time) + '</div>' +
-                (event.season ? '<div><strong>Season:</strong> ' + escapeHtml(event.season) + '</div>' : '') +
-                (event.special_day ? '<div><strong>Special day:</strong> ' + escapeHtml(event.special_day) + '</div>' : '') +
+                (churchDay ? '<div><strong>Day of the Church Year:</strong> ' + escapeHtml(churchDay) + '</div>' : '') +
                 (event.location ? '<div>' + escapeHtml(event.location) + '</div>' : '') +
                 (event.description ? '<p>' + escapeHtml(event.description) + '</p>' : '');
         }

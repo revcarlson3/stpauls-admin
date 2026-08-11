@@ -24,6 +24,13 @@
                             <?php echo esc_html($sunday_service->name); ?>
                         </h3>
 
+                        <?php if ( ! empty($sunday_service->special_day) || ! empty($sunday_service->season) ) : ?>
+                            <p class="spa-service-church-day">
+                                <span>Day of the Church Year:</span>
+                                <?php echo esc_html($sunday_service->special_day ?: $sunday_service->season); ?>
+                            </p>
+                        <?php endif; ?>
+
                         <p class="spa-service-date">
                             <?php echo date(
                                 'F j, Y',
