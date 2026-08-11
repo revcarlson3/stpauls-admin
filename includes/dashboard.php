@@ -62,6 +62,37 @@ function spa_dashboard_page() {
         'future'           => array('title' => 'Future'),
     );
 
+    $upcoming_events = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT
+            e.id,
+            e.name,
+            e.event_date,
+            e.start_time,
+            e.end_time,
+            (
+                SELECT COUNT(*)
+                FROM {$wpdb->prefix}spa_event_volunteers ev
+                WHERE ev.event_id = e.id
+            ) AS assigned_count,
+            (
+                SELECT GROUP_CONCAT(DISTINCT conflicting.name ORDER BY conflicting.start_time, conflicting.id SEPARATOR ', ')
+                FROM {$wpdb->prefix}spa_events conflicting
+                WHERE conflicting.active = 1
+                AND conflicting.id <> e.id
+                AND conflicting.event_date = e.event_date
+                AND conflicting.start_time < e.end_time
+                AND conflicting.end_time > e.start_time
+            ) AS conflict_names
+         FROM {$wpdb->prefix}spa_events e
+         WHERE e.active = 1
+         AND e.event_date >= %s
+         ORDER BY e.event_date, e.start_time, e.id
+         LIMIT 10",
+            current_time('Y-m-d')
+        )
+    );
+
     $sunday_service = $wpdb->get_row(
         "SELECT *
          FROM {$wpdb->prefix}spa_events

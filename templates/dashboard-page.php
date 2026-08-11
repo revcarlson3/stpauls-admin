@@ -176,7 +176,58 @@
                     <?php echo esc_html($card['title']); ?>
                 </div>
                 <div class="spa-card-body">
-                    <?php if ( $card_id === 'future' ) : ?>
+                    <?php if ( $card_id === 'upcoming-events' ) : ?>
+                        <?php if ( ! empty($upcoming_events) ) : ?>
+                            <table class="spa-upcoming-events-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Event</th>
+                                        <th>Volunteers</th>
+                                        <th><span class="screen-reader-text">Conflicts</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ( $upcoming_events as $upcoming_event ) : ?>
+                                        <tr>
+                                            <td>
+                                                <?php echo esc_html(mysql2date('M j, Y', $upcoming_event->event_date)); ?>
+                                            </td>
+                                            <td>
+                                                <a href="<?php echo esc_url(add_query_arg(array('page' => 'spa-events', 'event_id' => intval($upcoming_event->id)), admin_url('admin.php'))); ?>">
+                                                    <?php echo esc_html(wp_unslash($upcoming_event->name)); ?>
+                                                </a>
+                                            </td>
+                                            <td>
+                                                <?php if ( intval($upcoming_event->assigned_count) > 0 ) : ?>
+                                                    <span class="spa-assignment-status spa-assignment-status-assigned">
+                                                        <span class="dashicons dashicons-yes-alt" aria-hidden="true"></span>
+                                                        Assigned
+                                                    </span>
+                                                <?php else : ?>
+                                                    <span class="spa-assignment-status spa-assignment-status-unassigned">
+                                                        <span class="dashicons dashicons-minus" aria-hidden="true"></span>
+                                                        Not assigned
+                                                    </span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="spa-upcoming-event-conflict">
+                                                <?php if ( ! empty($upcoming_event->conflict_names) ) : ?>
+                                                    <span
+                                                        class="dashicons dashicons-warning spa-overlap-warning"
+                                                        title="<?php echo esc_attr('Time overlaps with: ' . $upcoming_event->conflict_names); ?>"
+                                                        aria-label="<?php echo esc_attr('Warning: time overlaps with ' . $upcoming_event->conflict_names); ?>"
+                                                        role="img"></span>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        <?php else : ?>
+                            <p>No upcoming events found.</p>
+                        <?php endif; ?>
+                    <?php elseif ( $card_id === 'future' ) : ?>
                         <p style="color:#999;font-style:italic;">Reserved for future functionality.</p>
                     <?php else : ?>
                         <p style="color:#999;font-style:italic;">Coming soon.</p>

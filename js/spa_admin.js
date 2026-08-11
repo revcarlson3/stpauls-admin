@@ -126,6 +126,11 @@ jQuery(function($) {
         }
     );
 
+    var initialEventId = parseInt($('.spa-events-layout').data('initial-event-id'), 10);
+    if (initialEventId > 0) {
+        spaLoadEvent(initialEventId);
+    }
+
     $(document).on('click', '.spa-override-volunteer', function(e) {
         e.preventDefault();
 
