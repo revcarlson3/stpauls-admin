@@ -184,20 +184,12 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
             case 'services':
                 ?>
                 <h2>Service settings</h2>
-                <p>Credentials are stored only on this site and are reserved for a future BibleGateway integration. No external API calls are made by this version.</p>
+                <p>Scripture references use Logos Reftagger to provide hover previews and links to the selected Bible translation.</p>
                 <table class="form-table">
                     <tr>
-                        <th scope="row">BibleGateway API key</th>
-                        <td><?php spa_render_secret_field('spa_biblegateway_api_key', 'spa_biblegateway_api_key'); ?></td>
-                    </tr>
-                    <tr>
-                        <th scope="row">BibleGateway API secret</th>
-                        <td><?php spa_render_secret_field('spa_biblegateway_api_secret', 'spa_biblegateway_api_secret'); ?></td>
-                    </tr>
-                    <tr>
-                        <th scope="row"><label for="spa_biblegateway_translations">Bible translations</label></th>
+                        <th scope="row"><label for="spa_reftagger_translations">Bible translations</label></th>
                         <td>
-                            <textarea name="spa_biblegateway_translations" id="spa_biblegateway_translations" rows="5" class="large-text"><?php echo esc_textarea(get_option('spa_biblegateway_translations', 'ESV, NIV, KJV, NKJV, NASB, NRSV, CSB')); ?></textarea>
+                            <textarea name="spa_reftagger_translations" id="spa_reftagger_translations" rows="5" class="large-text"><?php echo esc_textarea(get_option('spa_reftagger_translations', 'ESV, NIV, KJV, NKJV, NASB, NRSV, CSB')); ?></textarea>
                             <p class="description">Comma- or line-separated choices shown on service records. Leave blank to use the safe default list.</p>
                         </td>
                     </tr>

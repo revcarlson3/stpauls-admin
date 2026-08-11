@@ -8,7 +8,7 @@
 
 function spa_services_get_translation_choices() {
     $default = array('ESV', 'NIV', 'KJV', 'NKJV', 'NASB', 'NRSV', 'CSB');
-    $saved = get_option('spa_biblegateway_translations', '');
+    $saved = get_option('spa_reftagger_translations', '');
     if ( ! is_string($saved) || trim($saved) === '' ) {
         return $default;
     }
@@ -20,6 +20,26 @@ function spa_services_get_translation_choices() {
         }
     }
     return $choices ? $choices : $default;
+}
+
+function spa_services_enqueue_reftagger($translation = '') {
+    $translation = $translation ? sanitize_text_field($translation) : 'ESV';
+    wp_register_script('spa-logos-reftagger', 'https://api.reftagger.com/v2/RefTagger.js', array(), null, true);
+    wp_enqueue_script('spa-logos-reftagger');
+    wp_add_inline_script(
+        'spa-logos-reftagger',
+        'var refTagger = { settings: { bibleVersion: ' . wp_json_encode($translation) . ' } };',
+        'before'
+    );
+}
+
+function spa_services_render_lesson_reference($reference, $translation = '') {
+    $reference = sanitize_text_field($reference);
+    if ( $reference === '' ) {
+        return '';
+    }
+    spa_services_enqueue_reftagger($translation);
+    return '<span class="rtBibleRef">' . esc_html($reference) . '</span>';
 }
 
 function spa_services_get_service($service_id) {
@@ -97,11 +117,9 @@ function spa_services_parse_lessons($raw) {
         if ( $line === '' ) {
             continue;
         }
-        $parts = array_map('trim', explode('|', $line, 2));
-        $reference = sanitize_text_field($parts[0]);
-        $link = isset($parts[1]) ? esc_url_raw($parts[1], array('http', 'https')) : '';
+        $reference = sanitize_text_field($line);
         if ( $reference !== '' ) {
-            $lessons[] = array('reference' => $reference, 'link_url' => $link);
+            $lessons[] = array('reference' => $reference, 'link_url' => '');
         }
     }
     return $lessons;

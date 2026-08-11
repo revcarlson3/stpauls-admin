@@ -54,5 +54,6 @@ delete_option('spa_enable_sms');
 delete_option('spa_biblegateway_api_key');
 delete_option('spa_biblegateway_api_secret');
 delete_option('spa_biblegateway_translations');
+delete_option('spa_reftagger_translations');
 
 // End of uninstall
