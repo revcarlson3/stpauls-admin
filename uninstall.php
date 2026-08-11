@@ -15,6 +15,8 @@ $tables = array(
     $wpdb->prefix . 'spa_service_tags',
     $wpdb->prefix . 'spa_service_lessons',
     $wpdb->prefix . 'spa_service_hymns',
+    $wpdb->prefix . 'spa_hymn_catalog',
+    $wpdb->prefix . 'spa_hymnals',
     $wpdb->prefix . 'spa_services',
     $wpdb->prefix . 'spa_sermon_series',
     $wpdb->prefix . 'spa_preachers',

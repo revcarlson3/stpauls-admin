@@ -251,6 +251,37 @@ function spa_activate_plugin() {
         KEY service_order (service_id, hymn_order)
     ) $charset_collate;");
 
+    $hymnals_table = $wpdb->prefix . 'spa_hymnals';
+    dbDelta("CREATE TABLE $hymnals_table (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        abbreviation varchar(50) NOT NULL,
+        canonical_abbreviation varchar(50) NOT NULL,
+        title varchar(255) NOT NULL DEFAULT '',
+        publication_year smallint(5) unsigned NULL,
+        created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY abbreviation (abbreviation),
+        KEY canonical_abbreviation (canonical_abbreviation)
+    ) $charset_collate;");
+
+    $hymn_catalog_table = $wpdb->prefix . 'spa_hymn_catalog';
+    dbDelta("CREATE TABLE $hymn_catalog_table (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        hymnal_id bigint(20) unsigned NOT NULL,
+        hymn_number varchar(20) NOT NULL,
+        title varchar(255) NULL,
+        author varchar(255) NULL,
+        tune varchar(255) NULL,
+        external_url varchar(500) NULL,
+        source varchar(50) NOT NULL DEFAULT 'manual',
+        created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY hymnal_hymn (hymnal_id, hymn_number),
+        KEY source (source)
+    ) $charset_collate;");
+
     $tags_table = $wpdb->prefix . 'spa_service_tags';
     dbDelta("CREATE TABLE $tags_table (
         id bigint(20) unsigned NOT NULL AUTO_INCREMENT,

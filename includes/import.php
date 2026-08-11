@@ -92,6 +92,18 @@ function spa_get_complete_backup_table_definitions() {
             'formats' => array('%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s'),
             'order_by' => 'id',
         ),
+        'hymnals' => array(
+            'suffix' => 'spa_hymnals',
+            'columns' => array('id', 'abbreviation', 'canonical_abbreviation', 'title', 'publication_year', 'created_at', 'updated_at'),
+            'formats' => array('%d', '%s', '%s', '%s', '%d', '%s', '%s'),
+            'order_by' => 'id',
+        ),
+        'hymn_catalog' => array(
+            'suffix' => 'spa_hymn_catalog',
+            'columns' => array('id', 'hymnal_id', 'hymn_number', 'title', 'author', 'tune', 'external_url', 'source', 'created_at', 'updated_at'),
+            'formats' => array('%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s'),
+            'order_by' => 'id',
+        ),
         'service_tags' => array(
             'suffix' => 'spa_service_tags',
             'columns' => array('id', 'name', 'slug', 'created_at'),
@@ -271,7 +283,7 @@ function spa_handle_export_complete_backup() {
     }
     $backup = array(
         'format' => 'stpauls-admin-complete-backup',
-        'format_version' => 9,
+        'format_version' => 10,
         'plugin_version' => defined('SPA_VERSION') ? SPA_VERSION : '',
         'exported_at' => gmdate('c'),
         'site_url' => home_url(),
@@ -324,7 +336,7 @@ function spa_complete_backup_validate_composite_keys($rows, $table_key, $columns
 }
 
 function spa_upgrade_complete_backup($backup) {
-    if ( ! is_array($backup) || ! in_array(intval($backup['format_version'] ?? 0), array(1, 2, 3, 4, 5, 6, 7, 8), true) ) {
+    if ( ! is_array($backup) || ! in_array(intval($backup['format_version'] ?? 0), array(1, 2, 3, 4, 5, 6, 7, 8, 9), true) ) {
         return $backup;
     }
     if (
@@ -399,7 +411,7 @@ function spa_upgrade_complete_backup($backup) {
         $backup['format_version'] = 5;
     }
     if ( intval($backup['format_version']) < 6 ) {
-        $new_table_keys = array('preachers', 'sermon_series', 'services', 'service_lessons', 'service_hymns', 'service_tags', 'service_tag_relationships');
+        $new_table_keys = array('preachers', 'sermon_series', 'services', 'service_lessons', 'service_hymns', 'hymnals', 'hymn_catalog', 'service_tags', 'service_tag_relationships');
         foreach ( $new_table_keys as $table_key ) {
             if ( ! isset($backup['payload']['tables'][$table_key]) ) {
                 $backup['payload']['tables'][$table_key] = array();
@@ -451,6 +463,18 @@ function spa_upgrade_complete_backup($backup) {
         }
         $backup['format_version'] = 9;
     }
+    if ( intval($backup['format_version']) < 10 ) {
+        $backup['payload']['tables']['hymnals'] = array();
+        $backup['payload']['tables']['hymn_catalog'] = array();
+        $ordered_tables = array();
+        foreach ( spa_get_complete_backup_table_definitions() as $table_key => $definition ) {
+            $ordered_tables[$table_key] = isset($backup['payload']['tables'][$table_key])
+                ? $backup['payload']['tables'][$table_key]
+                : array();
+        }
+        $backup['payload']['tables'] = $ordered_tables;
+        $backup['format_version'] = 10;
+    }
     $backup['checksum'] = spa_get_complete_backup_checksum($backup['payload']);
     return $backup;
 }
@@ -464,7 +488,7 @@ function spa_validate_complete_backup(&$backup, $discard_orphaned_relationships 
         ! is_array($backup)
         || ! isset($backup['format'], $backup['format_version'], $backup['payload'], $backup['checksum'])
         || $backup['format'] !== 'stpauls-admin-complete-backup'
-        || intval($backup['format_version']) !== 9
+        || intval($backup['format_version']) !== 10
         || ! is_array($backup['payload'])
         || ! isset($backup['payload']['tables'], $backup['payload']['options'], $backup['payload']['user_meta'])
         || ! is_array($backup['payload']['tables'])
@@ -761,6 +785,8 @@ function spa_handle_import_complete_backup() {
     $delete_order = array(
         'service_tag_relationships',
         'service_hymns',
+        'hymn_catalog',
+        'hymnals',
         'service_lessons',
         'services',
         'service_tags',

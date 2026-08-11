@@ -456,6 +456,56 @@ function spa_services_parse_hymns($raw) {
     return $hymns;
 }
 
+function spa_services_catalog_hymn($hymn) {
+    global $wpdb;
+    $hymnals_table = $wpdb->prefix . 'spa_hymnals';
+    $catalog_table = $wpdb->prefix . 'spa_hymn_catalog';
+    $hymnal_id = $wpdb->get_var($wpdb->prepare(
+        "SELECT id FROM {$hymnals_table} WHERE abbreviation = %s",
+        $hymn['hymnal']
+    ));
+    if ( ! $hymnal_id ) {
+        $wpdb->insert($hymnals_table, array(
+            'abbreviation' => $hymn['hymnal'],
+            'canonical_abbreviation' => $hymn['hymnal'],
+        ), array('%s', '%s'));
+        $hymnal_id = $wpdb->insert_id;
+    }
+    if ( ! $hymnal_id ) {
+        return $hymn;
+    }
+
+    $catalog = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM {$catalog_table} WHERE hymnal_id = %d AND hymn_number = %s",
+        $hymnal_id,
+        $hymn['hymn_number']
+    ));
+    if ( $catalog ) {
+        foreach ( array('title', 'author', 'tune', 'external_url') as $field ) {
+            if ( $hymn[$field] === '' && ! empty($catalog->$field) ) {
+                $hymn[$field] = $catalog->$field;
+            }
+        }
+    }
+    if ( $hymn['title'] !== '' || $hymn['author'] !== '' || $hymn['tune'] !== '' ) {
+        $catalog_data = array(
+            'hymnal_id' => $hymnal_id,
+            'hymn_number' => $hymn['hymn_number'],
+            'title' => $hymn['title'],
+            'author' => $hymn['author'],
+            'tune' => $hymn['tune'],
+            'external_url' => $hymn['external_url'],
+            'source' => 'manual',
+        );
+        if ( $catalog ) {
+            $wpdb->update($catalog_table, $catalog_data, array('id' => $catalog->id), array('%d', '%s', '%s', '%s', '%s', '%s', '%s'), array('%d'));
+        } else {
+            $wpdb->insert($catalog_table, $catalog_data, array('%d', '%s', '%s', '%s', '%s', '%s', '%s'));
+        }
+    }
+    return $hymn;
+}
+
 function spa_services_parse_tags($raw) {
     $tags = array();
     foreach ( explode(',', (string) $raw) as $tag ) {
@@ -613,6 +663,7 @@ function spa_services_save_record() {
     $hymns_table = $wpdb->prefix . 'spa_service_hymns';
     $wpdb->delete($hymns_table, array('service_id' => $service_id), array('%d'));
     foreach ( spa_services_parse_hymns($_POST['hymns'] ?? '') as $hymn ) {
+        $hymn = spa_services_catalog_hymn($hymn);
         $wpdb->insert($hymns_table, array(
             'service_id' => $service_id,
             'hymnal' => $hymn['hymnal'],
