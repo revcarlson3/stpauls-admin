@@ -173,6 +173,10 @@ function spa_services_sermon_details_shortcode($atts) {
             $service->id
         )
     );
+    $hymns = $wpdb->get_results($wpdb->prepare(
+        "SELECT * FROM {$wpdb->prefix}spa_service_hymns WHERE service_id = %d ORDER BY hymn_order, id",
+        $service->id
+    ));
     $related_services = $wpdb->get_results(
         $wpdb->prepare(
             "SELECT s.*, e.name AS event_name, e.event_date, p.name AS preacher_name,
@@ -231,6 +235,21 @@ function spa_services_sermon_details_shortcode($atts) {
                             <?php if ( $service->series_name ) : ?>Series: <?php echo esc_html($service->series_name); ?><?php endif; ?>
                         </p>
                     <?php endif; ?>
+                    <?php if ( $hymns ) : ?>
+                        <section class="spa-sermon-hymns">
+                            <h3>Hymns</h3>
+                            <ul>
+                                <?php foreach ( $hymns as $hymn ) : ?>
+                                    <li>
+                                        <a href="<?php echo esc_url($hymn->external_url); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html($hymn->reference); ?></a>
+                                        <?php if ( $hymn->title ) : ?> &mdash; <?php echo esc_html($hymn->title); ?><?php endif; ?>
+                                        <?php if ( $hymn->author ) : ?><span>Author: <?php echo esc_html($hymn->author); ?></span><?php endif; ?>
+                                        <?php if ( $hymn->tune ) : ?><span>Tune: <?php echo esc_html($hymn->tune); ?></span><?php endif; ?>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </section>
+                    <?php endif; ?>
                 </div>
                 <?php if ( $video_embed ) : ?>
                     <div class="spa-sermon-video"><?php echo $video_embed; ?></div>
@@ -242,27 +261,6 @@ function spa_services_sermon_details_shortcode($atts) {
                     <ul>
                         <?php foreach ( $lessons as $lesson ) : ?>
                             <li><?php echo spa_services_render_lesson_reference($lesson->reference, $service->bible_translation); ?></li>
-                        <?php endforeach; ?>
-                    </ul>
-                </section>
-            <?php endif; ?>
-            <?php
-            $hymns = $wpdb->get_results($wpdb->prepare(
-                "SELECT * FROM {$wpdb->prefix}spa_service_hymns WHERE service_id = %d ORDER BY hymn_order, id",
-                $service->id
-            ));
-            ?>
-            <?php if ( $hymns ) : ?>
-                <section class="spa-sermon-hymns">
-                    <h3>Hymns</h3>
-                    <ul>
-                        <?php foreach ( $hymns as $hymn ) : ?>
-                            <li>
-                                <a href="<?php echo esc_url($hymn->external_url); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html($hymn->reference); ?></a>
-                                <?php if ( $hymn->title ) : ?> &mdash; <?php echo esc_html($hymn->title); ?><?php endif; ?>
-                                <?php if ( $hymn->author ) : ?><span>Author: <?php echo esc_html($hymn->author); ?></span><?php endif; ?>
-                                <?php if ( $hymn->tune ) : ?><span>Tune: <?php echo esc_html($hymn->tune); ?></span><?php endif; ?>
-                            </li>
                         <?php endforeach; ?>
                     </ul>
                 </section>
