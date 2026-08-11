@@ -499,6 +499,8 @@ function spa_save_event_modal_ajax() {
     $table_name = $wpdb->prefix . 'spa_events';
     
     $event_id = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
+    $existing_event = $event_id ? $wpdb->get_row($wpdb->prepare("SELECT id, parent_event_id FROM {$table_name} WHERE id = %d", $event_id)) : null;
+    $is_new_event = ! $existing_event;
     $name = isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '';
     $season = isset($_POST['season']) ? sanitize_text_field(wp_unslash($_POST['season'])) : '';
     $special_day = isset($_POST['special_day']) ? sanitize_text_field(wp_unslash($_POST['special_day'])) : '';
@@ -573,7 +575,18 @@ function spa_save_event_modal_ajax() {
         $event_id = $wpdb->insert_id;
     }
 
-    if ($is_recurring && $recurring_ok && $event_id > 0) {
+    $is_recurring_parent = $is_new_event || ( $existing_event && is_null($existing_event->parent_event_id) );
+    if ($is_recurring && $recurring_ok && $event_id > 0 && $is_recurring_parent) {
+        if ( ! $is_new_event ) {
+            $child_ids = $wpdb->get_col($wpdb->prepare("SELECT id FROM {$table_name} WHERE parent_event_id = %d", $event_id));
+            foreach ( $child_ids as $child_id ) {
+                $wpdb->delete($wpdb->prefix . 'spa_events_teams', array('event_id' => intval($child_id)), array('%d'));
+                $wpdb->delete($wpdb->prefix . 'spa_event_volunteers', array('event_id' => intval($child_id)), array('%d'));
+            }
+            if ( ! empty($child_ids) ) {
+                $wpdb->query("DELETE FROM {$table_name} WHERE parent_event_id = " . implode(',', array_map('intval', $child_ids)));
+            }
+        }
         $interval = false;
         if ($recurrence_type === 'daily') {
             $interval = new DateInterval('P1D');
@@ -601,8 +614,8 @@ function spa_save_event_modal_ajax() {
 
     spa_log_activity(
         'events',
-        $event_id ? 'updated' : 'created',
-        ($event_id ? 'Updated event: ' : 'Created event: ') . $name,
+        $is_new_event ? 'created' : 'updated',
+        ($is_new_event ? 'Created event: ' : 'Updated event: ') . $name,
         $event_id
     );
     wp_send_json_success('Event saved');
