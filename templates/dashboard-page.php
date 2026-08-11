@@ -314,7 +314,7 @@
                                 <tbody>
                                     <?php foreach ( $recent_activity as $activity ) : ?>
                                         <tr>
-                                            <td><?php echo esc_html(mysql2date('M j, Y g:i a', $activity->activity_time)); ?></td>
+                                            <td><?php echo esc_html(mysql2date('M j, Y g:i a', $activity->category === 'communications' ? $activity->activity_time : get_date_from_gmt($activity->activity_time))); ?></td>
                                             <td><?php echo esc_html(ucfirst($activity->category)); ?></td>
                                             <td><?php echo esc_html($activity->description); ?></td>
                                             <td><?php echo esc_html($activity->event_name ?: '—'); ?></td>

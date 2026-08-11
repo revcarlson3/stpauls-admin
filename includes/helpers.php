@@ -144,7 +144,8 @@ function spa_log_activity($category, $action, $description, $event_id = 0) {
             'description' => sanitize_text_field($description),
             'event_id' => $event_id ? absint($event_id) : null,
             'user_id' => get_current_user_id() ?: null,
+            'created_at' => current_time('mysql', true),
         ),
-        array('%s', '%s', '%s', '%d', '%d')
+        array('%s', '%s', '%s', '%d', '%d', '%s')
     );
 }
