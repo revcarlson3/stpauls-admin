@@ -90,7 +90,7 @@ function spa_get_church_year_day($event_date, $special_day = '', $season = '') {
     }
 
     $year = intval($date->format('Y'));
-    $easter = (new DateTimeImmutable('@' . easter_date($year)))->setTimezone(wp_timezone())->setTime(0, 0);
+    $easter = spa_get_easter_date($year);
     $pentecost = $easter->modify('+49 days');
     $days_from_pentecost = intval($pentecost->diff($date)->format('%r%a'));
     if ( $days_from_pentecost === 0 ) {
@@ -138,6 +138,27 @@ function spa_get_church_year_day($event_date, $special_day = '', $season = '') {
     }
 
     return $season;
+}
+
+function spa_get_easter_date($year) {
+    $century = intdiv($year, 100);
+    $year_in_century = $year % 100;
+    $solar_correction = intdiv($century, 4);
+    $century_remainder = $century % 4;
+    $moon_correction = intdiv($century + 8, 25);
+    $adjusted_century = intdiv($century - $moon_correction + 1, 3);
+    $moon_cycle = (19 * ($year % 19) + $century - $solar_correction - $adjusted_century + 15) % 30;
+    $leap_day = intdiv($year_in_century, 4);
+    $year_remainder = $year_in_century % 4;
+    $weekday = (32 + 2 * $century_remainder + 2 * $leap_day - $moon_cycle - $year_remainder) % 7;
+    $month_adjustment = intdiv(($year % 19) + 11 * $moon_cycle + 22 * $weekday, 451);
+    $month = intdiv($moon_cycle + $weekday - 7 * $month_adjustment + 114, 31);
+    $day = (($moon_cycle + $weekday - 7 * $month_adjustment + 114) % 31) + 1;
+
+    return new DateTimeImmutable(
+        sprintf('%04d-%02d-%02d', $year, $month, $day),
+        wp_timezone()
+    );
 }
 
 function spa_get_ordinal($number) {
