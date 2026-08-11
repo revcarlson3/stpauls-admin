@@ -4,6 +4,10 @@ add_action('spa_hourly_notification_check', 'spa_run_notification_cron');
 add_action('wp_ajax_spa_notify_event_volunteer', 'spa_notify_event_volunteer_ajax');
 
 function spa_notification_should_run_now() {
+    if ( intval(get_option('spa_notifications_enabled', 1)) !== 1 ) {
+        return false;
+    }
+
     $day = intval(get_option('spa_notification_day_of_week', 0));
     $time = get_option('spa_notification_time', '09:00');
     $current_day = intval(wp_date('w'));

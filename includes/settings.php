@@ -15,6 +15,7 @@ function spa_handle_settings_post() {
     if ( $posted_tab === 'general' ) {
         update_option('spa_active_email_template', intval($_POST['spa_active_email_template'] ?? 0));
         update_option('spa_active_sms_template', intval($_POST['spa_active_sms_template'] ?? 0));
+        update_option('spa_notifications_enabled', isset($_POST['spa_notifications_enabled']) ? 1 : 0);
         update_option('spa_notification_day_of_week', intval($_POST['spa_notification_day_of_week'] ?? 0));
         update_option('spa_notification_time', sanitize_text_field(wp_unslash($_POST['spa_notification_time'] ?? '')));
         update_option('spa_notification_reminder_24h', isset($_POST['spa_notification_reminder_24h']) ? 1 : 0);

@@ -854,6 +854,7 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                     $org_name = esc_attr( get_option('spa_org_name', '') );
                     $active_email_tpl = get_option('spa_active_email_template', '');
                     $active_sms_tpl   = get_option('spa_active_sms_template', '');
+                    $notifications_enabled = intval(get_option('spa_notifications_enabled', 1));
                     $notification_day = intval(get_option('spa_notification_day_of_week', 0));
                     $notification_time = esc_attr(get_option('spa_notification_time', '09:00'));
                     $notification_reminder_24h = intval(get_option('spa_notification_reminder_24h', 0));
@@ -892,6 +893,19 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                                 <?php if ( empty($sms_templates_gen) ) : ?>
                                     <p class="description">No SMS templates yet. <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=templates')); ?>">Create one</a>.</p>
                                 <?php endif; ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Automated Volunteer Alerts</th>
+                            <td>
+                                <label>
+                                    <input type="checkbox" name="spa_notifications_enabled" value="1" <?php checked($notifications_enabled, 1); ?>>
+                                    Enable scheduled email and SMS alerts
+                                </label>
+                                <p class="description">
+                                    Turn this off to pause all scheduled volunteer notifications, including the 24-hour reminder.
+                                    Test notifications and manually requested messages remain available.
+                                </p>
                             </td>
                         </tr>
                         <tr>
