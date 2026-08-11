@@ -50,20 +50,16 @@ function spa_services_latest_sermon_shortcode() {
     global $wpdb;
 
     $service = $wpdb->get_row(
-        $wpdb->prepare(
-            "SELECT s.*, e.name AS event_name, e.event_date, e.start_time,
-                    p.name AS preacher_name, ss.name AS series_name
-             FROM {$wpdb->prefix}spa_services s
-             INNER JOIN {$wpdb->prefix}spa_events e ON e.id = s.event_id
-             LEFT JOIN {$wpdb->prefix}spa_preachers p ON p.id = s.preacher_id
-             LEFT JOIN {$wpdb->prefix}spa_sermon_series ss ON ss.id = s.series_id
-             WHERE s.active = 1
-               AND e.active = 1
-               AND e.event_date <= %s
-             ORDER BY e.event_date DESC, e.start_time DESC, s.id DESC
-             LIMIT 1",
-            current_time('Y-m-d')
-        )
+        "SELECT s.*, e.name AS event_name, e.event_date, e.start_time,
+                p.name AS preacher_name, ss.name AS series_name
+         FROM {$wpdb->prefix}spa_services s
+         INNER JOIN {$wpdb->prefix}spa_events e ON e.id = s.event_id
+         LEFT JOIN {$wpdb->prefix}spa_preachers p ON p.id = s.preacher_id
+         LEFT JOIN {$wpdb->prefix}spa_sermon_series ss ON ss.id = s.series_id
+         WHERE s.active = 1
+           AND e.active = 1
+         ORDER BY e.event_date DESC, e.start_time DESC, s.id DESC
+         LIMIT 1"
     );
 
     if ( ! $service ) {
