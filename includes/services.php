@@ -298,7 +298,10 @@ function spa_services_sermon_details_shortcode($atts) {
                 </section>
             <?php endif; ?>
             <?php if ( trim(wp_strip_all_tags($service->sermon_text)) !== '' ) : ?>
-                <div class="spa-sermon-text"><?php echo spa_services_render_sermon_text($service->sermon_text); ?></div>
+                <details class="spa-sermon-text">
+                    <summary>Read sermon text</summary>
+                    <div class="spa-sermon-text-content"><?php echo spa_services_render_sermon_text($service->sermon_text); ?></div>
+                </details>
             <?php endif; ?>
             <?php if ( $service->video_url || $download_links ) : ?>
                 <div class="spa-sermon-actions">
