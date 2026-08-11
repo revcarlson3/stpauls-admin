@@ -5,13 +5,13 @@
     <?php if ( isset($_GET['service_saved']) ) : ?>
         <div class="notice notice-success inline"><p>Service saved.</p></div>
     <?php endif; ?>
-    <p>One service record may be attached to each active event.</p>
+    <p>One service record may be attached to each upcoming active event.</p>
 
     <table class="widefat striped">
         <thead><tr><th>Event</th><th>Date</th><th>Service record</th><th></th></tr></thead>
         <tbody>
         <?php if ( empty($events) ) : ?>
-            <tr><td colspan="4">No active events are available.</td></tr>
+            <tr><td colspan="4">No upcoming active events are available.</td></tr>
         <?php else : foreach ( $events as $event ) :
             $service = isset($services[$event->id]) ? $services[$event->id] : null; ?>
             <tr>

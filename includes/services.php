@@ -283,9 +283,13 @@ function spa_services_page() {
     global $wpdb;
     $page_title = 'Services';
     $events = $wpdb->get_results(
-        "SELECT e.* FROM {$wpdb->prefix}spa_events e
-         WHERE e.active = 1
-         ORDER BY e.event_date DESC, e.start_time DESC"
+        $wpdb->prepare(
+            "SELECT e.* FROM {$wpdb->prefix}spa_events e
+             WHERE e.active = 1
+             AND e.event_date >= %s
+             ORDER BY e.event_date, e.start_time, e.id",
+            current_time('Y-m-d')
+        )
     );
     $service_rows = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}spa_services ORDER BY event_id");
     $services = array();
