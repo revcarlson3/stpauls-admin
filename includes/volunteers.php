@@ -59,6 +59,7 @@ function spa_handle_volunteers_post() {
 
     $first_name = sanitize_text_field(wp_unslash($_POST['spa_volunteer_first_name']));
     $last_name = sanitize_text_field(wp_unslash($_POST['spa_volunteer_last_name']));
+    $push_external_id = sanitize_text_field(wp_unslash($_POST['spa_volunteer_push_external_id'] ?? ''));
     $email_enabled = isset($_POST['email_enabled']) ? 1 : 0;
     $phone_enabled = isset($_POST['phone_enabled']) ? 1 : 0;
     $volunteer_id = isset($_POST['volunteer_id']) ? intval($_POST['volunteer_id']) : 0;
@@ -69,6 +70,7 @@ function spa_handle_volunteers_post() {
             'last_name' => $last_name,
             'phone' => $phone,
             'email' => $email,
+            'push_external_id' => $push_external_id,
             'phone_enabled' => $phone_enabled,
             'email_enabled' => $email_enabled
         ), array('id' => $volunteer_id));
@@ -96,6 +98,7 @@ function spa_handle_volunteers_post() {
             $wpdb->update($table_name, array(
                 'phone_enabled' => $phone_enabled,
                 'email_enabled' => $email_enabled,
+                'push_external_id' => $push_external_id,
                 'active' => 1
             ), array('id' => $existing_volunteer_id), array('%d', '%d', '%d'), array('%d'));
             $volunteer_id = intval($existing_volunteer_id);
@@ -116,6 +119,7 @@ function spa_handle_volunteers_post() {
             'last_name' => $last_name,
             'phone' => $phone,
             'email' => $email,
+            'push_external_id' => $push_external_id,
             'phone_enabled' => $phone_enabled,
             'email_enabled' => $email_enabled,
             'active' => 1

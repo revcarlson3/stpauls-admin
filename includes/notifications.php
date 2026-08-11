@@ -34,7 +34,7 @@ function spa_get_event_volunteers_for_notification($event_id) {
 
     return $wpdb->get_results(
         $wpdb->prepare(
-            "SELECT DISTINCT v.id, v.first_name, v.last_name, v.email, v.phone, v.email_enabled, v.phone_enabled, t.name AS team_name
+            "SELECT DISTINCT v.id, v.first_name, v.last_name, v.email, v.phone, v.push_external_id, v.email_enabled, v.phone_enabled, t.name AS team_name
              FROM {$wpdb->prefix}spa_event_volunteers ev
              INNER JOIN {$wpdb->prefix}spa_teams t ON t.id = ev.team_id
              INNER JOIN {$wpdb->prefix}spa_volunteers v ON v.id = ev.volunteer_id
@@ -50,6 +50,7 @@ function spa_get_event_notification_templates() {
 
     $email_template_id = intval(get_option('spa_active_email_template', 0));
     $sms_template_id = intval(get_option('spa_active_sms_template', 0));
+    $push_enabled = intval(get_option('spa_enable_push', 0)) === 1;
 
     $email_tpl = intval(get_option('spa_enable_email', 0)) === 1 && $email_template_id
         ? $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}spa_notification_templates WHERE id = %d", $email_template_id))
@@ -58,13 +59,14 @@ function spa_get_event_notification_templates() {
         ? $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}spa_notification_templates WHERE id = %d", $sms_template_id))
         : null;
 
-    if ( ! $email_tpl && ! $sms_tpl ) {
+    if ( ! $email_tpl && ! $sms_tpl && ! $push_enabled ) {
         return new WP_Error('no_templates', 'No enabled notification channel has an active template.');
     }
 
     return array(
         'email' => $email_tpl,
         'sms'   => $sms_tpl,
+        'push'  => $push_enabled,
     );
 }
 
@@ -77,7 +79,7 @@ function spa_send_event_notification_to_volunteer($event, $volunteer, $templates
         return $templates;
     }
 
-    $sent = array('email' => 0, 'sms' => 0);
+    $sent = array('email' => 0, 'sms' => 0, 'push' => 0);
     $errors = array();
     $data = array(
         'first_name'     => $volunteer->first_name,
@@ -153,7 +155,27 @@ function spa_send_event_notification_to_volunteer($event, $volunteer, $templates
         }
     }
 
-    if ( $sent['email'] === 0 && $sent['sms'] === 0 ) {
+    if ( intval(get_option('spa_enable_push', 0)) === 1 && ! empty($volunteer->push_external_id) ) {
+        $push_provider = get_option('spa_push_provider', 'onesignal');
+        $push_data = $data;
+        $push_subject = $is_24h_reminder
+            ? 'Volunteer Reminder'
+            : ( $templates['email'] ? spa_process_template($templates['email']->subject ?: 'Volunteer Reminder', $push_data) : 'Volunteer Reminder' );
+        $push_body = $is_24h_reminder
+            ? $fixed_reminder
+            : ( $templates['email'] ? spa_process_template($templates['email']->body ?: 'You are scheduled to serve.', $push_data) : 'You are scheduled to serve.' );
+        $push_log_id = spa_create_delivery_log($event, $volunteer, 'push', $push_provider);
+        $result = spa_send_push_notification(array($volunteer->push_external_id), $push_subject, wp_strip_all_tags($push_body), $push_provider);
+        if ( is_wp_error($result) ) {
+            spa_mark_delivery_failed($push_log_id, $result->get_error_message());
+            $errors[] = 'Push: ' . $result->get_error_message();
+        } else {
+            spa_mark_delivery_sent($push_log_id, '', false);
+            $sent['push']++;
+        }
+    }
+
+    if ( $sent['email'] === 0 && $sent['sms'] === 0 && $sent['push'] === 0 ) {
         $message = ! empty($errors)
             ? implode(' ', $errors)
             : 'This volunteer has no enabled notification method with contact information.';
@@ -171,13 +193,14 @@ function spa_send_event_reminders($event, $reminder_type = 'scheduled') {
     }
 
     $volunteers = spa_get_event_volunteers_for_notification($event->id);
-    $sent = array('email' => 0, 'sms' => 0);
+    $sent = array('email' => 0, 'sms' => 0, 'push' => 0);
 
     foreach ( $volunteers as $volunteer ) {
         $result = spa_send_event_notification_to_volunteer($event, $volunteer, $templates, $reminder_type);
         if ( ! is_wp_error($result) ) {
             $sent['email'] += $result['email'];
             $sent['sms'] += $result['sms'];
+            $sent['push'] += $result['push'];
         }
     }
 
@@ -215,6 +238,7 @@ function spa_notify_event_volunteer_ajax() {
                v.last_name,
                v.email,
                v.phone,
+               v.push_external_id,
                v.email_enabled,
                v.phone_enabled,
                t.name AS team_name
@@ -249,6 +273,9 @@ function spa_notify_event_volunteer_ajax() {
     }
     if ( $sent['sms'] > 0 ) {
         $channels[] = 'SMS';
+    }
+    if ( $sent['push'] > 0 ) {
+        $channels[] = 'push';
     }
     $message = 'Notification sent by ' . implode(' and ', $channels) . '.';
     if ( ! empty($sent['errors']) ) {

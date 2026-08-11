@@ -29,6 +29,7 @@ function spa_activate_plugin() {
         last_name varchar(100) NOT NULL,
         email varchar(255) NULL,
         phone varchar(50) NULL,
+        push_external_id varchar(191) NULL,
         email_enabled tinyint(1) NOT NULL DEFAULT 1,
         phone_enabled tinyint(1) NOT NULL DEFAULT 1,
         active tinyint(1) NOT NULL DEFAULT 1,
