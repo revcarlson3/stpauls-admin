@@ -547,7 +547,7 @@ function spa_services_get_hymn_video_url($hymn) {
     if ( $query === '' ) {
         return '';
     }
-    $cache_key = 'spa_hymn_video_' . md5(strtolower($query) . '|' . $api_key);
+    $cache_key = 'spa_hymn_video_v2_' . md5(strtolower($query) . '|' . $api_key);
     $cached = get_transient($cache_key);
     if ( $cached !== false ) {
         return is_string($cached) ? $cached : '';
@@ -561,11 +561,20 @@ function spa_services_get_hymn_video_url($hymn) {
         'key' => $api_key,
     ), 'https://www.googleapis.com/youtube/v3/search'), array('timeout' => 5));
     if ( is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200 ) {
-        set_transient($cache_key, '', DAY_IN_SECONDS);
+        $error_message = is_wp_error($response) ? $response->get_error_message() : 'YouTube API returned HTTP ' . wp_remote_retrieve_response_code($response) . '.';
+        if ( ! is_wp_error($response) ) {
+            $error_body = json_decode(wp_remote_retrieve_body($response), true);
+            if ( ! empty($error_body['error']['message']) ) {
+                $error_message = sanitize_text_field($error_body['error']['message']);
+            }
+        }
+        set_transient('spa_youtube_last_error', $error_message, HOUR_IN_SECONDS);
+        set_transient($cache_key, '', MINUTE_IN_SECONDS * 5);
         return '';
     }
 
     $body = json_decode(wp_remote_retrieve_body($response), true);
+    delete_transient('spa_youtube_last_error');
     $video_id = isset($body['items'][0]['id']['videoId']) ? sanitize_text_field($body['items'][0]['id']['videoId']) : '';
     $url = $video_id !== '' ? 'https://www.youtube.com/watch?v=' . rawurlencode($video_id) : '';
     set_transient($cache_key, $url, 30 * DAY_IN_SECONDS);

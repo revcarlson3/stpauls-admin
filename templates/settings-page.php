@@ -188,6 +188,10 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                 ?>
                 <h2>Service settings</h2>
                 <p>Scripture references use Logos Reftagger for ESV, HCSB, KJV, and NIV. EHV references open directly in BibleGateway.</p>
+                <?php $youtube_error = get_transient('spa_youtube_last_error'); ?>
+                <?php if ( $youtube_error ) : ?>
+                    <div class="notice notice-warning inline"><p><strong>YouTube lookup failed:</strong> <?php echo esc_html($youtube_error); ?></p></div>
+                <?php endif; ?>
                 <table class="form-table">
                     <tr>
                         <th scope="row"><label for="spa_sermons_page_id">Sermons page</label></th>
