@@ -46,6 +46,23 @@
     gap: 2rem;
     grid-template-columns: minmax(0, 1fr) minmax(280px, .9fr);
 }
+.spa-sermon-breadcrumbs {
+    align-items: center;
+    color: #5b6878;
+    display: flex;
+    flex-wrap: wrap;
+    font-size: .85rem;
+    gap: .45rem;
+    margin-bottom: .85rem;
+}
+.spa-sermon-breadcrumbs a {
+    color: #2271b1;
+    text-decoration: none;
+}
+.spa-sermon-breadcrumbs a:hover,
+.spa-sermon-breadcrumbs a:focus {
+    text-decoration: underline;
+}
 .spa-sermon-video iframe {
     aspect-ratio: 16 / 9;
     display: block;

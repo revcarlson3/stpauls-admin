@@ -134,6 +134,8 @@ function spa_services_sermon_details_shortcode($atts) {
         $download_links[] = '<a href="' . esc_url($service->bulletin_file_url) . '" target="_blank" rel="noopener noreferrer">View bulletin</a>';
     }
     $video_embed = $service->video_url ? spa_services_render_video($service->video_url) : '';
+    $sermons_page = get_page_by_path('sermons');
+    $sermons_url = $sermons_page ? get_permalink($sermons_page) : home_url('/sermons/');
 
     ob_start();
     ?>
@@ -144,6 +146,11 @@ function spa_services_sermon_details_shortcode($atts) {
         <div class="spa-sermon-content">
             <div class="spa-sermon-header">
                 <div class="spa-sermon-details">
+                    <nav class="spa-sermon-breadcrumbs" aria-label="Breadcrumb">
+                        <a href="<?php echo esc_url($sermons_url); ?>">Sermons</a>
+                        <span aria-hidden="true">/</span>
+                        <span><?php echo esc_html($service->sermon_title ? $service->sermon_title : $service->event_name); ?></span>
+                    </nav>
                     <h2><?php echo esc_html($service->sermon_title ? $service->sermon_title : $service->event_name); ?></h2>
                     <p class="spa-sermon-date"><?php echo esc_html(mysql2date(get_option('date_format'), $service->event_date)); ?></p>
                     <?php if ( $service->preacher_name || $service->series_name ) : ?>
