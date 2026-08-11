@@ -360,15 +360,7 @@ function spa_get_report_rows($report_key, $filters = array()) {
                 );
             }
 
-            return array(
-                'headers' => array('Team', 'Volunteers'),
-                'rows' => $formatted_rows,
-                'event' => array(
-                    'name' => $event['name'],
-                    'date' => $event_date ? $event_date->format('F j Y') : $event['event_date'],
-                    'start_time' => $start_time ? $start_time->format(get_option('time_format')) : $event['start_time'],
-                ),
-            );
+            return $formatted_rows;
 
         case 'volunteers_with_teams':
             $raw_rows = $wpdb->get_results(
