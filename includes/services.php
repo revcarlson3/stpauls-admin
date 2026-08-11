@@ -44,6 +44,99 @@ function spa_services_render_lesson_reference($reference, $translation = '') {
     return '<span class="rtBibleRef">' . esc_html($reference) . '</span>';
 }
 
+add_shortcode('spa_latest_sermon', 'spa_services_latest_sermon_shortcode');
+
+function spa_services_latest_sermon_shortcode() {
+    global $wpdb;
+
+    $service = $wpdb->get_row(
+        $wpdb->prepare(
+            "SELECT s.*, e.name AS event_name, e.event_date, e.start_time,
+                    p.name AS preacher_name, ss.name AS series_name
+             FROM {$wpdb->prefix}spa_services s
+             INNER JOIN {$wpdb->prefix}spa_events e ON e.id = s.event_id
+             LEFT JOIN {$wpdb->prefix}spa_preachers p ON p.id = s.preacher_id
+             LEFT JOIN {$wpdb->prefix}spa_sermon_series ss ON ss.id = s.series_id
+             WHERE s.active = 1
+               AND e.active = 1
+               AND e.event_date <= %s
+             ORDER BY e.event_date DESC, e.start_time DESC, s.id DESC
+             LIMIT 1",
+            current_time('Y-m-d')
+        )
+    );
+
+    if ( ! $service ) {
+        return '<p class="spa-sermon-empty">No sermon is currently available.</p>';
+    }
+
+    wp_enqueue_style('spa-public-services', SPA_PLUGIN_URL . 'css/spa_services.css', array(), SPA_VERSION);
+
+    $lessons = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT reference FROM {$wpdb->prefix}spa_service_lessons
+             WHERE service_id = %d
+             ORDER BY lesson_order, id",
+            $service->id
+        )
+    );
+
+    $download_links = array();
+    if ( $service->sermon_file_url ) {
+        $download_links[] = '<a href="' . esc_url($service->sermon_file_url) . '" download>Download sermon</a>';
+    }
+    if ( $service->audio_file_url ) {
+        $download_links[] = '<a href="' . esc_url($service->audio_file_url) . '" download>Download audio</a>';
+    }
+    if ( $service->bulletin_file_url ) {
+        $download_links[] = '<a href="' . esc_url($service->bulletin_file_url) . '" target="_blank" rel="noopener noreferrer">View bulletin</a>';
+    }
+
+    ob_start();
+    ?>
+    <article class="spa-latest-sermon">
+        <?php if ( $service->featured_image_id ) : ?>
+            <div class="spa-sermon-image"><?php echo wp_get_attachment_image($service->featured_image_id, 'large', false, array('loading' => 'lazy')); ?></div>
+        <?php endif; ?>
+        <div class="spa-sermon-content">
+            <p class="spa-sermon-kicker">Latest sermon</p>
+            <h2><?php echo esc_html($service->event_name); ?></h2>
+            <p class="spa-sermon-date"><?php echo esc_html(mysql2date(get_option('date_format'), $service->event_date)); ?></p>
+            <?php if ( $service->preacher_name || $service->series_name ) : ?>
+                <p class="spa-sermon-meta">
+                    <?php if ( $service->preacher_name ) : ?>Preacher: <?php echo esc_html($service->preacher_name); ?><?php endif; ?>
+                    <?php if ( $service->preacher_name && $service->series_name ) : ?> &middot; <?php endif; ?>
+                    <?php if ( $service->series_name ) : ?>Series: <?php echo esc_html($service->series_name); ?><?php endif; ?>
+                </p>
+            <?php endif; ?>
+            <?php if ( trim(wp_strip_all_tags($service->sermon_text)) !== '' ) : ?>
+                <div class="spa-sermon-text"><?php echo wpautop(wp_kses_post($service->sermon_text)); ?></div>
+            <?php endif; ?>
+            <?php if ( $lessons ) : ?>
+                <section class="spa-sermon-lessons">
+                    <h3>Scripture lessons</h3>
+                    <ul>
+                        <?php foreach ( $lessons as $lesson ) : ?>
+                            <li><?php echo spa_services_render_lesson_reference($lesson->reference, $service->bible_translation); ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </section>
+            <?php endif; ?>
+            <?php if ( $service->video_url || $download_links ) : ?>
+                <div class="spa-sermon-actions">
+                    <?php if ( $service->video_url ) : ?><a class="spa-sermon-button" href="<?php echo esc_url($service->video_url); ?>" target="_blank" rel="noopener noreferrer">Watch service</a><?php endif; ?>
+                    <?php foreach ( $download_links as $download_link ) : ?><span><?php echo $download_link; ?></span><?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+            <?php if ( $service->audio_file_url ) : ?>
+                <audio class="spa-sermon-audio" controls preload="metadata" src="<?php echo esc_url($service->audio_file_url); ?>"></audio>
+            <?php endif; ?>
+        </div>
+    </article>
+    <?php
+    return ob_get_clean();
+}
+
 function spa_services_get_service($service_id) {
     global $wpdb;
     return $wpdb->get_row($wpdb->prepare(
