@@ -9,16 +9,19 @@ function spa_events_calendar_shortcode($atts) {
     $atts = shortcode_atts(array('view' => 'month'), $atts, 'spa_events_calendar');
     $events = $wpdb->get_results(
         $wpdb->prepare(
-            "SELECT id, name, season, special_day, event_date, start_time, end_time, description, location
-             FROM {$wpdb->prefix}spa_events
-             WHERE active = 1
-               AND event_date >= %s
-             ORDER BY event_date, start_time, id",
+            "SELECT e.id, e.name, e.season, e.special_day, e.event_date, e.start_time, e.end_time, e.description, e.location,
+                    s.id AS service_id
+             FROM {$wpdb->prefix}spa_events e
+             LEFT JOIN {$wpdb->prefix}spa_services s ON s.event_id = e.id AND s.active = 1
+             WHERE e.active = 1
+               AND e.event_date >= %s
+             ORDER BY e.event_date, e.start_time, e.id",
             current_time('Y-m-d')
         )
     );
     foreach ( $events as $event ) {
         $event->church_day = spa_get_church_year_day($event->event_date, $event->special_day, $event->season);
+        $event->service_url = $event->service_id ? add_query_arg('service_id', intval($event->service_id), spa_services_get_details_url()) : '';
     }
 
     wp_enqueue_style('spa-public-calendar', SPA_PLUGIN_URL . 'css/spa_calendar.css', array(), SPA_VERSION);

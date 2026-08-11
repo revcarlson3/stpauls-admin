@@ -120,7 +120,8 @@
                 formatTime(event.start_time) + ' - ' + formatTime(event.end_time) + '</div>' +
                 (churchDay ? '<div><strong>Day of the Church Year:</strong> ' + escapeHtml(churchDay) + '</div>' : '') +
                 (event.location ? '<div>' + escapeHtml(event.location) + '</div>' : '') +
-                (event.description ? '<p>' + escapeHtml(event.description) + '</p>' : '');
+                (event.description ? '<p>' + escapeHtml(event.description) + '</p>' : '') +
+                (event.service_url ? '<p><a href="' + escapeHtml(event.service_url) + '">View service</a></p>' : '');
         }
 
         function showPopup(event, anchor) {
