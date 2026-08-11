@@ -121,7 +121,7 @@
                 (churchDay ? '<div><strong>Day of the Church Year:</strong> ' + escapeHtml(churchDay) + '</div>' : '') +
                 (event.location ? '<div>' + escapeHtml(event.location) + '</div>' : '') +
                 (event.description ? '<p>' + escapeHtml(event.description) + '</p>' : '') +
-                (event.service_url ? '<p><a href="' + escapeHtml(event.service_url) + '">View service</a></p>' : '');
+                (event.service_url ? '<p><a class="spa-calendar-details-button" href="' + escapeHtml(event.service_url) + '">View service</a></p>' : '');
         }
 
         function showPopup(event, anchor) {
