@@ -115,7 +115,7 @@
         }
 
         function summary(event) {
-            var churchDay = event.special_day || event.season;
+            var churchDay = event.church_day || event.special_day || event.season;
             return '<strong>' + escapeHtml(event.name) + '</strong><div>' +
                 formatTime(event.start_time) + ' - ' + formatTime(event.end_time) + '</div>' +
                 (churchDay ? '<div><strong>Day of the Church Year:</strong> ' + escapeHtml(churchDay) + '</div>' : '') +

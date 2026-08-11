@@ -27,7 +27,11 @@
                         <?php if ( ! empty($sunday_service->special_day) || ! empty($sunday_service->season) ) : ?>
                             <p class="spa-service-church-day">
                                 <span>Day of the Church Year:</span>
-                                <?php echo esc_html($sunday_service->special_day ?: $sunday_service->season); ?>
+                                <?php echo esc_html(spa_get_church_year_day(
+                                    $sunday_service->event_date,
+                                    $sunday_service->special_day,
+                                    $sunday_service->season
+                                )); ?>
                             </p>
                         <?php endif; ?>
 

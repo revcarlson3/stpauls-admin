@@ -17,6 +17,9 @@ function spa_events_calendar_shortcode($atts) {
             current_time('Y-m-d')
         )
     );
+    foreach ( $events as $event ) {
+        $event->church_day = spa_get_church_year_day($event->event_date, $event->special_day, $event->season);
+    }
 
     wp_enqueue_style('spa-public-calendar', SPA_PLUGIN_URL . 'css/spa_calendar.css', array(), SPA_VERSION);
     wp_enqueue_script('spa-public-calendar', SPA_PLUGIN_URL . 'js/spa_calendar.js', array(), SPA_VERSION, true);

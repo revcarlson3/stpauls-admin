@@ -76,6 +76,97 @@ function spa_get_church_year_special_days() {
     );
 }
 
+function spa_get_church_year_day($event_date, $special_day = '', $season = '') {
+    if ( $special_day !== '' ) {
+        return $special_day;
+    }
+
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $event_date, wp_timezone());
+    if ( ! $date || $date->format('Y-m-d') !== $event_date ) {
+        return $season;
+    }
+    if ( $date->format('w') !== '0' ) {
+        return $season;
+    }
+
+    $year = intval($date->format('Y'));
+    $easter = (new DateTimeImmutable('@' . easter_date($year)))->setTimezone(wp_timezone())->setTime(0, 0);
+    $pentecost = $easter->modify('+49 days');
+    $days_from_pentecost = intval($pentecost->diff($date)->format('%r%a'));
+    if ( $days_from_pentecost === 0 ) {
+        return 'Day of Pentecost';
+    }
+    if ( $days_from_pentecost > 0 ) {
+        return 'The ' . spa_get_ordinal($days_from_pentecost / 7) . ' Sunday after Pentecost';
+    }
+
+    $first_easter_sunday = $easter;
+    $days_from_easter = intval($easter->diff($date)->format('%r%a'));
+    if ( $days_from_easter >= 0 && $days_from_easter % 7 === 0 ) {
+        if ( $days_from_easter === 0 ) {
+            return 'Easter Sunday';
+        }
+        return spa_get_ordinal($days_from_easter / 7 + 1) . ' Sunday of Easter';
+    }
+
+    $palm_sunday = $easter->modify('-7 days');
+    $first_lent_sunday = $easter->modify('-42 days');
+    $days_from_lent_start = intval($first_lent_sunday->diff($date)->format('%r%a'));
+    if ( $date >= $first_lent_sunday && $date < $palm_sunday && $days_from_lent_start % 7 === 0 ) {
+        return spa_get_ordinal($days_from_lent_start / 7 + 1) . ' Sunday in Lent';
+    }
+
+    $christmas = new DateTimeImmutable($year . '-12-25', wp_timezone());
+    if ( $date->format('m-d') === '12-25' ) {
+        return 'Christmas Day';
+    }
+    if ( $date > $christmas && $date < $christmas->modify('+12 days') ) {
+        return 'The Sunday after Christmas';
+    }
+
+    $epiphany = new DateTimeImmutable($year . '-01-06', wp_timezone());
+    if ( $date > $epiphany && $date < $easter->modify('-46 days') ) {
+        return 'The Sunday after Epiphany';
+    }
+
+    $advent_start = new DateTimeImmutable($year . '-11-27', wp_timezone());
+    while ( $advent_start->format('w') !== '0' ) {
+        $advent_start = $advent_start->modify('+1 day');
+    }
+    if ( $date >= $advent_start && $date < $christmas ) {
+        return spa_get_ordinal($advent_start->diff($date)->days / 7 + 1) . ' Sunday of Advent';
+    }
+
+    return $season;
+}
+
+function spa_get_ordinal($number) {
+    $number = intval($number);
+    $words = array(
+        1 => 'First',
+        2 => 'Second',
+        3 => 'Third',
+        4 => 'Fourth',
+        5 => 'Fifth',
+        6 => 'Sixth',
+        7 => 'Seventh',
+        8 => 'Eighth',
+        9 => 'Ninth',
+        10 => 'Tenth',
+        11 => 'Eleventh',
+        12 => 'Twelfth',
+        13 => 'Thirteenth',
+        14 => 'Fourteenth',
+        15 => 'Fifteenth',
+        16 => 'Sixteenth',
+        17 => 'Seventeenth',
+        18 => 'Eighteenth',
+        19 => 'Nineteenth',
+        20 => 'Twentieth',
+    );
+    return $words[$number] ?? $number . 'th';
+}
+
 add_action(
     'wp_ajax_spa_override_event_volunteer',
     'spa_override_event_volunteer_ajax'
