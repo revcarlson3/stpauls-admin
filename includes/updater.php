@@ -2,6 +2,12 @@
 
 define('SPA_UPDATE_REPOSITORY', 'revcarlson3/stpauls-admin');
 
+function spa_log_update_debug($message) {
+    if ( defined('WP_DEBUG') && WP_DEBUG ) {
+        error_log('[St. Paul\'s Admin updater] ' . $message);
+    }
+}
+
 function spa_get_github_release() {
     $cached_release = get_transient('spa_github_release');
     if ( false !== $cached_release ) {
@@ -20,6 +26,7 @@ function spa_get_github_release() {
     );
 
     if ( is_wp_error($response) || 200 !== wp_remote_retrieve_response_code($response) ) {
+        spa_log_update_debug('GitHub release request failed: ' . ( is_wp_error($response) ? $response->get_error_message() : 'HTTP ' . wp_remote_retrieve_response_code($response) ));
         set_transient('spa_github_release', array(), HOUR_IN_SECONDS);
         return array();
     }
@@ -38,10 +45,12 @@ function spa_get_github_release() {
     }
 
     if ( empty($release['package']) ) {
+        spa_log_update_debug('Latest release has no stpauls-admin.zip asset.');
         set_transient('spa_github_release', array(), HOUR_IN_SECONDS);
         return array();
     }
 
+    spa_log_update_debug('Found release ' . $release['tag_name'] . ' with package asset.');
     set_transient('spa_github_release', $release, 12 * HOUR_IN_SECONDS);
     return $release;
 }
@@ -58,6 +67,7 @@ function spa_github_update_plugins($transient) {
     $plugin_file = plugin_basename(SPA_PLUGIN_DIR . 'stpauls-admin.php');
     $release = spa_get_github_release();
     $version = isset($release['tag_name']) ? ltrim((string) $release['tag_name'], 'vV') : '';
+    spa_log_update_debug('Installed version ' . SPA_VERSION . '; release version ' . ( $version ? $version : 'none' ) . '; plugin file ' . $plugin_file . '.');
 
     if ( empty($release['package']) || ! $version || ! version_compare($version, SPA_VERSION, '>') ) {
         return $transient;
@@ -74,6 +84,7 @@ function spa_github_update_plugins($transient) {
         'tested' => '',
         'requires_php' => '8.0',
     );
+    spa_log_update_debug('Added update response for ' . $plugin_file . '.');
 
     return $transient;
 }
