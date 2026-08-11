@@ -184,16 +184,7 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
             case 'services':
                 ?>
                 <h2>Service settings</h2>
-                <p>Scripture references use Logos Reftagger to provide hover previews and links to the selected Bible translation.</p>
-                <table class="form-table">
-                    <tr>
-                        <th scope="row"><label for="spa_reftagger_translations">Bible translations</label></th>
-                        <td>
-                            <textarea name="spa_reftagger_translations" id="spa_reftagger_translations" rows="5" class="large-text"><?php echo esc_textarea(get_option('spa_reftagger_translations', 'ESV, NIV, KJV, NKJV, NASB, NRSV, CSB')); ?></textarea>
-                            <p class="description">Comma- or line-separated choices shown on service records. Leave blank to use the safe default list.</p>
-                        </td>
-                    </tr>
-                </table>
+                <p>Scripture references use Logos Reftagger for ESV, HCSB, KJV, and NIV. EHV references open directly in BibleGateway.</p>
                 <?php
                 break;
             case 'email':

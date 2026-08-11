@@ -21,11 +21,6 @@ function spa_handle_settings_post() {
         update_option('spa_notification_reminder_24h', isset($_POST['spa_notification_reminder_24h']) ? 1 : 0);
     }
 
-    if ( $posted_tab === 'services' ) {
-        $translations = isset($_POST['spa_reftagger_translations']) ? sanitize_textarea_field(wp_unslash($_POST['spa_reftagger_translations'])) : '';
-        update_option('spa_reftagger_translations', $translations);
-    }
-
     if ( $posted_tab === 'email' ) {
         $notification_email = isset($_POST['spa_notification_email']) ? sanitize_email(wp_unslash($_POST['spa_notification_email'])) : '';
         $enable_email = isset($_POST['spa_enable_email']) ? 1 : 0;

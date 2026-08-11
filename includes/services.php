@@ -7,23 +7,14 @@
  */
 
 function spa_services_get_translation_choices() {
-    $default = array('ESV', 'NIV', 'KJV', 'NKJV', 'NASB', 'NRSV', 'CSB');
-    $saved = get_option('spa_reftagger_translations', '');
-    if ( ! is_string($saved) || trim($saved) === '' ) {
-        return $default;
-    }
-    $choices = array();
-    foreach ( preg_split('/[\r\n,]+/', $saved) as $choice ) {
-        $choice = sanitize_text_field($choice);
-        if ( $choice !== '' && strlen($choice) <= 100 && ! in_array($choice, $choices, true) ) {
-            $choices[] = $choice;
-        }
-    }
-    return $choices ? $choices : $default;
+    return array('ESV', 'HCSB', 'KJV', 'NIV', 'EHV');
 }
 
 function spa_services_enqueue_reftagger($translation = '') {
     $translation = $translation ? sanitize_text_field($translation) : 'ESV';
+    if ( ! in_array($translation, array('ESV', 'HCSB', 'KJV', 'NIV'), true) ) {
+        $translation = 'ESV';
+    }
     wp_register_script('spa-logos-reftagger', 'https://api.reftagger.com/v2/RefTagger.js', array(), null, true);
     wp_enqueue_script('spa-logos-reftagger');
     wp_add_inline_script(
@@ -35,8 +26,19 @@ function spa_services_enqueue_reftagger($translation = '') {
 
 function spa_services_render_lesson_reference($reference, $translation = '') {
     $reference = sanitize_text_field($reference);
+    $translation = sanitize_text_field($translation);
     if ( $reference === '' ) {
         return '';
+    }
+    if ( $translation === 'EHV' ) {
+        $url = add_query_arg(
+            array(
+                'search' => $reference,
+                'version' => 'EHV',
+            ),
+            'https://www.biblegateway.com/passage/'
+        );
+        return '<a href="' . esc_url($url) . '" target="_blank" rel="noopener noreferrer">' . esc_html($reference) . '</a>';
     }
     spa_services_enqueue_reftagger($translation);
     return '<span class="rtBibleRef">' . esc_html($reference) . '</span>';
