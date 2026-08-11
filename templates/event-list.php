@@ -68,9 +68,9 @@
         <a href="#" class="spa-event-link" data-event-id="<?php echo intval($event->id) ?>"><?php echo esc_html(wp_unslash($event->name)) ?></a>
         <span class="spa-event-actions">
             <?php if ( ! empty($event->service_id) ) : ?>
-                <a href="<?php echo esc_url(admin_url('admin.php?page=spa-services&service_id=' . intval($event->service_id) . '&event_id=' . intval($event->id))); ?>">Edit service</a>
+                <a class="spa-event-service-icon" href="<?php echo esc_url(admin_url('admin.php?page=spa-services&service_id=' . intval($event->service_id) . '&event_id=' . intval($event->id))); ?>" title="Edit service" aria-label="Edit service"><span class="dashicons dashicons-edit"></span></a>
             <?php else : ?>
-                <a href="<?php echo esc_url(admin_url('admin.php?page=spa-services&event_id=' . intval($event->id))); ?>">Add service</a>
+                <a class="spa-event-service-icon" href="<?php echo esc_url(admin_url('admin.php?page=spa-services&event_id=' . intval($event->id))); ?>" title="Add service" aria-label="Add service"><span class="dashicons dashicons-plus-alt"></span></a>
             <?php endif; ?>
         </span>
     </td>

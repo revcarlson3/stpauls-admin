@@ -645,6 +645,25 @@
     font-size: 15px;
     font-weight: 600;
 }
+.spa-event-actions {
+    display: inline-flex;
+    margin-left: .35rem;
+    vertical-align: middle;
+}
+.spa-event-service-icon {
+    color: #646970;
+    line-height: 1;
+    text-decoration: none;
+}
+.spa-event-service-icon:hover,
+.spa-event-service-icon:focus {
+    color: #2271b1;
+}
+.spa-event-service-icon .dashicons {
+    font-size: 18px;
+    height: 18px;
+    width: 18px;
+}
 
 /* Event Links */
 
