@@ -86,6 +86,12 @@ function spa_get_complete_backup_table_definitions() {
             'formats' => array('%d', '%d', '%s', '%s', '%d', '%s'),
             'order_by' => 'id',
         ),
+        'service_hymns' => array(
+            'suffix' => 'spa_service_hymns',
+            'columns' => array('id', 'service_id', 'hymnal', 'hymn_number', 'reference', 'title', 'author', 'tune', 'external_url', 'hymn_order', 'created_at'),
+            'formats' => array('%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s'),
+            'order_by' => 'id',
+        ),
         'service_tags' => array(
             'suffix' => 'spa_service_tags',
             'columns' => array('id', 'name', 'slug', 'created_at'),
@@ -265,7 +271,7 @@ function spa_handle_export_complete_backup() {
     }
     $backup = array(
         'format' => 'stpauls-admin-complete-backup',
-        'format_version' => 7,
+        'format_version' => 8,
         'plugin_version' => defined('SPA_VERSION') ? SPA_VERSION : '',
         'exported_at' => gmdate('c'),
         'site_url' => home_url(),
@@ -318,7 +324,7 @@ function spa_complete_backup_validate_composite_keys($rows, $table_key, $columns
 }
 
 function spa_upgrade_complete_backup($backup) {
-    if ( ! is_array($backup) || ! in_array(intval($backup['format_version'] ?? 0), array(1, 2, 3, 4, 5, 6), true) ) {
+    if ( ! is_array($backup) || ! in_array(intval($backup['format_version'] ?? 0), array(1, 2, 3, 4, 5, 6, 7), true) ) {
         return $backup;
     }
     if (
@@ -393,7 +399,7 @@ function spa_upgrade_complete_backup($backup) {
         $backup['format_version'] = 5;
     }
     if ( intval($backup['format_version']) < 6 ) {
-        $new_table_keys = array('preachers', 'sermon_series', 'services', 'service_lessons', 'service_tags', 'service_tag_relationships');
+        $new_table_keys = array('preachers', 'sermon_series', 'services', 'service_lessons', 'service_hymns', 'service_tags', 'service_tag_relationships');
         foreach ( $new_table_keys as $table_key ) {
             if ( ! isset($backup['payload']['tables'][$table_key]) ) {
                 $backup['payload']['tables'][$table_key] = array();
@@ -421,6 +427,17 @@ function spa_upgrade_complete_backup($backup) {
         }
         $backup['format_version'] = 7;
     }
+    if ( intval($backup['format_version']) < 8 ) {
+        $backup['payload']['tables']['service_hymns'] = array();
+        $ordered_tables = array();
+        foreach ( spa_get_complete_backup_table_definitions() as $table_key => $definition ) {
+            $ordered_tables[$table_key] = isset($backup['payload']['tables'][$table_key])
+                ? $backup['payload']['tables'][$table_key]
+                : array();
+        }
+        $backup['payload']['tables'] = $ordered_tables;
+        $backup['format_version'] = 8;
+    }
     $backup['checksum'] = spa_get_complete_backup_checksum($backup['payload']);
     return $backup;
 }
@@ -434,7 +451,7 @@ function spa_validate_complete_backup(&$backup, $discard_orphaned_relationships 
         ! is_array($backup)
         || ! isset($backup['format'], $backup['format_version'], $backup['payload'], $backup['checksum'])
         || $backup['format'] !== 'stpauls-admin-complete-backup'
-        || intval($backup['format_version']) !== 7
+        || intval($backup['format_version']) !== 8
         || ! is_array($backup['payload'])
         || ! isset($backup['payload']['tables'], $backup['payload']['options'], $backup['payload']['user_meta'])
         || ! is_array($backup['payload']['tables'])
@@ -730,6 +747,7 @@ function spa_handle_import_complete_backup() {
     $definitions = spa_get_complete_backup_table_definitions();
     $delete_order = array(
         'service_tag_relationships',
+        'service_hymns',
         'service_lessons',
         'services',
         'service_tags',

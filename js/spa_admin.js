@@ -1,5 +1,35 @@
 jQuery(function($) {
     $('#spa-service-form').on('submit', function(e) {
+        var $hymns = $('#hymns');
+        if ($hymns.length) {
+            var lines = $hymns.val().split(/\r?\n/);
+            var normalized = [];
+            $.each(lines, function(index, line) {
+                var parts = line.split('|');
+                var reference = $.trim(parts[0]).toUpperCase();
+                if (!reference) {
+                    return;
+                }
+                if (!/^[A-Z0-9]+\s+[0-9A-Za-z-]+$/.test(reference)) {
+                    window.alert('Hymn references must look like “LSB 617” or “CH4 221”.');
+                    e.preventDefault();
+                    return false;
+                }
+                if (parts.length === 1 && !/^(LSB|CH4|ELW|LBW|CW|HS98)\s+/i.test(reference)) {
+                    var title = window.prompt('This hymnal abbreviation is not recognized. Enter the hymn title (optional):', '');
+                    if (title === null) {
+                        e.preventDefault();
+                        return false;
+                    }
+                    parts.push(title, window.prompt('Enter the hymn author (optional):', '') || '', window.prompt('Enter the tune name (optional):', '') || '');
+                }
+                normalized.push(reference + (parts.length > 1 ? ' | ' + $.trim(parts.slice(1).join(' | ')) : ''));
+            });
+            if (e.isDefaultPrevented()) {
+                return;
+            }
+            $hymns.val(normalized.join('\n'));
+        }
         var rules = {
             sermon_file: ['doc', 'docx', 'pdf', 'rtf'],
             audio_file: ['mp3'],

@@ -233,6 +233,23 @@ function spa_activate_plugin() {
         KEY service_order (service_id, lesson_order)
     ) $charset_collate;");
 
+    $hymns_table = $wpdb->prefix . 'spa_service_hymns';
+    dbDelta("CREATE TABLE $hymns_table (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        service_id bigint(20) unsigned NOT NULL,
+        hymnal varchar(50) NOT NULL,
+        hymn_number varchar(20) NOT NULL,
+        reference varchar(100) NOT NULL,
+        title varchar(255) NULL,
+        author varchar(255) NULL,
+        tune varchar(255) NULL,
+        external_url varchar(500) NULL,
+        hymn_order smallint(5) unsigned NOT NULL DEFAULT 0,
+        created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY service_order (service_id, hymn_order)
+    ) $charset_collate;");
+
     $tags_table = $wpdb->prefix . 'spa_service_tags';
     dbDelta("CREATE TABLE $tags_table (
         id bigint(20) unsigned NOT NULL AUTO_INCREMENT,

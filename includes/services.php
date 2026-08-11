@@ -246,6 +246,27 @@ function spa_services_sermon_details_shortcode($atts) {
                     </ul>
                 </section>
             <?php endif; ?>
+            <?php
+            $hymns = $wpdb->get_results($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}spa_service_hymns WHERE service_id = %d ORDER BY hymn_order, id",
+                $service->id
+            ));
+            ?>
+            <?php if ( $hymns ) : ?>
+                <section class="spa-sermon-hymns">
+                    <h3>Hymns</h3>
+                    <ul>
+                        <?php foreach ( $hymns as $hymn ) : ?>
+                            <li>
+                                <a href="<?php echo esc_url($hymn->external_url); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html($hymn->reference); ?></a>
+                                <?php if ( $hymn->title ) : ?> &mdash; <?php echo esc_html($hymn->title); ?><?php endif; ?>
+                                <?php if ( $hymn->author ) : ?><span>Author: <?php echo esc_html($hymn->author); ?></span><?php endif; ?>
+                                <?php if ( $hymn->tune ) : ?><span>Tune: <?php echo esc_html($hymn->tune); ?></span><?php endif; ?>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </section>
+            <?php endif; ?>
             <?php if ( trim(wp_strip_all_tags($service->sermon_text)) !== '' ) : ?>
                 <div class="spa-sermon-text"><?php echo spa_services_render_sermon_text($service->sermon_text); ?></div>
             <?php endif; ?>
@@ -376,6 +397,30 @@ function spa_services_parse_lessons($raw) {
         }
     }
     return $lessons;
+}
+
+function spa_services_parse_hymns($raw) {
+    $hymns = array();
+    foreach ( preg_split('/\r\n|\r|\n/', (string) $raw) as $order => $line ) {
+        $parts = array_map('trim', explode('|', $line));
+        $reference = strtoupper(sanitize_text_field($parts[0]));
+        if ( ! preg_match('/^([A-Z0-9]+)\s+([0-9A-Za-z-]+)$/', $reference, $matches) ) {
+            continue;
+        }
+        $hymnal = $matches[1];
+        $number = $matches[2];
+        $hymns[] = array(
+            'hymnal' => $hymnal,
+            'hymn_number' => $number,
+            'reference' => $reference,
+            'title' => isset($parts[1]) ? sanitize_text_field($parts[1]) : '',
+            'author' => isset($parts[2]) ? sanitize_text_field($parts[2]) : '',
+            'tune' => isset($parts[3]) ? sanitize_text_field($parts[3]) : '',
+            'external_url' => 'https://hymnary.org/hymn/' . rawurlencode($hymnal) . '/' . rawurlencode($number),
+            'hymn_order' => $order,
+        );
+    }
+    return $hymns;
 }
 
 function spa_services_parse_tags($raw) {
@@ -527,6 +572,22 @@ function spa_services_save_record() {
         ), array('%d', '%s', '%s', '%d'));
     }
 
+    $hymns_table = $wpdb->prefix . 'spa_service_hymns';
+    $wpdb->delete($hymns_table, array('service_id' => $service_id), array('%d'));
+    foreach ( spa_services_parse_hymns($_POST['hymns'] ?? '') as $hymn ) {
+        $wpdb->insert($hymns_table, array(
+            'service_id' => $service_id,
+            'hymnal' => $hymn['hymnal'],
+            'hymn_number' => $hymn['hymn_number'],
+            'reference' => $hymn['reference'],
+            'title' => $hymn['title'],
+            'author' => $hymn['author'],
+            'tune' => $hymn['tune'],
+            'external_url' => $hymn['external_url'],
+            'hymn_order' => $hymn['hymn_order'],
+        ), array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d'));
+    }
+
     $rel_table = $wpdb->prefix . 'spa_service_tag_relationships';
     $tags_table = $wpdb->prefix . 'spa_service_tags';
     $wpdb->delete($rel_table, array('service_id' => $service_id), array('%d'));
@@ -573,11 +634,13 @@ function spa_services_page() {
     $preacher_name = '';
     $series_name = '';
     $lessons = array();
+    $hymns = array();
     $tags = array();
     if ( $edit_service ) {
         $preacher_name = $wpdb->get_var($wpdb->prepare("SELECT name FROM {$wpdb->prefix}spa_preachers WHERE id = %d", $edit_service->preacher_id));
         $series_name = $wpdb->get_var($wpdb->prepare("SELECT name FROM {$wpdb->prefix}spa_sermon_series WHERE id = %d", $edit_service->series_id));
         $lessons = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}spa_service_lessons WHERE service_id = %d ORDER BY lesson_order", $edit_service->id));
+        $hymns = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}spa_service_hymns WHERE service_id = %d ORDER BY hymn_order, id", $edit_service->id));
         $tags = $wpdb->get_col($wpdb->prepare(
             "SELECT t.name FROM {$wpdb->prefix}spa_service_tags t
              INNER JOIN {$wpdb->prefix}spa_service_tag_relationships r ON r.tag_id = t.id

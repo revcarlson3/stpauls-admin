@@ -94,6 +94,30 @@
 .spa-sermon-lessons li {
     margin: .35rem 0;
 }
+.spa-sermon-hymns {
+    border-top: 1px solid #e1e5ea;
+    margin-top: 1.75rem;
+    padding-top: 1.25rem;
+}
+.spa-sermon-hymns h3 {
+    color: #172b4d;
+    font-size: 1rem;
+    margin: 0 0 .5rem;
+}
+.spa-sermon-hymns ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.spa-sermon-hymns li {
+    margin: .65rem 0;
+}
+.spa-sermon-hymns li span {
+    color: #5b6878;
+    display: block;
+    font-size: .9rem;
+    margin-left: 1rem;
+}
 .spa-sermon-actions {
     align-items: center;
     display: flex;
