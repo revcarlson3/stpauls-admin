@@ -56,6 +56,7 @@ function spa_activate_plugin() {
         id mediumint(9) NOT NULL AUTO_INCREMENT,
         name varchar(255) NOT NULL,
         season varchar(30) NULL,
+        special_day varchar(100) NULL,
         event_date date NOT NULL,
         start_time time NOT NULL,
         end_time time NOT NULL,

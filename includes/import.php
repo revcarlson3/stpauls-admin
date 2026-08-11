@@ -34,8 +34,8 @@ function spa_get_complete_backup_table_definitions() {
         ),
         'events' => array(
             'suffix' => 'spa_events',
-            'columns' => array('id', 'name', 'season', 'event_date', 'start_time', 'end_time', 'description', 'location', 'service_builder_url', 'service_type_id', 'is_recurring', 'recurrence_type', 'recurrence_end_date', 'parent_event_id', 'notify_volunteers', 'active', 'created_at'),
-            'formats' => array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%d', '%d', '%d', '%s'),
+            'columns' => array('id', 'name', 'season', 'special_day', 'event_date', 'start_time', 'end_time', 'description', 'location', 'service_builder_url', 'service_type_id', 'is_recurring', 'recurrence_type', 'recurrence_end_date', 'parent_event_id', 'notify_volunteers', 'active', 'created_at'),
+            'formats' => array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%d', '%d', '%d', '%s'),
             'order_by' => 'id',
         ),
         'volunteer_teams' => array(
@@ -229,7 +229,7 @@ function spa_handle_export_complete_backup() {
     }
     $backup = array(
         'format' => 'stpauls-admin-complete-backup',
-        'format_version' => 4,
+        'format_version' => 5,
         'plugin_version' => defined('SPA_VERSION') ? SPA_VERSION : '',
         'exported_at' => gmdate('c'),
         'site_url' => home_url(),
@@ -282,7 +282,7 @@ function spa_complete_backup_validate_composite_keys($rows, $table_key, $columns
 }
 
 function spa_upgrade_complete_backup($backup) {
-    if ( ! is_array($backup) || ! in_array(intval($backup['format_version'] ?? 0), array(1, 2, 3), true) ) {
+    if ( ! is_array($backup) || ! in_array(intval($backup['format_version'] ?? 0), array(1, 2, 3, 4), true) ) {
         return $backup;
     }
     if (
@@ -341,6 +341,21 @@ function spa_upgrade_complete_backup($backup) {
         }
         $backup['format_version'] = 4;
     }
+    if ( intval($backup['format_version']) < 5 ) {
+        foreach ( $backup['payload']['tables']['events'] as $index => $row ) {
+            if ( ! array_key_exists('special_day', $row) ) {
+                $upgraded_row = array();
+                foreach ( $row as $column => $value ) {
+                    $upgraded_row[$column] = $value;
+                    if ( $column === 'season' ) {
+                        $upgraded_row['special_day'] = null;
+                    }
+                }
+                $backup['payload']['tables']['events'][$index] = $upgraded_row;
+            }
+        }
+        $backup['format_version'] = 5;
+    }
     $backup['checksum'] = spa_get_complete_backup_checksum($backup['payload']);
     return $backup;
 }
@@ -354,7 +369,7 @@ function spa_validate_complete_backup(&$backup, $discard_orphaned_relationships 
         ! is_array($backup)
         || ! isset($backup['format'], $backup['format_version'], $backup['payload'], $backup['checksum'])
         || $backup['format'] !== 'stpauls-admin-complete-backup'
-        || intval($backup['format_version']) !== 4
+        || intval($backup['format_version']) !== 5
         || ! is_array($backup['payload'])
         || ! isset($backup['payload']['tables'], $backup['payload']['options'], $backup['payload']['user_meta'])
         || ! is_array($backup['payload']['tables'])
@@ -1082,14 +1097,14 @@ function spa_handle_export_events() {
     if ( ! check_admin_referer('spa_export_events') ) wp_die('Nonce failed');
 
     $rows = $wpdb->get_results(
-        "SELECT name, season, event_date, start_time, end_time, description, location, service_builder_url,
+        "SELECT name, season, special_day, event_date, start_time, end_time, description, location, service_builder_url,
                 is_recurring, recurrence_type, recurrence_end_date, active
          FROM {$wpdb->prefix}spa_events ORDER BY event_date",
         ARRAY_A
     );
 
     spa_export_csv('spa-events-' . date('Y-m-d') . '.csv',
-        array('name','season','event_date','start_time','end_time','description','location','service_builder_url',
+        array('name','season','special_day','event_date','start_time','end_time','description','location','service_builder_url',
               'is_recurring','recurrence_type','recurrence_end_date','active'),
         $rows
     );
@@ -1232,6 +1247,9 @@ function spa_handle_import_events() {
             'season'              => in_array(sanitize_text_field($row['season'] ?? ''), spa_get_church_year_seasons(), true)
                 ? sanitize_text_field($row['season'])
                 : null,
+            'special_day'        => in_array(sanitize_text_field($row['special_day'] ?? ''), spa_get_church_year_special_days(), true)
+                ? sanitize_text_field($row['special_day'])
+                : null,
             'event_date'          => $event_date,
             'start_time'          => $start_time,
             'end_time'            => $end_time,
@@ -1242,7 +1260,7 @@ function spa_handle_import_events() {
             'recurrence_type'     => sanitize_text_field($row['recurrence_type'] ?? ''),
             'recurrence_end_date' => sanitize_text_field($row['recurrence_end_date'] ?? '') ?: null,
             'active'              => intval($row['active'] ?? 1),
-        ), array('%s','%s','%s','%s','%s','%s','%s','%s','%d','%s','%s','%d'));
+        ), array('%s','%s','%s','%s','%s','%s','%s','%s','%s','%d','%s','%s','%d'));
 
         if ( $ok ) { $imported++; } else { $errors_list[] = array('row' => $i + 2, 'reason' => 'Database insert failed'); $errors++; }
     }

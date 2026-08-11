@@ -715,7 +715,7 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                             <?php $render_import_form('spa_import_teams', 'spa_import_teams', 'spa_import_nonce', 'Import Teams'); ?>
 
                             <h4 style="margin:1.5rem 0 4px;">Import Events</h4>
-                            <p style="margin:0 0 4px;font-size:0.85em;color:#555;">Required columns: <code>name</code>, <code>event_date</code> (YYYY-MM-DD), <code>start_time</code> (HH:MM:SS), <code>end_time</code> (HH:MM:SS)<br>Optional: <code>season</code>, <code>description</code>, <code>location</code>, <code>is_recurring</code>, <code>recurrence_type</code>, <code>recurrence_end_date</code>, <code>active</code></p>
+                            <p style="margin:0 0 4px;font-size:0.85em;color:#555;">Required columns: <code>name</code>, <code>event_date</code> (YYYY-MM-DD), <code>start_time</code> (HH:MM:SS), <code>end_time</code> (HH:MM:SS)<br>Optional: <code>season</code>, <code>special_day</code>, <code>description</code>, <code>location</code>, <code>is_recurring</code>, <code>recurrence_type</code>, <code>recurrence_end_date</code>, <code>active</code></p>
                             <?php $render_import_form('spa_import_events', 'spa_import_events', 'spa_import_nonce', 'Import Events'); ?>
                         </div>
 

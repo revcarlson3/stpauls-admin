@@ -29,6 +29,10 @@
         return date.toLocaleDateString(undefined, {month: 'long', day: 'numeric', year: 'numeric'});
     }
 
+    function seasonClass(season) {
+        return 'spa-season-' + String(season || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    }
+
     function initCalendar(container) {
         var events;
         try {
@@ -46,13 +50,15 @@
         }
 
         function eventMarkup(event) {
-            return '<button type="button" class="spa-calendar-event" data-event-id="' + Number(event.id) + '">' +
-                escapeHtml(event.name) + '</button>';
+            return '<button type="button" class="spa-calendar-event ' + seasonClass(event.season) +
+                '" data-event-id="' + Number(event.id) + '">' + escapeHtml(event.name) + '</button>';
         }
 
         function summary(event) {
             return '<strong>' + escapeHtml(event.name) + '</strong><div>' +
                 formatTime(event.start_time) + ' - ' + formatTime(event.end_time) + '</div>' +
+                (event.season ? '<div><strong>Season:</strong> ' + escapeHtml(event.season) + '</div>' : '') +
+                (event.special_day ? '<div><strong>Special day:</strong> ' + escapeHtml(event.special_day) + '</div>' : '') +
                 (event.location ? '<div>' + escapeHtml(event.location) + '</div>' : '') +
                 (event.description ? '<p>' + escapeHtml(event.description) + '</p>' : '');
         }

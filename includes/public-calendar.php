@@ -9,7 +9,7 @@ function spa_events_calendar_shortcode($atts) {
     $atts = shortcode_atts(array('view' => 'month'), $atts, 'spa_events_calendar');
     $events = $wpdb->get_results(
         $wpdb->prepare(
-            "SELECT id, name, event_date, start_time, end_time, description, location
+            "SELECT id, name, season, special_day, event_date, start_time, end_time, description, location
              FROM {$wpdb->prefix}spa_events
              WHERE active = 1
                AND event_date >= %s

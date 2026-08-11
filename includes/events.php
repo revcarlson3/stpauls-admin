@@ -37,6 +37,44 @@ function spa_get_church_year_seasons() {
     );
 }
 
+function spa_get_church_year_special_days() {
+    return array(
+        'Baptism of Our Lord',
+        'Transfiguration of Our Lord',
+        'Ash Wednesday',
+        'Palm Sunday',
+        'Maundy Thursday',
+        'Good Friday',
+        'Easter Vigil',
+        'Ascension Day',
+        'Holy Trinity',
+        'Reformation Day',
+        'All Saints\' Day',
+        'St. Stephen, Martyr',
+        'St. John, Apostle and Evangelist',
+        'Holy Innocents, Martyrs',
+        'Confession of St. Peter',
+        'Conversion of St. Paul',
+        'Presentation of Our Lord',
+        'St. Joseph, Guardian of Jesus',
+        'Annunciation of Our Lord',
+        'St. Mark, Evangelist',
+        'St. Philip and St. James, Apostles',
+        'St. Barnabas, Apostle',
+        'St. Peter and St. Paul, Apostles',
+        'St. Mary Magdalene',
+        'St. James of Jerusalem',
+        'St. Mary, Mother of Our Lord',
+        'St. Matthew, Evangelist',
+        'St. Michael and All Angels',
+        'St. Luke, Evangelist',
+        'St. Simon and St. Jude, Apostles',
+        'St. Andrew, Apostle',
+        'St. Thomas, Apostle',
+        'St. Matthias, Apostle',
+    );
+}
+
 add_action(
     'wp_ajax_spa_override_event_volunteer',
     'spa_override_event_volunteer_ajax'
@@ -75,6 +113,14 @@ function spa_save_event_details_ajax() {
     }
 
     $service_type_id = isset($_POST['service_type_id']) ? intval($_POST['service_type_id']) : 0;
+    $season = isset($_POST['season']) ? sanitize_text_field(wp_unslash($_POST['season'])) : '';
+    $special_day = isset($_POST['special_day']) ? sanitize_text_field(wp_unslash($_POST['special_day'])) : '';
+    if ( $season !== '' && ! in_array($season, spa_get_church_year_seasons(), true) ) {
+        $season = '';
+    }
+    if ( $special_day !== '' && ! in_array($special_day, spa_get_church_year_special_days(), true) ) {
+        $special_day = '';
+    }
     $service_builder_url = spa_get_posted_service_builder_url();
     if ( is_wp_error($service_builder_url) ) {
         wp_send_json_error(array('message' => $service_builder_url->get_error_message()));
@@ -93,6 +139,8 @@ function spa_save_event_details_ajax() {
     // Update event fields
     $event_data = array(
         'name'                => sanitize_text_field($_POST['name']),
+        'season'              => $season,
+        'special_day'         => $special_day,
         'location'            => sanitize_text_field($_POST['location']),
         'description'         => sanitize_textarea_field($_POST['description']),
         'event_date'          => sanitize_text_field($_POST['event_date']),
@@ -104,7 +152,7 @@ function spa_save_event_details_ajax() {
         'recurrence_end_date' => sanitize_text_field($_POST['recurrence_end_date']),
         'notify_volunteers'   => ! empty($_POST['notify_volunteers']) ? 1 : 0,
     );
-    $event_formats = array('%s','%s','%s','%s','%s','%s','%d','%d','%s','%s','%d');
+    $event_formats = array('%s','%s','%s','%s','%s','%s','%s','%s','%d','%d','%s','%s','%d');
     if ( $service_builder_url !== null ) {
         $event_data['service_builder_url'] = $service_builder_url ?: null;
         $event_formats[] = '%s';
@@ -120,7 +168,7 @@ function spa_save_event_details_ajax() {
             if (intval($series_event->id) !== $event_id) {
                 unset($series_event_data['event_date']);
                 unset($series_event_data['service_builder_url']);
-                $series_event_formats = array('%s','%s','%s','%s','%s','%d','%d','%s','%s','%d');
+                $series_event_formats = array('%s','%s','%s','%s','%s','%s','%s','%d','%d','%s','%s','%d');
             }
 
             $result = $wpdb->update(
@@ -340,6 +388,7 @@ function spa_save_event_modal_ajax() {
     $event_id = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
     $name = isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '';
     $season = isset($_POST['season']) ? sanitize_text_field(wp_unslash($_POST['season'])) : '';
+    $special_day = isset($_POST['special_day']) ? sanitize_text_field(wp_unslash($_POST['special_day'])) : '';
     $location = isset($_POST['location']) ? sanitize_text_field(wp_unslash($_POST['location'])) : '';
     $description = isset($_POST['description']) ? sanitize_textarea_field(wp_unslash($_POST['description'])) : '';
     $event_date = isset($_POST['event_date']) ? sanitize_text_field(wp_unslash($_POST['event_date'])) : '';
@@ -351,6 +400,9 @@ function spa_save_event_modal_ajax() {
     $service_type_id = isset($_POST['service_type_id']) ? intval($_POST['service_type_id']) : 0;
     if ( $season !== '' && ! in_array($season, spa_get_church_year_seasons(), true) ) {
         $season = '';
+    }
+    if ( $special_day !== '' && ! in_array($special_day, spa_get_church_year_special_days(), true) ) {
+        $special_day = '';
     }
     $service_builder_url = spa_get_posted_service_builder_url();
     if ( is_wp_error($service_builder_url) ) {
@@ -385,6 +437,7 @@ function spa_save_event_modal_ajax() {
     $data = array(
         'name' => $name,
         'season' => $season,
+        'special_day' => $special_day,
         'location' => $location,
         'description' => $description,
         'event_date' => $event_date,
@@ -686,6 +739,7 @@ function spa_events_page() {
                 $wpdb->update($table_name, array(
                     'name' => sanitize_text_field($_POST['spa_event_name']),
                     'season' => isset($_POST['spa_event_season']) ? sanitize_text_field(wp_unslash($_POST['spa_event_season'])) : '',
+                    'special_day' => isset($_POST['spa_event_special_day']) ? sanitize_text_field(wp_unslash($_POST['spa_event_special_day'])) : '',
                     'event_date' => wp_unslash($_POST['spa_event_date']),
                     'start_time' => wp_unslash($_POST['spa_event_start_time']),
                     'end_time' => wp_unslash($_POST['spa_event_end_time']),
@@ -720,6 +774,7 @@ function spa_events_page() {
             $wpdb->insert($table_name, array(
                 'name' => sanitize_text_field($_POST['spa_event_name']),
                 'season' => isset($_POST['spa_event_season']) ? sanitize_text_field(wp_unslash($_POST['spa_event_season'])) : '',
+                'special_day' => isset($_POST['spa_event_special_day']) ? sanitize_text_field(wp_unslash($_POST['spa_event_special_day'])) : '',
                 'event_date' => wp_unslash($_POST['spa_event_date']),
                 'start_time' => wp_unslash($_POST['spa_event_start_time']),
                 'end_time' => wp_unslash($_POST['spa_event_end_time']),
@@ -767,6 +822,7 @@ function spa_events_page() {
                     $wpdb->insert($table_name, array(
                         'name' => sanitize_text_field($_POST['spa_event_name']),
                         'season' => isset($_POST['spa_event_season']) ? sanitize_text_field(wp_unslash($_POST['spa_event_season'])) : '',
+                        'special_day' => isset($_POST['spa_event_special_day']) ? sanitize_text_field(wp_unslash($_POST['spa_event_special_day'])) : '',
                         'event_date' => $current_date->format('Y-m-d'),
                         'start_time' => wp_unslash($_POST['spa_event_start_time']),
                         'end_time' => wp_unslash($_POST['spa_event_end_time']),

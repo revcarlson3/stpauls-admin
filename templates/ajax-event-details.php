@@ -58,6 +58,18 @@ $recurrence_end_date = (!empty($event->recurrence_end_date) && $event->recurrenc
     </div>
 
     <div class="spa-form-field">
+        <label for="spa-event-special-day">Special Day</label>
+        <select id="spa-event-special-day" class="spa-event-field">
+            <option value="">None</option>
+            <?php foreach ( spa_get_church_year_special_days() as $special_day ) : ?>
+                <option value="<?php echo esc_attr($special_day); ?>" <?php selected($event->special_day ?? '', $special_day); ?>>
+                    <?php echo esc_html($special_day); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+
+    <div class="spa-form-field">
 
         <label for="spa-event-location">
             Location
