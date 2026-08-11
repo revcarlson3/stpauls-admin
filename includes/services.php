@@ -44,6 +44,18 @@ function spa_services_render_lesson_reference($reference, $translation = '') {
     return '<span class="rtBibleRef">' . esc_html($reference) . '</span>';
 }
 
+function spa_services_render_sermon_text($text) {
+    $paragraphs = preg_split("/\R\s*\R/", trim(wp_strip_all_tags((string) $text)));
+    $output = array();
+    foreach ( $paragraphs as $paragraph ) {
+        $paragraph = trim($paragraph);
+        if ( $paragraph !== '' ) {
+            $output[] = '<p>' . nl2br(esc_html($paragraph), false) . '</p>';
+        }
+    }
+    return implode('', $output);
+}
+
 add_shortcode('spa_sermon_details', 'spa_services_sermon_details_shortcode');
 
 function spa_services_sermon_details_shortcode($atts) {
@@ -118,7 +130,7 @@ function spa_services_sermon_details_shortcode($atts) {
                 </section>
             <?php endif; ?>
             <?php if ( trim(wp_strip_all_tags($service->sermon_text)) !== '' ) : ?>
-                <div class="spa-sermon-text"><?php echo wpautop(wp_kses_post($service->sermon_text)); ?></div>
+                <div class="spa-sermon-text"><?php echo spa_services_render_sermon_text($service->sermon_text); ?></div>
             <?php endif; ?>
             <?php if ( $service->video_url || $download_links ) : ?>
                 <div class="spa-sermon-actions">
