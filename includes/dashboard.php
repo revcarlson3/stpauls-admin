@@ -117,11 +117,12 @@ function spa_dashboard_page() {
     );
 
     $sunday_service = $wpdb->get_row(
-        "SELECT *
-         FROM {$wpdb->prefix}spa_events
-         WHERE active = 1
-         AND event_date >= CURDATE()
-         ORDER BY event_date
+        "SELECT e.*, s.id AS service_id
+         FROM {$wpdb->prefix}spa_events e
+         LEFT JOIN {$wpdb->prefix}spa_services s ON s.event_id = e.id AND s.active = 1
+         WHERE e.active = 1
+         AND e.event_date >= CURDATE()
+         ORDER BY e.event_date
          LIMIT 1"
     );
     $sunday_teams = array();

@@ -21,7 +21,13 @@
                     <?php if (!empty($sunday_service)) : ?>
 
                         <h3 class="spa-service-name">
-                            <?php echo esc_html($sunday_service->name); ?>
+                            <?php if ( ! empty($sunday_service->service_id) ) : ?>
+                                <a href="<?php echo esc_url(admin_url('admin.php?page=spa-services&service_id=' . intval($sunday_service->service_id) . '&event_id=' . intval($sunday_service->id))); ?>">
+                                    <?php echo esc_html($sunday_service->name); ?>
+                                </a>
+                            <?php else : ?>
+                                <?php echo esc_html($sunday_service->name); ?>
+                            <?php endif; ?>
                         </h3>
 
                         <?php if ( ! empty($sunday_service->special_day) || ! empty($sunday_service->season) ) : ?>
