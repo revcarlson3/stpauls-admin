@@ -33,6 +33,19 @@
         return 'spa-season-' + String(season || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     }
 
+    function seasonStyle(season) {
+        var styles = {
+            'Advent': 'background-color:#4169e1;border-left-color:#1d3f9c;color:#fff;',
+            'Christmas': 'background-color:#d4af37;border-left-color:#927516;color:#241d00;',
+            'Epiphany': 'background-color:#2e8b57;border-left-color:#1c5b39;color:#fff;',
+            'Lent': 'background-color:#6a4c93;border-left-color:#493366;color:#fff;',
+            'Holy Week': 'background-color:#8b0000;border-left-color:#5d0000;color:#fff;',
+            'Easter': 'background-color:#f1d36b;border-left-color:#b18c18;color:#241d00;',
+            'Pentecost': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;'
+        };
+        return styles[season] || '';
+    }
+
     function initCalendar(container) {
         var events;
         try {
@@ -51,7 +64,8 @@
 
         function eventMarkup(event) {
             return '<button type="button" class="spa-calendar-event ' + seasonClass(event.season) +
-                '" data-event-id="' + Number(event.id) + '">' + escapeHtml(event.name) + '</button>';
+                '" style="' + seasonStyle(event.season) + '" data-event-id="' + Number(event.id) + '">' +
+                escapeHtml(event.name) + '</button>';
         }
 
         function summary(event) {
