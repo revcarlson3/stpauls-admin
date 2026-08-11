@@ -45,15 +45,7 @@ function spa_services_render_lesson_reference($reference, $translation = '') {
 }
 
 function spa_services_render_sermon_text($text) {
-    $paragraphs = preg_split("/\R\s*\R/", trim(wp_strip_all_tags((string) $text)));
-    $output = array();
-    foreach ( $paragraphs as $paragraph ) {
-        $paragraph = trim($paragraph);
-        if ( $paragraph !== '' ) {
-            $output[] = '<p>' . nl2br(esc_html($paragraph), false) . '</p>';
-        }
-    }
-    return implode('', $output);
+    return wpautop(wp_kses_post((string) $text));
 }
 
 add_shortcode('spa_sermon_details', 'spa_services_sermon_details_shortcode');
