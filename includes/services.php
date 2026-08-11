@@ -32,6 +32,19 @@ function spa_services_get_liturgy_choices() {
     );
 }
 
+function spa_services_normalize_hymnal($abbreviation) {
+    $abbreviation = strtoupper(sanitize_text_field($abbreviation));
+    $known = array(
+        'LSB' => array('display' => 'LSB', 'canonical' => 'LSB2006', 'title' => 'Lutheran Service Book', 'year' => 2006),
+        'LSB2006' => array('display' => 'LSB', 'canonical' => 'LSB2006', 'title' => 'Lutheran Service Book', 'year' => 2006),
+        'LW' => array('display' => 'LW', 'canonical' => 'LW1982', 'title' => 'Lutheran Worship', 'year' => 1982),
+        'LW1982' => array('display' => 'LW', 'canonical' => 'LW1982', 'title' => 'Lutheran Worship', 'year' => 1982),
+    );
+    return isset($known[$abbreviation])
+        ? $known[$abbreviation]
+        : array('display' => $abbreviation, 'canonical' => $abbreviation, 'title' => '', 'year' => 0);
+}
+
 function spa_services_enqueue_reftagger($translation = '') {
     $translation = $translation ? sanitize_text_field($translation) : 'ESV';
     if ( ! in_array($translation, array('ESV', 'HCSB', 'KJV', 'NIV'), true) ) {
@@ -440,16 +453,19 @@ function spa_services_parse_hymns($raw) {
         if ( ! preg_match('/^([A-Z0-9]+)\s+([0-9A-Za-z-]+)$/', $reference, $matches) ) {
             continue;
         }
-        $hymnal = $matches[1];
+        $hymnal = spa_services_normalize_hymnal($matches[1]);
         $number = $matches[2];
         $hymns[] = array(
-            'hymnal' => $hymnal,
+            'hymnal' => $hymnal['display'],
+            'canonical_hymnal' => $hymnal['canonical'],
+            'hymnal_title' => $hymnal['title'],
+            'publication_year' => $hymnal['year'],
             'hymn_number' => $number,
-            'reference' => $reference,
+            'reference' => $hymnal['display'] . ' ' . $number,
             'title' => isset($parts[1]) ? sanitize_text_field($parts[1]) : '',
             'author' => isset($parts[2]) ? sanitize_text_field($parts[2]) : '',
             'tune' => isset($parts[3]) ? sanitize_text_field($parts[3]) : '',
-            'external_url' => 'https://hymnary.org/hymn/' . rawurlencode($hymnal) . '/' . rawurlencode($number),
+            'external_url' => 'https://hymnary.org/hymn/' . rawurlencode($hymnal['canonical']) . '/' . rawurlencode($number),
             'hymn_order' => $order,
         );
     }
@@ -460,15 +476,18 @@ function spa_services_catalog_hymn($hymn) {
     global $wpdb;
     $hymnals_table = $wpdb->prefix . 'spa_hymnals';
     $catalog_table = $wpdb->prefix . 'spa_hymn_catalog';
+    $hymnal_info = spa_services_normalize_hymnal($hymn['hymnal']);
     $hymnal_id = $wpdb->get_var($wpdb->prepare(
         "SELECT id FROM {$hymnals_table} WHERE abbreviation = %s",
-        $hymn['hymnal']
+        $hymnal_info['display']
     ));
     if ( ! $hymnal_id ) {
         $wpdb->insert($hymnals_table, array(
-            'abbreviation' => $hymn['hymnal'],
-            'canonical_abbreviation' => $hymn['hymnal'],
-        ), array('%s', '%s'));
+            'abbreviation' => $hymnal_info['display'],
+            'canonical_abbreviation' => $hymnal_info['canonical'],
+            'title' => $hymnal_info['title'],
+            'publication_year' => $hymnal_info['year'] ?: null,
+        ), array('%s', '%s', '%s', '%d'));
         $hymnal_id = $wpdb->insert_id;
     }
     if ( ! $hymnal_id ) {
