@@ -646,9 +646,13 @@
     font-weight: 600;
 }
 .spa-event-actions {
-    display: inline-flex;
-    margin-left: .35rem;
+    text-align: center;
     vertical-align: middle;
+    width: 70px;
+}
+.spa-event-actions-heading {
+    text-align: center;
+    width: 70px;
 }
 .spa-event-service-icon {
     color: #646970;
