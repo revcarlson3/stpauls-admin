@@ -41,7 +41,8 @@
             'Lent': 'background-color:#6a4c93;border-left-color:#493366;color:#fff;',
             'Holy Week': 'background-color:#8b0000;border-left-color:#5d0000;color:#fff;',
             'Easter': 'background-color:#f1d36b;border-left-color:#b18c18;color:#241d00;',
-            'Pentecost': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;'
+            'Season of Pentecost': 'background-color:#2e8b57;border-left-color:#1c5b39;color:#fff;',
+            'Pentecost': 'background-color:#2e8b57;border-left-color:#1c5b39;color:#fff;'
         };
         return styles[season] || '';
     }

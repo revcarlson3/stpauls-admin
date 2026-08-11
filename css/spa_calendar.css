@@ -17,7 +17,8 @@
 .spa-calendar-event.spa-season-lent { background: #6a4c93; border-left-color: #493366; color: #fff; }
 .spa-calendar-event.spa-season-holy-week { background: #8b0000; border-left-color: #5d0000; color: #fff; }
 .spa-calendar-event.spa-season-easter { background: #f1d36b; border-left-color: #b18c18; color: #241d00; }
-.spa-calendar-event.spa-season-pentecost { background: #c62828; border-left-color: #8d1d1d; color: #fff; }
+.spa-calendar-event.spa-season-of-pentecost { background: #2e8b57; border-left-color: #1c5b39; color: #fff; }
+.spa-calendar-event.spa-season-pentecost { background: #2e8b57; border-left-color: #1c5b39; color: #fff; }
 .spa-calendar-week-day { min-height: 260px; border: 1px solid #dcdcde; padding: .55rem; }
 .spa-calendar-week-day h4 { border-bottom: 1px solid #dcdcde; margin: 0 0 .6rem; padding-bottom: .45rem; }
 .spa-calendar-week-event > span, .spa-calendar-agenda article span { color: #50575e; display: block; font-size: .8rem; }

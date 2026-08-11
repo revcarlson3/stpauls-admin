@@ -33,7 +33,7 @@ function spa_get_church_year_seasons() {
         'Lent',
         'Holy Week',
         'Easter',
-        'Pentecost',
+        'Season of Pentecost',
     );
 }
 
@@ -47,6 +47,7 @@ function spa_get_church_year_special_days() {
         'Good Friday',
         'Easter Vigil',
         'Ascension Day',
+        'Day of Pentecost',
         'Holy Trinity',
         'Reformation Day',
         'All Saints\' Day',
