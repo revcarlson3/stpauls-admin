@@ -240,10 +240,9 @@ jQuery(function($) {
 
             var $item = $('<li class="spa-rotation-item" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #eee;"></li>');
             $item.attr('data-volunteer-id', volunteer.id);
-            $item.append('<span><strong>' + (index + 1) + '.</strong> ' + volunteer.last_name + ', ' + volunteer.first_name + ' (#' + volunteer.id + ')</span>');
+            $item.append('<span><span class="spa-rotation-drag-handle" style="cursor:move;font-size:16px;margin-right:6px;" title="Drag to reorder" aria-label="Drag to reorder">&#9776;</span><strong>' + (index + 1) + '.</strong> ' + volunteer.last_name + ', ' + volunteer.first_name + ' (#' + volunteer.id + ')</span>');
             $item.append(
                 '<span class="spa-rotation-controls">' +
-                '<span class="spa-rotation-drag-handle" style="cursor:move;font-size:16px;" title="Drag to reorder" aria-label="Drag to reorder">&#9776;</span> ' +
                 '<button type="button" class="button-link-delete spa-rotation-remove">Remove</button>' +
                 '</span>'
             );
