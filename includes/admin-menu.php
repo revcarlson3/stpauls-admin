@@ -35,6 +35,15 @@ function spa_register_admin_menu() {
 
     add_submenu_page(
         'spa-dashboard',
+        __('Services', 'stpauls-admin'),
+        __('Services', 'stpauls-admin'),
+        'manage_options',
+        'spa-services',
+        'spa_services_page'
+    );
+
+    add_submenu_page(
+        'spa-dashboard',
         __('Teams', 'stpauls-admin'),
         __('Teams', 'stpauls-admin'),
         'manage_options',
