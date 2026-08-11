@@ -538,10 +538,8 @@ function spa_services_get_hymn_video_url($hymn) {
     }
 
     $query = trim(implode(' ', array_filter(array(
-        $hymn->title,
-        $hymn->author,
-        $hymn->tune,
         $hymn->reference,
+        $hymn->title,
         'hymn',
     ))));
     if ( $query === '' ) {
@@ -550,7 +548,7 @@ function spa_services_get_hymn_video_url($hymn) {
     $preferred_channel = sanitize_text_field(get_option('spa_youtube_preferred_channel_id', ''));
     $secondary_channel = sanitize_text_field(get_option('spa_youtube_secondary_channel_id', ''));
     $cache_version = get_option('spa_youtube_cache_version', '1');
-    $cache_key = 'spa_hymn_video_v4_' . md5(strtolower($query) . '|' . $api_key . '|' . $preferred_channel . '|' . $secondary_channel . '|' . $cache_version);
+    $cache_key = 'spa_hymn_video_v5_' . md5(strtolower($query) . '|' . $api_key . '|' . $preferred_channel . '|' . $secondary_channel . '|' . $cache_version);
     $cached = get_transient($cache_key);
     if ( $cached !== false ) {
         return is_string($cached) ? $cached : '';
