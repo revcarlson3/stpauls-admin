@@ -461,10 +461,11 @@ function spa_get_report_rows($report_key, $filters = array()) {
 
             $formatted_rows = array();
             foreach ( $grouped_assignments as $team_name => $volunteers ) {
+                $start_time = DateTimeImmutable::createFromFormat('!H:i:s', $event['start_time'], wp_timezone());
                 $formatted_rows[] = array(
                     'event_name' => $event['name'],
                     'event_date' => $event['event_date'],
-                    'start_time' => wp_date(get_option('time_format'), strtotime($event['event_date'] . ' ' . $event['start_time']), wp_timezone()),
+                    'start_time' => $start_time ? $start_time->format(get_option('time_format')) : $event['start_time'],
                     'team' => $team_name,
                     'volunteers' => implode("\n", $volunteers),
                 );
