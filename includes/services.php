@@ -44,11 +44,14 @@ function spa_services_render_lesson_reference($reference, $translation = '') {
     return '<span class="rtBibleRef">' . esc_html($reference) . '</span>';
 }
 
-add_shortcode('spa_latest_sermon', 'spa_services_latest_sermon_shortcode');
+add_shortcode('spa_sermon_details', 'spa_services_sermon_details_shortcode');
 
-function spa_services_latest_sermon_shortcode() {
+function spa_services_sermon_details_shortcode($atts) {
     global $wpdb;
 
+    $atts = shortcode_atts(array('service_id' => 0), $atts, 'spa_sermon_details');
+    $service_id = intval($atts['service_id']);
+    $service_filter = $service_id ? $wpdb->prepare('AND s.id = %d', $service_id) : '';
     $service = $wpdb->get_row(
         "SELECT s.*, e.name AS event_name, e.event_date, e.start_time,
                 p.name AS preacher_name, ss.name AS series_name
@@ -58,6 +61,7 @@ function spa_services_latest_sermon_shortcode() {
          LEFT JOIN {$wpdb->prefix}spa_sermon_series ss ON ss.id = s.series_id
          WHERE s.active = 1
            AND e.active = 1
+           {$service_filter}
          ORDER BY e.event_date DESC, e.start_time DESC, s.id DESC
          LIMIT 1"
     );
@@ -95,18 +99,13 @@ function spa_services_latest_sermon_shortcode() {
             <div class="spa-sermon-image"><?php echo wp_get_attachment_image($service->featured_image_id, 'large', false, array('loading' => 'lazy')); ?></div>
         <?php endif; ?>
         <div class="spa-sermon-content">
-            <p class="spa-sermon-kicker">Latest sermon</p>
-            <h2><?php echo esc_html($service->event_name); ?></h2>
+            <h2><?php echo esc_html($service->sermon_title ? $service->sermon_title : $service->event_name); ?></h2>
             <p class="spa-sermon-date"><?php echo esc_html(mysql2date(get_option('date_format'), $service->event_date)); ?></p>
             <?php if ( $service->preacher_name || $service->series_name ) : ?>
                 <p class="spa-sermon-meta">
-                    <?php if ( $service->preacher_name ) : ?>Preacher: <?php echo esc_html($service->preacher_name); ?><?php endif; ?>
-                    <?php if ( $service->preacher_name && $service->series_name ) : ?> &middot; <?php endif; ?>
+                    <?php if ( $service->preacher_name ) : ?>Preacher: <?php echo esc_html($service->preacher_name); ?><br><?php endif; ?>
                     <?php if ( $service->series_name ) : ?>Series: <?php echo esc_html($service->series_name); ?><?php endif; ?>
                 </p>
-            <?php endif; ?>
-            <?php if ( trim(wp_strip_all_tags($service->sermon_text)) !== '' ) : ?>
-                <div class="spa-sermon-text"><?php echo wpautop(wp_kses_post($service->sermon_text)); ?></div>
             <?php endif; ?>
             <?php if ( $lessons ) : ?>
                 <section class="spa-sermon-lessons">
@@ -117,6 +116,9 @@ function spa_services_latest_sermon_shortcode() {
                         <?php endforeach; ?>
                     </ul>
                 </section>
+            <?php endif; ?>
+            <?php if ( trim(wp_strip_all_tags($service->sermon_text)) !== '' ) : ?>
+                <div class="spa-sermon-text"><?php echo wpautop(wp_kses_post($service->sermon_text)); ?></div>
             <?php endif; ?>
             <?php if ( $service->video_url || $download_links ) : ?>
                 <div class="spa-sermon-actions">
@@ -260,6 +262,7 @@ function spa_services_save_record() {
     }
 
     $sermon_text = isset($_POST['sermon_text']) ? wp_kses_post(wp_unslash($_POST['sermon_text'])) : '';
+    $sermon_title = isset($_POST['sermon_title']) ? sanitize_text_field(wp_unslash($_POST['sermon_title'])) : '';
     $translation = isset($_POST['bible_translation']) ? sanitize_text_field(wp_unslash($_POST['bible_translation'])) : '';
     if ( ! in_array($translation, spa_services_get_translation_choices(), true) ) {
         $translation = '';
@@ -309,6 +312,7 @@ function spa_services_save_record() {
     }
     $data = array(
         'event_id' => $event_id,
+        'sermon_title' => $sermon_title,
         'sermon_text' => $sermon_text,
         'sermon_file_id' => $sermon_file_id ?: null,
         'sermon_file_url' => $sermon_file_id ? wp_get_attachment_url($sermon_file_id) : '',
@@ -324,7 +328,7 @@ function spa_services_save_record() {
         'active' => isset($_POST['active']) ? 1 : 0,
         'created_by' => $existing ? intval($existing->created_by) : get_current_user_id(),
     );
-    $formats = array('%d', '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%d', '%d', '%d', '%d', '%d');
+    $formats = array('%d', '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%d', '%d', '%d', '%d', '%d');
     if ( ! empty($_FILES['featured_image']['name']) ) {
         $image_id = spa_services_handle_upload('featured_image', array(
             'jpg' => 'image/jpeg',
@@ -338,7 +342,7 @@ function spa_services_save_record() {
             wp_die(esc_html($image_id->get_error_message()), 'Upload Error', array('response' => 400));
         }
         $data['featured_image_id'] = intval($image_id);
-        $formats[12] = '%d';
+        $formats[13] = '%d';
     }
 
     if ( $existing ) {

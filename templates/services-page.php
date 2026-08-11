@@ -46,6 +46,7 @@
             <input type="hidden" name="service_id" value="<?php echo $edit_service ? intval($edit_service->id) : 0; ?>">
             <?php wp_nonce_field('spa_save_service', 'spa_service_nonce'); ?>
             <table class="form-table">
+                <tr><th><label for="sermon_title">Sermon title</label></th><td><input type="text" name="sermon_title" id="sermon_title" class="large-text" value="<?php echo $edit_service ? esc_attr($edit_service->sermon_title) : ''; ?>"></td></tr>
                 <tr><th><label for="sermon_text">Sermon full text</label></th><td><textarea name="sermon_text" id="sermon_text" rows="8" class="large-text"><?php echo $edit_service ? esc_textarea($edit_service->sermon_text) : ''; ?></textarea></td></tr>
                 <tr><th><label for="sermon_file">Sermon file</label></th><td><input type="file" name="sermon_file" id="sermon_file" accept=".doc,.docx,.pdf,.rtf"><p class="description">Word, PDF, or RTF.</p><?php if ( $edit_service && $edit_service->sermon_file_url ) : ?><p>Current: <a href="<?php echo esc_url($edit_service->sermon_file_url); ?>">View sermon file</a></p><?php endif; ?></td></tr>
                 <tr><th><label for="lessons">Scripture lessons</label></th><td><textarea name="lessons" id="lessons" rows="4" class="large-text"><?php foreach ( $lessons as $lesson ) { echo esc_textarea($lesson->reference . "\n"); } ?></textarea><p class="description">Enter one Scripture reference per line. Logos Reftagger will provide the selected translation on the public service page.</p></td></tr>

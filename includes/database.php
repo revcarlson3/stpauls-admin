@@ -197,6 +197,7 @@ function spa_activate_plugin() {
     dbDelta("CREATE TABLE $services_table (
         id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
         event_id bigint(20) unsigned NOT NULL,
+        sermon_title varchar(255) NOT NULL DEFAULT '',
         sermon_text longtext NULL,
         sermon_file_id bigint(20) unsigned NULL,
         sermon_file_url varchar(500) NULL,
