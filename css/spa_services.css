@@ -125,6 +125,15 @@
     margin: 2.5rem auto;
     max-width: 1080px;
 }
+.spa-sermons-archive {
+    margin: 2rem auto;
+    max-width: 1080px;
+}
+.spa-sermons-archive h2 {
+    color: #172b4d;
+    font-size: clamp(1.8rem, 4vw, 2.5rem);
+    margin-bottom: 1.5rem;
+}
 .spa-related-sermons h3 {
     color: #172b4d;
     font-size: 1.5rem;

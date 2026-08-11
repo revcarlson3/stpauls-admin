@@ -61,7 +61,67 @@ function spa_services_render_video($url) {
     return wp_oembed_get($url, array('width' => 640));
 }
 
+function spa_services_get_details_url() {
+    $details_page = get_page_by_path('sermon-details');
+    return $details_page ? get_permalink($details_page) : home_url('/sermon-details/');
+}
+
 add_shortcode('spa_sermon_details', 'spa_services_sermon_details_shortcode');
+add_shortcode('spa_sermons', 'spa_services_sermons_shortcode');
+
+function spa_services_sermons_shortcode() {
+    global $wpdb;
+
+    $services = $wpdb->get_results(
+        "SELECT s.*, e.name AS event_name, e.event_date, p.name AS preacher_name
+         FROM {$wpdb->prefix}spa_services s
+         INNER JOIN {$wpdb->prefix}spa_events e ON e.id = s.event_id
+         LEFT JOIN {$wpdb->prefix}spa_preachers p ON p.id = s.preacher_id
+         WHERE s.active = 1
+           AND e.active = 1
+         ORDER BY e.event_date DESC, e.start_time DESC, s.id DESC"
+    );
+    wp_enqueue_style('spa-public-services', SPA_PLUGIN_URL . 'css/spa_services.css', array(), SPA_VERSION);
+
+    if ( ! $services ) {
+        return '<p class="spa-sermon-empty">No sermons are currently available.</p>';
+    }
+
+    $details_url = spa_services_get_details_url();
+    ob_start();
+    ?>
+    <section class="spa-sermons-archive" aria-labelledby="spa-sermons-heading">
+        <h2 id="spa-sermons-heading">Sermons</h2>
+        <div class="spa-related-sermon-grid">
+            <?php foreach ( $services as $service ) :
+                $title = $service->sermon_title ? $service->sermon_title : $service->event_name;
+                $excerpt = trim(wp_strip_all_tags($service->sermon_text));
+                if ( function_exists('mb_substr') ) {
+                    $excerpt = mb_substr($excerpt, 0, 350);
+                } else {
+                    $excerpt = substr($excerpt, 0, 350);
+                }
+                if ( strlen(wp_strip_all_tags($service->sermon_text)) > 350 ) {
+                    $excerpt .= '...';
+                }
+                ?>
+                <a class="spa-related-sermon-card" href="<?php echo esc_url(add_query_arg('service_id', intval($service->id), $details_url)); ?>">
+                    <?php if ( $service->featured_image_id ) : ?>
+                        <div class="spa-related-sermon-image"><?php echo wp_get_attachment_image($service->featured_image_id, 'medium_large', false, array('loading' => 'lazy')); ?></div>
+                    <?php endif; ?>
+                    <div class="spa-related-sermon-card-content">
+                        <h3><?php echo esc_html($title); ?></h3>
+                        <time datetime="<?php echo esc_attr($service->event_date); ?>"><?php echo esc_html(mysql2date(get_option('date_format'), $service->event_date)); ?></time>
+                        <?php if ( $excerpt ) : ?><p><?php echo esc_html($excerpt); ?></p><?php endif; ?>
+                        <?php if ( $service->preacher_name ) : ?><span>Preacher: <?php echo esc_html($service->preacher_name); ?></span><?php endif; ?>
+                    </div>
+                </a>
+            <?php endforeach; ?>
+        </div>
+    </section>
+    <?php
+    return ob_get_clean();
+}
 
 function spa_services_sermon_details_shortcode($atts) {
     global $wpdb;
