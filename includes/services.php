@@ -138,8 +138,7 @@ function spa_services_sermons_shortcode() {
     $details_url = spa_services_get_details_url();
     ob_start();
     ?>
-    <section class="spa-sermons-archive" aria-labelledby="spa-sermons-heading">
-        <h2 id="spa-sermons-heading">Sermons</h2>
+    <section class="spa-sermons-archive">
         <div class="spa-related-sermon-grid">
             <?php foreach ( $services as $service ) :
                 $title = $service->sermon_title ? $service->sermon_title : $service->event_name;
