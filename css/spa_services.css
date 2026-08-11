@@ -181,6 +181,12 @@
 .spa-sermon-actions a:not(.spa-sermon-button) {
     color: #2271b1;
 }
+.spa-sermon-edit-link {
+    color: #2271b1;
+    display: inline-block;
+    font-size: .9rem;
+    margin-top: .25rem;
+}
 .spa-sermon-audio {
     margin-top: 1.25rem;
     width: 100%;

@@ -262,6 +262,9 @@ function spa_services_sermon_details_shortcode($atts) {
                         <span><?php echo esc_html($service->sermon_title ? $service->sermon_title : $service->event_name); ?></span>
                     </nav>
                     <h2><?php echo esc_html($service->sermon_title ? $service->sermon_title : $service->event_name); ?></h2>
+                    <?php if ( current_user_can('edit_posts') ) : ?>
+                        <a class="spa-sermon-edit-link" href="<?php echo esc_url(admin_url('admin.php?page=spa-services&service_id=' . intval($service->id) . '&event_id=' . intval($service->event_id))); ?>">Edit</a>
+                    <?php endif; ?>
                     <p class="spa-sermon-date"><?php echo esc_html(mysql2date(get_option('date_format'), $service->event_date)); ?></p>
                     <?php if ( $service->preacher_name || $service->series_name ) : ?>
                         <p class="spa-sermon-meta">
