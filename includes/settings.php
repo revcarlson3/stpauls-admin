@@ -30,6 +30,7 @@ function spa_handle_settings_post() {
         }
         update_option('spa_youtube_preferred_channel_id', sanitize_text_field(wp_unslash($_POST['spa_youtube_preferred_channel_id'] ?? '')));
         update_option('spa_youtube_secondary_channel_id', sanitize_text_field(wp_unslash($_POST['spa_youtube_secondary_channel_id'] ?? '')));
+        update_option('spa_youtube_cache_version', time());
     }
 
     if ( $posted_tab === 'email' ) {
