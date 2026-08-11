@@ -152,17 +152,14 @@
     gap: .45rem;
     margin: .65rem 0;
 }
-.spa-sermon-hymns li span {
-    color: #5b6878;
-    display: block;
-    font-size: .9rem;
-    margin-left: 1rem;
-}
 .spa-sermon-hymns li > .spa-sermon-item-icon {
     display: inline-block;
     margin-left: 0;
 }
 .spa-sermon-hymns li > .spa-sermon-item-content > span {
+    color: #5b6878;
+    display: block;
+    font-size: .9rem;
     margin-left: 0;
 }
 .spa-sermon-actions {
