@@ -16,12 +16,12 @@ jQuery(function($) {
                     return false;
                 }
                 if (parts.length === 1) {
-                    var title = window.prompt('Enter the hymn title if it is not available from the external lookup (optional):', '');
+                    var title = window.prompt('Enter the title for hymn ' + reference + ' if it is not available from the external lookup (optional):', '');
                     if (title === null) {
                         e.preventDefault();
                         return false;
                     }
-                    parts.push(title, window.prompt('Enter the hymn author (optional):', '') || '', window.prompt('Enter the tune name (optional):', '') || '');
+                    parts.push(title, window.prompt('Enter the author for hymn ' + reference + ' (optional):', '') || '', window.prompt('Enter the tune name for hymn ' + reference + ' (optional):', '') || '');
                 }
                 normalized.push(reference + (parts.length > 1 ? ' | ' + $.trim(parts.slice(1).join(' | ')) : ''));
             });
