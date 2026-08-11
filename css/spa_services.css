@@ -91,6 +91,65 @@
     margin: 2rem auto;
     max-width: 1080px;
 }
+.spa-related-sermons {
+    margin: 2.5rem auto;
+    max-width: 1080px;
+}
+.spa-related-sermons h3 {
+    color: #172b4d;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+.spa-related-sermon-grid {
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.spa-related-sermon-card {
+    background: #fff;
+    border: 1px solid #e1e5ea;
+    border-radius: 12px;
+    box-shadow: 0 8px 22px rgba(25, 45, 70, .07);
+    color: #283747;
+    overflow: hidden;
+    text-decoration: none;
+    transition: box-shadow .2s ease, transform .2s ease;
+}
+.spa-related-sermon-card:hover,
+.spa-related-sermon-card:focus {
+    box-shadow: 0 12px 28px rgba(25, 45, 70, .15);
+    transform: translateY(-2px);
+}
+.spa-related-sermon-image {
+    background: #edf2f7;
+    height: 150px;
+    overflow: hidden;
+}
+.spa-related-sermon-image img {
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
+}
+.spa-related-sermon-card-content {
+    padding: 1rem;
+}
+.spa-related-sermon-card h4 {
+    color: #172b4d;
+    font-size: 1.1rem;
+    line-height: 1.25;
+    margin: 0 0 .4rem;
+}
+.spa-related-sermon-card time,
+.spa-related-sermon-card span {
+    color: #5b6878;
+    display: block;
+    font-size: .85rem;
+}
+.spa-related-sermon-card p {
+    font-size: .92rem;
+    line-height: 1.5;
+    margin: .75rem 0;
+}
 @media (max-width: 700px) {
     .spa-latest-sermon {
         display: block;
@@ -99,5 +158,8 @@
     .spa-sermon-image {
         min-height: 180px;
         max-height: 280px;
+    }
+    .spa-related-sermon-grid {
+        grid-template-columns: 1fr;
     }
 }

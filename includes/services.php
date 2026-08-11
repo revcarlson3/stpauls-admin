@@ -55,6 +55,9 @@ function spa_services_sermon_details_shortcode($atts) {
 
     $atts = shortcode_atts(array('service_id' => 0), $atts, 'spa_sermon_details');
     $service_id = intval($atts['service_id']);
+    if ( ! $service_id && isset($_GET['service_id']) ) {
+        $service_id = absint($_GET['service_id']);
+    }
     $service_filter = $service_id ? $wpdb->prepare('AND s.id = %d', $service_id) : '';
     $service = $wpdb->get_row(
         "SELECT s.*, e.name AS event_name, e.event_date, e.start_time,
@@ -81,6 +84,28 @@ function spa_services_sermon_details_shortcode($atts) {
             "SELECT reference FROM {$wpdb->prefix}spa_service_lessons
              WHERE service_id = %d
              ORDER BY lesson_order, id",
+            $service->id
+        )
+    );
+    $related_services = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT s.*, e.name AS event_name, e.event_date, p.name AS preacher_name,
+                    COUNT(DISTINCT matching_rel.tag_id) AS matching_tags
+             FROM {$wpdb->prefix}spa_services s
+             INNER JOIN {$wpdb->prefix}spa_events e ON e.id = s.event_id
+             LEFT JOIN {$wpdb->prefix}spa_preachers p ON p.id = s.preacher_id
+             INNER JOIN {$wpdb->prefix}spa_service_tag_relationships matching_rel
+                ON matching_rel.service_id = s.id
+             INNER JOIN {$wpdb->prefix}spa_service_tag_relationships current_rel
+                ON current_rel.tag_id = matching_rel.tag_id
+               AND current_rel.service_id = %d
+             WHERE s.active = 1
+               AND e.active = 1
+               AND s.id <> %d
+             GROUP BY s.id
+             ORDER BY matching_tags DESC, e.event_date DESC, s.id DESC
+             LIMIT 3",
+            $service->id,
             $service->id
         )
     );
@@ -135,6 +160,38 @@ function spa_services_sermon_details_shortcode($atts) {
             <?php endif; ?>
         </div>
     </article>
+    <?php if ( $related_services ) : ?>
+        <section class="spa-related-sermons">
+            <h3>Related sermons</h3>
+            <div class="spa-related-sermon-grid">
+                <?php foreach ( $related_services as $related ) :
+                    $related_title = $related->sermon_title ? $related->sermon_title : $related->event_name;
+                    $related_excerpt = trim(wp_strip_all_tags($related->sermon_text));
+                    if ( function_exists('mb_substr') ) {
+                        $related_excerpt = mb_substr($related_excerpt, 0, 350);
+                    } else {
+                        $related_excerpt = substr($related_excerpt, 0, 350);
+                    }
+                    if ( strlen(wp_strip_all_tags($related->sermon_text)) > 350 ) {
+                        $related_excerpt .= '...';
+                    }
+                    $related_url = add_query_arg('service_id', intval($related->id), get_permalink());
+                    ?>
+                    <a class="spa-related-sermon-card" href="<?php echo esc_url($related_url); ?>">
+                        <?php if ( $related->featured_image_id ) : ?>
+                            <div class="spa-related-sermon-image"><?php echo wp_get_attachment_image($related->featured_image_id, 'medium_large', false, array('loading' => 'lazy')); ?></div>
+                        <?php endif; ?>
+                        <div class="spa-related-sermon-card-content">
+                            <h4><?php echo esc_html($related_title); ?></h4>
+                            <time datetime="<?php echo esc_attr($related->event_date); ?>"><?php echo esc_html(mysql2date(get_option('date_format'), $related->event_date)); ?></time>
+                            <?php if ( $related_excerpt ) : ?><p><?php echo esc_html($related_excerpt); ?></p><?php endif; ?>
+                            <?php if ( $related->preacher_name ) : ?><span>Preacher: <?php echo esc_html($related->preacher_name); ?></span><?php endif; ?>
+                        </div>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        </section>
+    <?php endif; ?>
     <?php
     return ob_get_clean();
 }
