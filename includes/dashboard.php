@@ -44,22 +44,16 @@ function spa_dashboard_page() {
 
     if ( empty($dashboard_order) ) {
         $dashboard_order = array(
-            'volunteer-alerts',
             'upcoming-events',
-            'quick-statistics',
             'communications',
             'recent-activity',
-            'future',
         );
     }
 
     $dashboard_cards = array(
-        'volunteer-alerts' => array('title' => 'Volunteer Alerts'),
         'upcoming-events'  => array('title' => 'Upcoming Events'),
-        'quick-statistics' => array('title' => 'Quick Statistics'),
         'communications'   => array('title' => 'Communications'),
         'recent-activity'  => array('title' => 'Recent Activity'),
-        'future'           => array('title' => 'Future'),
     );
 
     $upcoming_events = $wpdb->get_results(
