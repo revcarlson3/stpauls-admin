@@ -16,4 +16,9 @@ Installation
 Testing
 - Use a development database and backup before running on production.
 
+Versioning
+- Releases use monotonically increasing SemVer-style versions: `MAJOR.MINOR.PATCH`, with `-alpha`, `-beta`, or `-rc` prerelease labels when applicable.
+- Never reuse or lower a released version. The current release is `0.1.21-beta2`, which is newer than the previous `0.1.20-beta`.
+- Database schema revisions are tracked separately from the plugin version in `SPA_DB_VERSION`.
+
 License: GPL2
