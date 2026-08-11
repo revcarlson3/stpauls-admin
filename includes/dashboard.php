@@ -101,6 +101,23 @@ function spa_dashboard_page() {
          LIMIT 2"
     );
 
+    $recent_activity = $wpdb->get_results(
+        "SELECT
+            DATE_FORMAT(log.created_at, '%Y-%m-%d %H:%i:00') AS activity_time,
+            log.event_id,
+            MAX(e.name) AS event_name,
+            COUNT(CASE WHEN log.channel = 'email' THEN 1 END) AS email_count,
+            COUNT(CASE WHEN log.channel = 'sms' THEN 1 END) AS sms_count,
+            COUNT(*) AS total_count
+         FROM {$wpdb->prefix}spa_notification_delivery_logs log
+         LEFT JOIN {$wpdb->prefix}spa_events e ON e.id = log.event_id
+         WHERE log.created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 30 DAY)
+           AND log.status IN ('sent', 'delivered')
+         GROUP BY log.event_id, DATE_FORMAT(log.created_at, '%Y-%m-%d %H:%i:00')
+         ORDER BY activity_time DESC
+         LIMIT 10"
+    );
+
     $sunday_service = $wpdb->get_row(
         "SELECT *
          FROM {$wpdb->prefix}spa_events

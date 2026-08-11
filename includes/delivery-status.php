@@ -115,14 +115,6 @@ function spa_mark_delivery_sent($log_id, $result, $retain_for_webhook) {
     if ( intval($log_id) < 1 ) {
         return;
     }
-    if ( ! $retain_for_webhook ) {
-        $wpdb->delete(
-            $wpdb->prefix . 'spa_notification_delivery_logs',
-            array('id' => intval($log_id)),
-            array('%d')
-        );
-        return;
-    }
 
     $message_id = is_array($result) && ! empty($result['message_id'])
         ? sanitize_text_field($result['message_id'])

@@ -258,6 +258,33 @@
                         <?php endif; ?>
                     <?php elseif ( $card_id === 'future' ) : ?>
                         <p style="color:#999;font-style:italic;">Reserved for future functionality.</p>
+                    <?php elseif ( $card_id === 'recent-activity' ) : ?>
+                        <?php if ( ! empty($recent_activity) ) : ?>
+                            <table class="spa-upcoming-events-table spa-recent-activity-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date and time</th>
+                                        <th>Event</th>
+                                        <th>Email</th>
+                                        <th>SMS</th>
+                                        <th>Push</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ( $recent_activity as $activity ) : ?>
+                                        <tr>
+                                            <td><?php echo esc_html(mysql2date('M j, Y g:i a', $activity->activity_time)); ?></td>
+                                            <td><?php echo esc_html($activity->event_name ?: 'Notification'); ?></td>
+                                            <td><?php echo intval($activity->email_count); ?></td>
+                                            <td><?php echo intval($activity->sms_count); ?></td>
+                                            <td>Not sent</td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        <?php else : ?>
+                            <p>No recent notification activity recorded.</p>
+                        <?php endif; ?>
                     <?php else : ?>
                         <p style="color:#999;font-style:italic;">Coming soon.</p>
                     <?php endif; ?>
