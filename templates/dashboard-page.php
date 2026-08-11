@@ -212,6 +212,11 @@
                                                 <?php echo esc_html(mysql2date('M j, Y', $upcoming_event->event_date)); ?>
                                             </td>
                                             <td>
+                                                <a href="<?php echo esc_url(add_query_arg(array('page' => 'spa-events', 'event_id' => intval($upcoming_event->id)), admin_url('admin.php'))); ?>">
+                                                    <?php echo esc_html(wp_unslash($upcoming_event->name)); ?>
+                                                </a>
+                                            </td>
+                                            <td>
                                                 <?php if ( ! empty($upcoming_event->service_id) ) : ?>
                                                     <span class="spa-assignment-status spa-assignment-status-assigned">
                                                         <span class="dashicons dashicons-yes-alt" aria-hidden="true"></span>
@@ -223,11 +228,6 @@
                                                         Not created
                                                     </span>
                                                 <?php endif; ?>
-                                            </td>
-                                            <td>
-                                                <a href="<?php echo esc_url(add_query_arg(array('page' => 'spa-events', 'event_id' => intval($upcoming_event->id)), admin_url('admin.php'))); ?>">
-                                                    <?php echo esc_html(wp_unslash($upcoming_event->name)); ?>
-                                                </a>
                                             </td>
                                             <td>
                                                 <?php if ( intval($upcoming_event->assigned_count) > 0 ) : ?>
