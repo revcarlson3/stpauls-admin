@@ -547,7 +547,7 @@ function spa_services_get_hymn_video_url($hymn) {
     if ( $query === '' ) {
         return '';
     }
-    $cache_key = 'spa_hymn_video_' . md5(strtolower($query));
+    $cache_key = 'spa_hymn_video_' . md5(strtolower($query) . '|' . $api_key);
     $cached = get_transient($cache_key);
     if ( $cached !== false ) {
         return is_string($cached) ? $cached : '';
