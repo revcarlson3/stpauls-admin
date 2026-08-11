@@ -228,14 +228,14 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                         <th scope="row"><label for="spa_youtube_preferred_channel_id">Preferred channel ID</label></th>
                         <td>
                             <input name="spa_youtube_preferred_channel_id" id="spa_youtube_preferred_channel_id" type="text" value="<?php echo esc_attr(get_option('spa_youtube_preferred_channel_id', '')); ?>" class="regular-text code">
-                            <p class="description">The first channel searched for hymn videos, such as the Concordia Publishing House channel.</p>
+                            <p class="description">Enter a YouTube channel ID in the <code>UC...</code> format. This channel is searched first, so it should contain the hymn recordings you want to use.</p>
                         </td>
                     </tr>
                     <tr>
                         <th scope="row"><label for="spa_youtube_secondary_channel_id">Secondary channel ID</label></th>
                         <td>
                             <input name="spa_youtube_secondary_channel_id" id="spa_youtube_secondary_channel_id" type="text" value="<?php echo esc_attr(get_option('spa_youtube_secondary_channel_id', '')); ?>" class="regular-text code">
-                            <p class="description">Searched if the preferred channel has no matching video.</p>
+                            <p class="description">Enter another <code>UC...</code> channel ID. It is searched if the preferred channel has no matching video. If neither channel has a match, the plugin searches YouTube generally and then falls back to Hymnary.org.</p>
                         </td>
                     </tr>
                 </table>
