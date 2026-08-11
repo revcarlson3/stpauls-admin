@@ -258,7 +258,19 @@ function spa_get_report_definitions() {
             'label' => 'Schedule Report',
             'columns' => array(),
         ),
+        'weekly_assignments' => array(
+            'label' => 'Weekly Assignments',
+            'columns' => array('Event Name', 'Event Date', 'Start Time', 'Team', 'Volunteers'),
+        ),
     );
+}
+
+function spa_reports_page() {
+    if ( ! current_user_can('manage_options') ) {
+        wp_die('Unauthorized', 'Error', array('response' => 403));
+    }
+
+    include SPA_TEMPLATE_DIR . 'reports-page.php';
 }
 
 function spa_get_schedule_report_date_range($start_date = '', $end_date = '') {
@@ -392,6 +404,69 @@ function spa_get_report_rows($report_key, $filters = array()) {
                     'email' => $grouped_row['email'],
                     'phone' => $grouped_row['phone'],
                     'teams' => ! empty($grouped_row['teams']) ? implode("\n", $grouped_row['teams']) : '',
+                );
+            }
+
+            return $formatted_rows;
+
+        case 'weekly_assignments':
+            $today = current_time('Y-m-d');
+            $now = current_time('H:i:s');
+            $event = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT e.id, e.name, e.event_date, e.start_time
+                     FROM {$wpdb->prefix}spa_events e
+                     WHERE e.active = 1
+                     AND (e.event_date > %s OR (e.event_date = %s AND e.start_time >= %s))
+                     AND EXISTS (
+                         SELECT 1
+                         FROM {$wpdb->prefix}spa_event_volunteers ev_check
+                         WHERE ev_check.event_id = e.id
+                     )
+                     ORDER BY e.event_date ASC, e.start_time ASC, e.id ASC
+                     LIMIT 1",
+                    $today,
+                    $today,
+                    $now
+                ),
+                ARRAY_A
+            );
+
+            if ( empty($event) ) {
+                return array();
+            }
+
+            $assignments = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT
+                        t.name AS team_name,
+                        CONCAT(v.first_name, ' ', v.last_name) AS volunteer_name
+                     FROM {$wpdb->prefix}spa_event_volunteers ev
+                     INNER JOIN {$wpdb->prefix}spa_teams t ON t.id = ev.team_id AND t.active = 1
+                     INNER JOIN {$wpdb->prefix}spa_volunteers v ON v.id = ev.volunteer_id AND v.active = 1
+                     WHERE ev.event_id = %d
+                     ORDER BY t.name, v.last_name, v.first_name",
+                    $event['id']
+                ),
+                ARRAY_A
+            );
+
+            $grouped_assignments = array();
+            foreach ( $assignments as $assignment ) {
+                if ( ! isset($grouped_assignments[$assignment['team_name']]) ) {
+                    $grouped_assignments[$assignment['team_name']] = array();
+                }
+                $grouped_assignments[$assignment['team_name']][] = $assignment['volunteer_name'];
+            }
+
+            $formatted_rows = array();
+            foreach ( $grouped_assignments as $team_name => $volunteers ) {
+                $formatted_rows[] = array(
+                    'event_name' => $event['name'],
+                    'event_date' => $event['event_date'],
+                    'start_time' => wp_date(get_option('time_format'), strtotime($event['event_date'] . ' ' . $event['start_time']), wp_timezone()),
+                    'team' => $team_name,
+                    'volunteers' => implode("\n", $volunteers),
                 );
             }
 
