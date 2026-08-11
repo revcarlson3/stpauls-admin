@@ -1,7 +1,7 @@
 <?php
 
 define('SPA_UPDATE_REPOSITORY', 'revcarlson3/stpauls-admin');
-define('SPA_UPDATE_CACHE_KEY', 'spa_github_release_v2');
+define('SPA_UPDATE_CACHE_KEY', 'spa_github_release_v3');
 
 function spa_log_update_debug($message) {
     if ( defined('WP_DEBUG') && WP_DEBUG ) {
