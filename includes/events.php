@@ -25,6 +25,18 @@ add_action(
     'spa_delete_event_ajax'
 );
 
+function spa_get_church_year_seasons() {
+    return array(
+        'Advent',
+        'Christmas',
+        'Epiphany',
+        'Lent',
+        'Holy Week',
+        'Easter',
+        'Pentecost',
+    );
+}
+
 add_action(
     'wp_ajax_spa_override_event_volunteer',
     'spa_override_event_volunteer_ajax'
@@ -327,6 +339,7 @@ function spa_save_event_modal_ajax() {
     
     $event_id = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
     $name = isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '';
+    $season = isset($_POST['season']) ? sanitize_text_field(wp_unslash($_POST['season'])) : '';
     $location = isset($_POST['location']) ? sanitize_text_field(wp_unslash($_POST['location'])) : '';
     $description = isset($_POST['description']) ? sanitize_textarea_field(wp_unslash($_POST['description'])) : '';
     $event_date = isset($_POST['event_date']) ? sanitize_text_field(wp_unslash($_POST['event_date'])) : '';
@@ -336,6 +349,9 @@ function spa_save_event_modal_ajax() {
     $recurrence_type = isset($_POST['recurrence_type']) ? sanitize_text_field(wp_unslash($_POST['recurrence_type'])) : '';
     $recurrence_end_date = isset($_POST['recurrence_end_date']) ? sanitize_text_field(wp_unslash($_POST['recurrence_end_date'])) : '';
     $service_type_id = isset($_POST['service_type_id']) ? intval($_POST['service_type_id']) : 0;
+    if ( $season !== '' && ! in_array($season, spa_get_church_year_seasons(), true) ) {
+        $season = '';
+    }
     $service_builder_url = spa_get_posted_service_builder_url();
     if ( is_wp_error($service_builder_url) ) {
         wp_send_json_error(array('message' => $service_builder_url->get_error_message()));
@@ -368,6 +384,7 @@ function spa_save_event_modal_ajax() {
 
     $data = array(
         'name' => $name,
+        'season' => $season,
         'location' => $location,
         'description' => $description,
         'event_date' => $event_date,
@@ -668,6 +685,7 @@ function spa_events_page() {
             } else {
                 $wpdb->update($table_name, array(
                     'name' => sanitize_text_field($_POST['spa_event_name']),
+                    'season' => isset($_POST['spa_event_season']) ? sanitize_text_field(wp_unslash($_POST['spa_event_season'])) : '',
                     'event_date' => wp_unslash($_POST['spa_event_date']),
                     'start_time' => wp_unslash($_POST['spa_event_start_time']),
                     'end_time' => wp_unslash($_POST['spa_event_end_time']),
@@ -701,6 +719,7 @@ function spa_events_page() {
         } else {
             $wpdb->insert($table_name, array(
                 'name' => sanitize_text_field($_POST['spa_event_name']),
+                'season' => isset($_POST['spa_event_season']) ? sanitize_text_field(wp_unslash($_POST['spa_event_season'])) : '',
                 'event_date' => wp_unslash($_POST['spa_event_date']),
                 'start_time' => wp_unslash($_POST['spa_event_start_time']),
                 'end_time' => wp_unslash($_POST['spa_event_end_time']),
@@ -747,6 +766,7 @@ function spa_events_page() {
                 while($current_date <= $end_date) {
                     $wpdb->insert($table_name, array(
                         'name' => sanitize_text_field($_POST['spa_event_name']),
+                        'season' => isset($_POST['spa_event_season']) ? sanitize_text_field(wp_unslash($_POST['spa_event_season'])) : '',
                         'event_date' => $current_date->format('Y-m-d'),
                         'start_time' => wp_unslash($_POST['spa_event_start_time']),
                         'end_time' => wp_unslash($_POST['spa_event_end_time']),

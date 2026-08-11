@@ -290,6 +290,7 @@ jQuery(function($) {
                 event_id: eventId,
                 update_scope: scope || 'parent',
                 name: $('#spa-event-name').val(),
+                season: $('#spa-event-season').val(),
                 location: $('#spa-event-location').val(),
                 service_builder_url: $('#spa-event-service-builder-url').val(),
                 description: $('#spa-event-description').val(),
@@ -638,6 +639,7 @@ $('#spa-sms-example').text(ex);
        $('#spa-event-modal-title').text('Add Event');
        $('#spa-event-modal-id').val('');
        $('#spa-event-modal-name').val('');
+       $('#spa-event-modal-season').val('');
        $('#spa-event-modal-service-type').val('');
        $('#spa-event-modal-location').val('');
        $('#spa-event-modal-service-builder-url').val('');
@@ -676,6 +678,7 @@ $('#spa-sms-example').text(ex);
            nonce: spaAdmin.nonce,
            event_id: $('#spa-event-modal-id').val(),
            name: $('#spa-event-modal-name').val(),
+           season: $('#spa-event-modal-season').val(),
            location: $('#spa-event-modal-location').val(),
            service_builder_url: $('#spa-event-modal-service-builder-url').val(),
            description: $('#spa-event-modal-description').val(),

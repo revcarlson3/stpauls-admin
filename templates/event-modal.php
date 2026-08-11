@@ -15,6 +15,16 @@
                 </div>
 
                 <div class="spa-form-field">
+                    <label for="spa-event-modal-season">Season</label>
+                    <select id="spa-event-modal-season" class="spa-event-field">
+                        <option value="">Select</option>
+                        <?php foreach ( spa_get_church_year_seasons() as $season ) : ?>
+                            <option value="<?php echo esc_attr($season); ?>"><?php echo esc_html($season); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="spa-form-field">
                     <label for="spa-event-modal-service-type">Service Type</label>
                     <select id="spa-event-modal-service-type" class="spa-event-field">
                         <option value="">Select</option>

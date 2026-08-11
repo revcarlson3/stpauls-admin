@@ -55,6 +55,7 @@ function spa_activate_plugin() {
     $sql = "CREATE TABLE $events_table (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
         name varchar(255) NOT NULL,
+        season varchar(30) NULL,
         event_date date NOT NULL,
         start_time time NOT NULL,
         end_time time NOT NULL,

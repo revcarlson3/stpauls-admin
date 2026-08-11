@@ -3,7 +3,7 @@
   * Plugin Name: St. Paul's Admin
   * Plugin URI: https://stpaulsmilaca.org
   * Description: A plugin written specifically for St. Paul's Lutheran Church to handle scheduling
-  * Version: 0.1.10-beta
+  * Version: 0.1.11-beta
   * Author: Rev. Daniel Carlson
   * License: GPL2
   */
@@ -13,7 +13,7 @@ if(!defined('ABSPATH')) {
 
 define('SPA_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SPA_TEMPLATE_DIR', plugin_dir_path(__FILE__) . 'templates/');
-define('SPA_VERSION', '0.1.10-beta');
+define('SPA_VERSION', '0.1.11-beta');
 
 // Optional Composer autoloader for libraries (libphonenumber)
 if ( file_exists(plugin_dir_path(__FILE__) . 'vendor/autoload.php') ) {
