@@ -25,6 +25,26 @@
                     <button type="submit" class="button button-primary">Save Service Type</button>
                 </p>
             </form>
+            <?php if ( ! empty($service_types) ) : ?>
+                <table class="widefat striped" style="margin-top:16px;">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $service_types as $service_type ) : ?>
+                            <tr>
+                                <td><?php echo esc_html($service_type->name); ?></td>
+                                <td><?php echo esc_html($service_type->description); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php else : ?>
+                <p>No service types created yet.</p>
+            <?php endif; ?>
         </div>
 
         <div class="postbox" style="padding:16px;">
@@ -96,31 +116,7 @@
         </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
-        <div class="postbox" style="padding:16px;">
-            <h3 style="margin-top:0;">Service Types</h3>
-            <?php if ( ! empty($service_types) ) : ?>
-                <table class="widefat striped">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Description</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ( $service_types as $service_type ) : ?>
-                            <tr>
-                                <td><?php echo esc_html($service_type->name); ?></td>
-                                <td><?php echo esc_html($service_type->description); ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            <?php else : ?>
-                <p>No service types created yet.</p>
-            <?php endif; ?>
-        </div>
-
+    <div style="margin-top:24px;">
         <div class="postbox" style="padding:16px;">
             <h3 style="margin-top:0;">Rotation Preview</h3>
             <?php if ( ! empty($rotations) ) : ?>
@@ -152,54 +148,6 @@
         </div>
     </div>
 
-    <div class="postbox" style="padding:16px;margin-top:24px;">
-        <h3 style="margin-top:0;">Available Volunteers by Team</h3>
-        <?php if ( ! empty($teams) ) : ?>
-            <table class="widefat striped" style="margin-bottom:16px;">
-                <thead>
-                    <tr>
-                        <th>Team</th>
-                        <th>Volunteer IDs</th>
-                        <th>Volunteer Names</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ( $teams as $team ) : ?>
-                        <?php $team_volunteers = isset($volunteers_by_team[$team->id]) ? $volunteers_by_team[$team->id] : array(); ?>
-                        <tr>
-                            <td style="vertical-align:top;"><?php echo esc_html($team->name); ?></td>
-                            <td style="vertical-align:top;">
-                                <?php
-                                $team_ids = array();
-                                foreach ( $team_volunteers as $volunteer ) {
-                                    $team_ids[] = intval($volunteer->id);
-                                }
-                                echo esc_html(implode(', ', $team_ids));
-                                ?>
-                            </td>
-                            <td style="vertical-align:top;">
-                                <?php
-                                $team_names = array();
-                                foreach ( $team_volunteers as $volunteer ) {
-                                    $team_names[] = $volunteer->last_name . ', ' . $volunteer->first_name;
-                                }
-                                echo esc_html(implode(' | ', $team_names));
-                                ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php endif; ?>
-
-        <h3 style="margin-top:0;">Planned Scheduling Model</h3>
-        <p>This page is now scaffolded for the scheduling system. The next step is adding forms to manage:</p>
-        <ol>
-            <li>Service types such as Sunday Service and Midweek Service</li>
-            <li>Team rotation lists per service type</li>
-            <li>Preview/apply assignment generation for upcoming events</li>
-        </ol>
-    </div>
 </div>
 
 <script>
