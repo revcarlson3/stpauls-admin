@@ -64,7 +64,16 @@
 
     <tr data-event-id="<?php echo intval($event->id); ?>">
         <td class="spa-event-date"><?php echo date('F j Y', strtotime($event->event_date)) ?></td>
-        <td class="spa-event-name"><a href="#" class="spa-event-link" data-event-id="<?php echo intval($event->id) ?>"><?php echo esc_html(wp_unslash($event->name)) ?></a></td>
+    <td class="spa-event-name">
+        <a href="#" class="spa-event-link" data-event-id="<?php echo intval($event->id) ?>"><?php echo esc_html(wp_unslash($event->name)) ?></a>
+        <span class="spa-event-actions">
+            <?php if ( ! empty($event->service_id) ) : ?>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=spa-services&service_id=' . intval($event->service_id) . '&event_id=' . intval($event->id))); ?>">Edit service</a>
+            <?php else : ?>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=spa-services&event_id=' . intval($event->id))); ?>">Add service</a>
+            <?php endif; ?>
+        </span>
+    </td>
     </tr>
 
     <?php endforeach; ?>

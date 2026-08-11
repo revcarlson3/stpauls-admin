@@ -642,11 +642,12 @@ function spa_load_events_page_ajax() {
 
     $events = $wpdb->get_results(
         $wpdb->prepare(
-            "SELECT *
-             FROM {$table_name}
-             WHERE active = 1
-             AND event_date >= %s
-             ORDER BY event_date, start_time
+            "SELECT e.*, s.id AS service_id
+             FROM {$table_name} e
+             LEFT JOIN {$wpdb->prefix}spa_services s ON s.event_id = e.id AND s.active = 1
+             WHERE e.active = 1
+             AND e.event_date >= %s
+             ORDER BY e.event_date, e.start_time
              LIMIT %d OFFSET %d",
             date('Y-m-d'),
             $events_per_page,
