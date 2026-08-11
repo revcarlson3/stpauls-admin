@@ -38,36 +38,99 @@ function spa_save_dashboard_order_ajax() {
 
 function spa_dashboard_page() {
 
+    if ( ! current_user_can('manage_options') ) {
+        wp_die('Unauthorized', 'Error', array('response' => 403));
+    }
+
     global $wpdb;
 
     $dashboard_order = get_user_meta(get_current_user_id(), 'spa_dashboard_order', true);
 
     if ( empty($dashboard_order) ) {
         $dashboard_order = array(
-            'volunteer-alerts',
             'upcoming-events',
-            'quick-statistics',
             'communications',
             'recent-activity',
-            'future',
         );
     }
 
     $dashboard_cards = array(
-        'volunteer-alerts' => array('title' => 'Volunteer Alerts'),
         'upcoming-events'  => array('title' => 'Upcoming Events'),
-        'quick-statistics' => array('title' => 'Quick Statistics'),
         'communications'   => array('title' => 'Communications'),
         'recent-activity'  => array('title' => 'Recent Activity'),
-        'future'           => array('title' => 'Future'),
+    );
+
+    $upcoming_events = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT
+            e.id,
+            e.name,
+            e.event_date,
+            e.start_time,
+            e.end_time,
+            s.id AS service_id,
+            (
+                SELECT COUNT(*)
+                FROM {$wpdb->prefix}spa_event_volunteers ev
+                WHERE ev.event_id = e.id
+            ) AS assigned_count,
+            (
+                SELECT GROUP_CONCAT(DISTINCT conflicting.name ORDER BY conflicting.start_time, conflicting.id SEPARATOR ', ')
+                FROM {$wpdb->prefix}spa_events conflicting
+                WHERE conflicting.active = 1
+                AND conflicting.id <> e.id
+                AND conflicting.event_date = e.event_date
+                AND conflicting.start_time < e.end_time
+                AND conflicting.end_time > e.start_time
+            ) AS conflict_names
+         FROM {$wpdb->prefix}spa_events e
+         LEFT JOIN {$wpdb->prefix}spa_services s ON s.event_id = e.id AND s.active = 1
+         WHERE e.active = 1
+         AND e.event_date >= %s
+         ORDER BY e.event_date, e.start_time, e.id
+         LIMIT 8",
+            current_time('Y-m-d')
+        )
+    );
+
+    $communication_deliveries = $wpdb->get_results(
+        "SELECT channel, created_at, volunteer_name, status, failure_reason
+         FROM {$wpdb->prefix}spa_notification_delivery_logs
+         ORDER BY created_at DESC, id DESC
+         LIMIT 8"
+    );
+
+    $activity_filter = isset($_GET['activity_filter']) ? sanitize_key(wp_unslash($_GET['activity_filter'])) : 'all';
+    $allowed_activity_filters = array('all', 'events', 'services', 'volunteers', 'communications', 'scheduling', 'system');
+    if ( ! in_array($activity_filter, $allowed_activity_filters, true) ) {
+        $activity_filter = 'all';
+    }
+    $category_sql = $activity_filter === 'all' ? '' : $wpdb->prepare('AND a.category = %s', $activity_filter);
+    $recent_activity = $wpdb->get_results(
+        "SELECT a.created_at AS activity_time, a.category, a.description, e.name AS event_name
+         FROM {$wpdb->prefix}spa_activity a
+         LEFT JOIN {$wpdb->prefix}spa_events e ON e.id = a.event_id
+         WHERE a.created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 90 DAY)
+         {$category_sql}
+         UNION ALL
+         SELECT log.created_at AS activity_time, 'communications' AS category,
+                CONCAT('Notification sent via ', log.channel) AS description, e.name AS event_name
+         FROM {$wpdb->prefix}spa_notification_delivery_logs log
+         LEFT JOIN {$wpdb->prefix}spa_events e ON e.id = log.event_id
+         WHERE log.created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 90 DAY)
+           AND log.status IN ('sent', 'delivered')
+           " . ($activity_filter === 'all' || $activity_filter === 'communications' ? '' : 'AND 1 = 0') . "
+         ORDER BY activity_time DESC
+         LIMIT 8"
     );
 
     $sunday_service = $wpdb->get_row(
-        "SELECT *
-         FROM {$wpdb->prefix}spa_events
-         WHERE active = 1
-         AND event_date >= CURDATE()
-         ORDER BY event_date
+        "SELECT e.*, s.id AS service_id
+         FROM {$wpdb->prefix}spa_events e
+         LEFT JOIN {$wpdb->prefix}spa_services s ON s.event_id = e.id AND s.active = 1
+         WHERE e.active = 1
+         AND e.event_date >= CURDATE()
+         ORDER BY e.event_date
          LIMIT 1"
     );
     $sunday_teams = array();

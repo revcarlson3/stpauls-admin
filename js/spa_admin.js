@@ -1,4 +1,60 @@
 jQuery(function($) {
+    $('#spa-service-form').on('submit', function(e) {
+        var $hymns = $('#hymns');
+        if ($hymns.length) {
+            var lines = $hymns.val().split(/\r?\n/);
+            var normalized = [];
+            $.each(lines, function(index, line) {
+                var parts = line.split('|');
+                var reference = $.trim(parts[0]).toUpperCase();
+                if (!reference) {
+                    return;
+                }
+                if (!/^[A-Z0-9]+\s+[0-9A-Za-z-]+$/.test(reference)) {
+                    window.alert('Hymn references must look like “LSB 617” or “CH4 221”.');
+                    e.preventDefault();
+                    return false;
+                }
+                if (parts.length === 1) {
+                    var title = window.prompt('Enter the title for hymn ' + reference + ' if it is not available from the external lookup (optional):', '');
+                    if (title === null) {
+                        e.preventDefault();
+                        return false;
+                    }
+                    parts.push(title, window.prompt('Enter the author for hymn ' + reference + ' (optional):', '') || '', window.prompt('Enter the tune name for hymn ' + reference + ' (optional):', '') || '');
+                }
+                normalized.push(reference + (parts.length > 1 ? ' | ' + $.trim(parts.slice(1).join(' | ')) : ''));
+            });
+            if (e.isDefaultPrevented()) {
+                return;
+            }
+            $hymns.val(normalized.join('\n'));
+        }
+        var rules = {
+            sermon_file: ['doc', 'docx', 'pdf', 'rtf'],
+            audio_file: ['mp3'],
+            bulletin_file: ['pdf'],
+            featured_image: ['jpg', 'jpeg', 'jpe', 'png', 'gif', 'webp']
+        };
+        var invalid = false;
+        $.each(rules, function(field, extensions) {
+            var input = document.getElementById(field);
+            if (!input || !input.files.length) {
+                return;
+            }
+            var name = input.files[0].name.toLowerCase();
+            var extension = name.indexOf('.') > -1 ? name.split('.').pop() : '';
+            if ($.inArray(extension, extensions) === -1) {
+                invalid = true;
+                input.value = '';
+            }
+        });
+        if (invalid) {
+            e.preventDefault();
+            window.alert('Please select only the allowed file types for each service upload.');
+        }
+    });
+
     function spaResponseMessage(response, fallback) {
         var data = response && response.data;
 
@@ -125,6 +181,11 @@ jQuery(function($) {
 
         }
     );
+
+    var initialEventId = parseInt($('.spa-events-layout').data('initial-event-id'), 10);
+    if (initialEventId > 0) {
+        spaLoadEvent(initialEventId);
+    }
 
     $(document).on('click', '.spa-override-volunteer', function(e) {
         e.preventDefault();
@@ -285,6 +346,8 @@ jQuery(function($) {
                 event_id: eventId,
                 update_scope: scope || 'parent',
                 name: $('#spa-event-name').val(),
+                season: $('#spa-event-season').val(),
+                special_day: $('#spa-event-special-day').val(),
                 location: $('#spa-event-location').val(),
                 service_builder_url: $('#spa-event-service-builder-url').val(),
                 description: $('#spa-event-description').val(),
@@ -364,11 +427,15 @@ jQuery(function($) {
     $(document).on('click', '#spa-send-test-btn', function(e) {
         e.preventDefault();
         var $btn = $(this);
-        var dataArray = [
+        var dataArray = $('#spa-settings-form').serializeArray();
+        dataArray = dataArray.filter(function(item) {
+            return item.name !== 'action' && item.name !== 'nonce';
+        });
+        dataArray.push(
             { name: 'action', value: 'spa_send_test_email' },
             { name: 'nonce', value: spaAdmin.nonce },
             { name: 'spa_test_recipient', value: ($('#spa_test_recipient').val() || '').trim() }
-        ];
+        );
 
         $btn.prop('disabled', true).text('Sending...');
         var $result = $('#spa-test-result');
@@ -570,12 +637,16 @@ $('#spa-sms-example').text(ex);
         var $result = $('#spa-test-sms-result');
         $result.removeClass().text('');
 
-        $.post(spaAdmin.ajaxUrl, {
-            action: 'spa_send_test_sms',
-            nonce: spaAdmin.nonce,
-            spa_test_sms_recipient: cleaned,
-            spa_sms_provider: provider
-        }, function(response) {
+        var requestData = {};
+        $.each($btn.closest('form').serializeArray(), function(_, field) {
+            requestData[field.name] = field.value;
+        });
+        requestData.action = 'spa_send_test_sms';
+        requestData.nonce = spaAdmin.nonce;
+        requestData.spa_test_sms_recipient = cleaned;
+        requestData.spa_sms_provider = provider;
+
+        $.post(spaAdmin.ajaxUrl, requestData, function(response) {
             if ( response && response.success ) {
                 $result.addClass('spa-test-success').text('Test SMS sent successfully.');
             } else {
@@ -629,6 +700,8 @@ $('#spa-sms-example').text(ex);
        $('#spa-event-modal-title').text('Add Event');
        $('#spa-event-modal-id').val('');
        $('#spa-event-modal-name').val('');
+       $('#spa-event-modal-season').val('');
+       $('#spa-event-modal-special-day').val('');
        $('#spa-event-modal-service-type').val('');
        $('#spa-event-modal-location').val('');
        $('#spa-event-modal-service-builder-url').val('');
@@ -667,6 +740,8 @@ $('#spa-sms-example').text(ex);
            nonce: spaAdmin.nonce,
            event_id: $('#spa-event-modal-id').val(),
            name: $('#spa-event-modal-name').val(),
+           season: $('#spa-event-modal-season').val(),
+           special_day: $('#spa-event-modal-special-day').val(),
            location: $('#spa-event-modal-location').val(),
            service_builder_url: $('#spa-event-modal-service-builder-url').val(),
            description: $('#spa-event-modal-description').val(),

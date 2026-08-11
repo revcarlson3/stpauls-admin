@@ -1,6 +1,9 @@
-<?php include SPA_TEMPLATE_DIR .'header.php'; ?>
+<?php
+include SPA_TEMPLATE_DIR .'header.php';
+$initial_event_id = isset($_GET['event_id']) ? intval($_GET['event_id']) : 0;
+?>
 
-<div class="spa-events-layout">
+<div class="spa-events-layout" data-initial-event-id="<?php echo intval($initial_event_id); ?>">
 
     <div class="spa-events-column spa-events-list" id="spa-events-list-container">
 

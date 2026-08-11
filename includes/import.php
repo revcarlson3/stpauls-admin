@@ -26,10 +26,22 @@ function spa_get_complete_backup_table_definitions() {
             'formats' => array('%d', '%s', '%s', '%s', '%s', '%s', '%s'),
             'order_by' => 'id',
         ),
+        'delivery_logs' => array(
+            'suffix' => 'spa_notification_delivery_logs',
+            'columns' => array('id', 'event_id', 'volunteer_id', 'volunteer_name', 'channel', 'provider', 'status', 'provider_message_id', 'failure_reason', 'failed_at', 'created_at', 'updated_at'),
+            'formats' => array('%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s'),
+            'order_by' => 'id',
+        ),
+        'activity' => array(
+            'suffix' => 'spa_activity',
+            'columns' => array('id', 'category', 'action', 'description', 'event_id', 'user_id', 'created_at'),
+            'formats' => array('%d', '%s', '%s', '%s', '%d', '%d', '%s'),
+            'order_by' => 'id',
+        ),
         'events' => array(
             'suffix' => 'spa_events',
-            'columns' => array('id', 'name', 'event_date', 'start_time', 'end_time', 'description', 'location', 'service_builder_url', 'service_type_id', 'is_recurring', 'recurrence_type', 'recurrence_end_date', 'parent_event_id', 'notify_volunteers', 'active', 'created_at'),
-            'formats' => array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%d', '%d', '%d', '%s'),
+            'columns' => array('id', 'name', 'season', 'special_day', 'event_date', 'start_time', 'end_time', 'description', 'location', 'service_builder_url', 'service_type_id', 'is_recurring', 'recurrence_type', 'recurrence_end_date', 'parent_event_id', 'notify_volunteers', 'active', 'created_at'),
+            'formats' => array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%d', '%d', '%d', '%s'),
             'order_by' => 'id',
         ),
         'volunteer_teams' => array(
@@ -55,6 +67,60 @@ function spa_get_complete_backup_table_definitions() {
             'columns' => array('id', 'service_type_id', 'team_id', 'volunteer_id', 'rotation_order', 'is_next', 'advance_rule', 'created_at'),
             'formats' => array('%d', '%d', '%d', '%d', '%d', '%d', '%s', '%s'),
             'order_by' => 'id',
+        ),
+        'preachers' => array(
+            'suffix' => 'spa_preachers',
+            'columns' => array('id', 'name', 'bio', 'active', 'created_at', 'updated_at'),
+            'formats' => array('%d', '%s', '%s', '%d', '%s', '%s'),
+            'order_by' => 'id',
+        ),
+        'sermon_series' => array(
+            'suffix' => 'spa_sermon_series',
+            'columns' => array('id', 'name', 'description', 'active', 'created_at', 'updated_at'),
+            'formats' => array('%d', '%s', '%s', '%d', '%s', '%s'),
+            'order_by' => 'id',
+        ),
+        'services' => array(
+            'suffix' => 'spa_services',
+            'columns' => array('id', 'event_id', 'sermon_title', 'liturgy', 'sermon_text', 'sermon_file_id', 'sermon_file_url', 'bible_translation', 'video_url', 'audio_file_id', 'audio_file_url', 'bulletin_file_id', 'bulletin_file_url', 'preacher_id', 'series_id', 'featured_image_id', 'active', 'created_by', 'created_at', 'updated_at'),
+            'formats' => array('%d', '%d', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%d', '%d', '%d', '%d', '%d', '%s', '%s'),
+            'order_by' => 'id',
+        ),
+        'service_lessons' => array(
+            'suffix' => 'spa_service_lessons',
+            'columns' => array('id', 'service_id', 'reference', 'link_url', 'lesson_order', 'created_at'),
+            'formats' => array('%d', '%d', '%s', '%s', '%d', '%s'),
+            'order_by' => 'id',
+        ),
+        'service_hymns' => array(
+            'suffix' => 'spa_service_hymns',
+            'columns' => array('id', 'service_id', 'hymnal', 'hymn_number', 'reference', 'title', 'author', 'tune', 'external_url', 'hymn_order', 'created_at'),
+            'formats' => array('%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s'),
+            'order_by' => 'id',
+        ),
+        'hymnals' => array(
+            'suffix' => 'spa_hymnals',
+            'columns' => array('id', 'abbreviation', 'canonical_abbreviation', 'title', 'publication_year', 'created_at', 'updated_at'),
+            'formats' => array('%d', '%s', '%s', '%s', '%d', '%s', '%s'),
+            'order_by' => 'id',
+        ),
+        'hymn_catalog' => array(
+            'suffix' => 'spa_hymn_catalog',
+            'columns' => array('id', 'hymnal_id', 'hymn_number', 'title', 'author', 'tune', 'external_url', 'source', 'created_at', 'updated_at'),
+            'formats' => array('%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s'),
+            'order_by' => 'id',
+        ),
+        'service_tags' => array(
+            'suffix' => 'spa_service_tags',
+            'columns' => array('id', 'name', 'slug', 'created_at'),
+            'formats' => array('%d', '%s', '%s', '%s'),
+            'order_by' => 'id',
+        ),
+        'service_tag_relationships' => array(
+            'suffix' => 'spa_service_tag_relationships',
+            'columns' => array('service_id', 'tag_id'),
+            'formats' => array('%d', '%d'),
+            'order_by' => 'service_id, tag_id',
         ),
     );
 }
@@ -223,7 +289,7 @@ function spa_handle_export_complete_backup() {
     }
     $backup = array(
         'format' => 'stpauls-admin-complete-backup',
-        'format_version' => 2,
+        'format_version' => 11,
         'plugin_version' => defined('SPA_VERSION') ? SPA_VERSION : '',
         'exported_at' => gmdate('c'),
         'site_url' => home_url(),
@@ -276,7 +342,7 @@ function spa_complete_backup_validate_composite_keys($rows, $table_key, $columns
 }
 
 function spa_upgrade_complete_backup($backup) {
-    if ( ! is_array($backup) || intval($backup['format_version'] ?? 0) !== 1 ) {
+    if ( ! is_array($backup) || ! in_array(intval($backup['format_version'] ?? 0), array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11), true) ) {
         return $backup;
     }
     if (
@@ -288,32 +354,149 @@ function spa_upgrade_complete_backup($backup) {
         return new WP_Error('invalid_backup_checksum', 'The backup integrity check failed. The file may be incomplete or altered.');
     }
 
-    $old_event_columns = array('id', 'name', 'event_date', 'start_time', 'end_time', 'description', 'location', 'service_type_id', 'is_recurring', 'recurrence_type', 'recurrence_end_date', 'parent_event_id', 'notify_volunteers', 'active', 'created_at');
-    $event_rows = $backup['payload']['tables']['events'] ?? null;
-    if ( ! is_array($event_rows) ) {
-        return new WP_Error('invalid_backup_table', 'The events table data is invalid.');
+    if ( intval($backup['format_version']) === 1 ) {
+        $old_event_columns = array('id', 'name', 'event_date', 'start_time', 'end_time', 'description', 'location', 'service_type_id', 'is_recurring', 'recurrence_type', 'recurrence_end_date', 'parent_event_id', 'notify_volunteers', 'active', 'created_at');
+        $event_rows = $backup['payload']['tables']['events'] ?? null;
+        if ( ! is_array($event_rows) ) {
+            return new WP_Error('invalid_backup_table', 'The events table data is invalid.');
+        }
+
+        foreach ( $event_rows as $index => $row ) {
+            if ( ! is_array($row) || array_keys($row) !== $old_event_columns ) {
+                return new WP_Error('invalid_backup_columns', sprintf('Unexpected columns in events row %d.', $index + 1));
+            }
+            $upgraded_row = array();
+            foreach ( $row as $column => $value ) {
+                $upgraded_row[$column] = $value;
+                if ( $column === 'location' ) {
+                    $upgraded_row['service_builder_url'] = null;
+                }
+            }
+            $backup['payload']['tables']['events'][$index] = $upgraded_row;
+        }
+        $backup['format_version'] = 2;
     }
 
-    foreach ( $event_rows as $index => $row ) {
-        if ( ! is_array($row) || array_keys($row) !== $old_event_columns ) {
-            return new WP_Error('invalid_backup_columns', sprintf('Unexpected columns in events row %d.', $index + 1));
+    $upgraded_tables = array();
+    foreach ( $backup['payload']['tables'] as $table_key => $rows ) {
+        $upgraded_tables[$table_key] = $rows;
+        if ( $table_key === 'notification_templates' && ! isset($upgraded_tables['delivery_logs']) ) {
+            $upgraded_tables['delivery_logs'] = array();
         }
-        $upgraded_row = array();
-        foreach ( $row as $column => $value ) {
-            $upgraded_row[$column] = $value;
-            if ( $column === 'location' ) {
-                $upgraded_row['service_builder_url'] = null;
+    }
+    $backup['payload']['tables'] = $upgraded_tables;
+
+    if ( intval($backup['format_version']) < 4 ) {
+        foreach ( $backup['payload']['tables']['events'] as $index => $row ) {
+            if ( ! array_key_exists('season', $row) ) {
+                $upgraded_row = array();
+                foreach ( $row as $column => $value ) {
+                    $upgraded_row[$column] = $value;
+                    if ( $column === 'name' ) {
+                        $upgraded_row['season'] = null;
+                    }
+                }
+                $backup['payload']['tables']['events'][$index] = $upgraded_row;
             }
         }
-        $backup['payload']['tables']['events'][$index] = $upgraded_row;
+        $backup['format_version'] = 4;
     }
-
-    $backup['format_version'] = 2;
+    if ( intval($backup['format_version']) < 5 ) {
+        foreach ( $backup['payload']['tables']['events'] as $index => $row ) {
+            if ( ! array_key_exists('special_day', $row) ) {
+                $upgraded_row = array();
+                foreach ( $row as $column => $value ) {
+                    $upgraded_row[$column] = $value;
+                    if ( $column === 'season' ) {
+                        $upgraded_row['special_day'] = null;
+                    }
+                }
+                $backup['payload']['tables']['events'][$index] = $upgraded_row;
+            }
+        }
+        $backup['format_version'] = 5;
+    }
+    if ( intval($backup['format_version']) < 6 ) {
+        $new_table_keys = array('preachers', 'sermon_series', 'services', 'service_lessons', 'service_hymns', 'hymnals', 'hymn_catalog', 'service_tags', 'service_tag_relationships');
+        foreach ( $new_table_keys as $table_key ) {
+            if ( ! isset($backup['payload']['tables'][$table_key]) ) {
+                $backup['payload']['tables'][$table_key] = array();
+            }
+        }
+        $ordered_tables = array();
+        foreach ( spa_get_complete_backup_table_definitions() as $table_key => $definition ) {
+            $ordered_tables[$table_key] = isset($backup['payload']['tables'][$table_key])
+                ? $backup['payload']['tables'][$table_key]
+                : array();
+        }
+        $backup['payload']['tables'] = $ordered_tables;
+        $backup['format_version'] = 6;
+    }
+    if ( intval($backup['format_version']) < 7 ) {
+        foreach ( $backup['payload']['tables']['services'] as $index => $row ) {
+            $upgraded_row = array();
+            foreach ( $row as $column => $value ) {
+                if ( $column === 'sermon_text' ) {
+                    $upgraded_row['sermon_title'] = '';
+                }
+                $upgraded_row[$column] = $value;
+            }
+            $backup['payload']['tables']['services'][$index] = $upgraded_row;
+        }
+        $backup['format_version'] = 7;
+    }
+    if ( intval($backup['format_version']) < 8 ) {
+        $backup['payload']['tables']['service_hymns'] = array();
+        $ordered_tables = array();
+        foreach ( spa_get_complete_backup_table_definitions() as $table_key => $definition ) {
+            $ordered_tables[$table_key] = isset($backup['payload']['tables'][$table_key])
+                ? $backup['payload']['tables'][$table_key]
+                : array();
+        }
+        $backup['payload']['tables'] = $ordered_tables;
+        $backup['format_version'] = 8;
+    }
+    if ( intval($backup['format_version']) < 9 ) {
+        foreach ( $backup['payload']['tables']['services'] as $index => $row ) {
+            $upgraded_row = array();
+            foreach ( $row as $column => $value ) {
+                if ( $column === 'sermon_text' ) {
+                    $upgraded_row['liturgy'] = '';
+                }
+                $upgraded_row[$column] = $value;
+            }
+            $backup['payload']['tables']['services'][$index] = $upgraded_row;
+        }
+        $backup['format_version'] = 9;
+    }
+    if ( intval($backup['format_version']) < 10 ) {
+        $backup['payload']['tables']['hymnals'] = array();
+        $backup['payload']['tables']['hymn_catalog'] = array();
+        $ordered_tables = array();
+        foreach ( spa_get_complete_backup_table_definitions() as $table_key => $definition ) {
+            $ordered_tables[$table_key] = isset($backup['payload']['tables'][$table_key])
+                ? $backup['payload']['tables'][$table_key]
+                : array();
+        }
+        $backup['payload']['tables'] = $ordered_tables;
+        $backup['format_version'] = 10;
+    }
+    if ( intval($backup['format_version']) < 11 ) {
+        $backup['payload']['tables']['activity'] = array();
+        $ordered_tables = array();
+        foreach ( spa_get_complete_backup_table_definitions() as $table_key => $definition ) {
+            $ordered_tables[$table_key] = isset($backup['payload']['tables'][$table_key])
+                ? $backup['payload']['tables'][$table_key]
+                : array();
+        }
+        $backup['payload']['tables'] = $ordered_tables;
+        $backup['format_version'] = 11;
+    }
     $backup['checksum'] = spa_get_complete_backup_checksum($backup['payload']);
     return $backup;
 }
 
-function spa_validate_complete_backup($backup) {
+function spa_validate_complete_backup(&$backup, $discard_orphaned_relationships = false) {
     global $wpdb;
 
     $definitions = spa_get_complete_backup_table_definitions();
@@ -322,7 +505,7 @@ function spa_validate_complete_backup($backup) {
         ! is_array($backup)
         || ! isset($backup['format'], $backup['format_version'], $backup['payload'], $backup['checksum'])
         || $backup['format'] !== 'stpauls-admin-complete-backup'
-        || intval($backup['format_version']) !== 2
+        || intval($backup['format_version']) !== 11
         || ! is_array($backup['payload'])
         || ! isset($backup['payload']['tables'], $backup['payload']['options'], $backup['payload']['user_meta'])
         || ! is_array($backup['payload']['tables'])
@@ -409,12 +592,16 @@ function spa_validate_complete_backup($backup) {
     $volunteer_ids = spa_complete_backup_collect_ids($tables['volunteers'], 'volunteers');
     $service_type_ids = spa_complete_backup_collect_ids($tables['service_types'], 'service_types');
     $event_ids = spa_complete_backup_collect_ids($tables['events'], 'events');
-    foreach ( array($team_ids, $volunteer_ids, $service_type_ids, $event_ids) as $id_result ) {
+    $preacher_ids = spa_complete_backup_collect_ids($tables['preachers'], 'preachers');
+    $series_ids = spa_complete_backup_collect_ids($tables['sermon_series'], 'sermon_series');
+    $service_ids = spa_complete_backup_collect_ids($tables['services'], 'services');
+    $tag_ids = spa_complete_backup_collect_ids($tables['service_tags'], 'service_tags');
+    foreach ( array($team_ids, $volunteer_ids, $service_type_ids, $event_ids, $preacher_ids, $series_ids, $service_ids, $tag_ids) as $id_result ) {
         if ( is_wp_error($id_result) ) {
             return $id_result;
         }
     }
-    foreach ( array('notification_templates', 'events_teams', 'team_rotations') as $table_key ) {
+    foreach ( array('notification_templates', 'delivery_logs', 'events_teams', 'team_rotations') as $table_key ) {
         $id_result = spa_complete_backup_collect_ids($tables[$table_key], $table_key);
         if ( is_wp_error($id_result) ) {
             return $id_result;
@@ -429,38 +616,99 @@ function spa_validate_complete_backup($backup) {
             return new WP_Error('broken_backup_reference', 'A recurring event references a missing parent event.');
         }
     }
+    foreach ( $tables['services'] as $row ) {
+        if ( ! isset($event_ids[intval($row['event_id'])]) ) {
+            return new WP_Error('broken_backup_reference', 'A service references a missing event.');
+        }
+        if ( $row['preacher_id'] !== null && intval($row['preacher_id']) > 0 && ! isset($preacher_ids[intval($row['preacher_id'])]) ) {
+            return new WP_Error('broken_backup_reference', 'A service references a missing preacher.');
+        }
+        if ( $row['series_id'] !== null && intval($row['series_id']) > 0 && ! isset($series_ids[intval($row['series_id'])]) ) {
+            return new WP_Error('broken_backup_reference', 'A service references a missing sermon series.');
+        }
+    }
+    foreach ( $tables['service_lessons'] as $row ) {
+        if ( ! isset($service_ids[intval($row['service_id'])]) ) {
+            return new WP_Error('broken_backup_reference', 'A lesson references a missing service.');
+        }
+    }
+    foreach ( $tables['service_tag_relationships'] as $row ) {
+        if ( ! isset($service_ids[intval($row['service_id'])], $tag_ids[intval($row['tag_id'])]) ) {
+            return new WP_Error('broken_backup_reference', 'A service tag relationship references a missing record.');
+        }
+    }
+    $discarded_relationships = array(
+        'volunteer_teams' => 0,
+        'events_teams' => 0,
+        'event_volunteers' => 0,
+        'team_rotations' => 0,
+    );
+
+    $valid_rows = array();
     foreach ( $tables['volunteer_teams'] as $row ) {
         if ( ! isset($volunteer_ids[intval($row['volunteer_id'])], $team_ids[intval($row['team_id'])]) ) {
+            if ( $discard_orphaned_relationships ) {
+                $discarded_relationships['volunteer_teams']++;
+                continue;
+            }
             return new WP_Error('broken_backup_reference', 'A volunteer-team relationship references a missing record.');
         }
+        $valid_rows[] = $row;
     }
+    $tables['volunteer_teams'] = $valid_rows;
+
+    $valid_rows = array();
     foreach ( $tables['events_teams'] as $row ) {
         if ( ! isset($event_ids[intval($row['event_id'])], $team_ids[intval($row['team_id'])]) ) {
+            if ( $discard_orphaned_relationships ) {
+                $discarded_relationships['events_teams']++;
+                continue;
+            }
             return new WP_Error('broken_backup_reference', 'An event-team relationship references a missing record.');
         }
+        $valid_rows[] = $row;
     }
+    $tables['events_teams'] = $valid_rows;
+
+    $valid_rows = array();
     foreach ( $tables['event_volunteers'] as $row ) {
         if (
             ! isset($event_ids[intval($row['event_id'])])
             || ! isset($team_ids[intval($row['team_id'])])
             || ! isset($volunteer_ids[intval($row['volunteer_id'])])
         ) {
+            if ( $discard_orphaned_relationships ) {
+                $discarded_relationships['event_volunteers']++;
+                continue;
+            }
             return new WP_Error('broken_backup_reference', 'An event assignment references a missing record.');
         }
+        $valid_rows[] = $row;
     }
+    $tables['event_volunteers'] = $valid_rows;
+
+    $valid_rows = array();
     foreach ( $tables['team_rotations'] as $row ) {
         if (
             ! isset($service_type_ids[intval($row['service_type_id'])])
             || ! isset($team_ids[intval($row['team_id'])])
             || ! isset($volunteer_ids[intval($row['volunteer_id'])])
         ) {
+            if ( $discard_orphaned_relationships ) {
+                $discarded_relationships['team_rotations']++;
+                continue;
+            }
             return new WP_Error('broken_backup_reference', 'A team rotation references a missing record.');
         }
+        $valid_rows[] = $row;
     }
+    $tables['team_rotations'] = $valid_rows;
 
     $composite_checks = array(
         array('volunteer_teams', array('volunteer_id', 'team_id')),
         array('event_volunteers', array('event_id', 'team_id', 'volunteer_id')),
+        array('services', array('event_id')),
+        array('service_tag_relationships', array('service_id', 'tag_id')),
     );
     foreach ( $composite_checks as $check ) {
         $result = spa_complete_backup_validate_composite_keys($tables[$check[0]], $check[0], $check[1]);
@@ -469,7 +717,12 @@ function spa_validate_complete_backup($backup) {
         }
     }
 
-    return true;
+    if ( $discard_orphaned_relationships ) {
+        $backup['payload']['tables'] = $tables;
+        $backup['checksum'] = spa_get_complete_backup_checksum($backup['payload']);
+    }
+
+    return $discarded_relationships;
 }
 
 function spa_complete_backup_tables_support_transactions() {
@@ -534,7 +787,7 @@ function spa_handle_import_complete_backup() {
     if ( is_wp_error($backup) ) {
         spa_redirect_complete_backup_error($backup->get_error_message());
     }
-    $validation = spa_validate_complete_backup($backup);
+    $validation = spa_validate_complete_backup($backup, true);
     if ( is_wp_error($validation) ) {
         spa_redirect_complete_backup_error($validation->get_error_message());
     }
@@ -546,7 +799,27 @@ function spa_handle_import_complete_backup() {
     }
 
     $definitions = spa_get_complete_backup_table_definitions();
-    $delete_order = array('event_volunteers', 'events_teams', 'team_rotations', 'volunteer_teams', 'events', 'notification_templates', 'service_types', 'volunteers', 'teams');
+    $delete_order = array(
+        'service_tag_relationships',
+        'service_hymns',
+        'hymn_catalog',
+        'hymnals',
+        'service_lessons',
+        'services',
+        'service_tags',
+        'sermon_series',
+        'preachers',
+        'event_volunteers',
+        'events_teams',
+        'team_rotations',
+        'volunteer_teams',
+        'delivery_logs',
+        'events',
+        'notification_templates',
+        'service_types',
+        'volunteers',
+        'teams',
+    );
     foreach ( $delete_order as $table_key ) {
         $table = $wpdb->prefix . $definitions[$table_key]['suffix'];
         if ( $wpdb->query("DELETE FROM {$table}") === false ) {
@@ -663,6 +936,7 @@ function spa_handle_import_complete_backup() {
             'records' => array_sum(array_map('count', $backup['payload']['tables'])),
             'options' => count($backup['payload']['options']),
             'user_meta' => count($backup['payload']['user_meta']),
+            'discarded_relationships' => array_sum($validation),
         ),
         HOUR_IN_SECONDS
     );
@@ -1006,14 +1280,14 @@ function spa_handle_export_events() {
     if ( ! check_admin_referer('spa_export_events') ) wp_die('Nonce failed');
 
     $rows = $wpdb->get_results(
-        "SELECT name, event_date, start_time, end_time, description, location, service_builder_url,
+        "SELECT name, season, special_day, event_date, start_time, end_time, description, location, service_builder_url,
                 is_recurring, recurrence_type, recurrence_end_date, active
          FROM {$wpdb->prefix}spa_events ORDER BY event_date",
         ARRAY_A
     );
 
     spa_export_csv('spa-events-' . date('Y-m-d') . '.csv',
-        array('name','event_date','start_time','end_time','description','location','service_builder_url',
+        array('name','season','special_day','event_date','start_time','end_time','description','location','service_builder_url',
               'is_recurring','recurrence_type','recurrence_end_date','active'),
         $rows
     );
@@ -1153,6 +1427,12 @@ function spa_handle_import_events() {
 
         $ok = $wpdb->insert($table, array(
             'name'                => $name,
+            'season'              => in_array(sanitize_text_field($row['season'] ?? ''), spa_get_church_year_seasons(), true)
+                ? sanitize_text_field($row['season'])
+                : null,
+            'special_day'        => in_array(sanitize_text_field($row['special_day'] ?? ''), spa_get_church_year_special_days(), true)
+                ? sanitize_text_field($row['special_day'])
+                : null,
             'event_date'          => $event_date,
             'start_time'          => $start_time,
             'end_time'            => $end_time,
@@ -1163,7 +1443,7 @@ function spa_handle_import_events() {
             'recurrence_type'     => sanitize_text_field($row['recurrence_type'] ?? ''),
             'recurrence_end_date' => sanitize_text_field($row['recurrence_end_date'] ?? '') ?: null,
             'active'              => intval($row['active'] ?? 1),
-        ), array('%s','%s','%s','%s','%s','%s','%s','%d','%s','%s','%d'));
+        ), array('%s','%s','%s','%s','%s','%s','%s','%s','%s','%d','%s','%s','%d'));
 
         if ( $ok ) { $imported++; } else { $errors_list[] = array('row' => $i + 2, 'reason' => 'Database insert failed'); $errors++; }
     }

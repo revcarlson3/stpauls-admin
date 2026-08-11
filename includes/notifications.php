@@ -4,6 +4,10 @@ add_action('spa_hourly_notification_check', 'spa_run_notification_cron');
 add_action('wp_ajax_spa_notify_event_volunteer', 'spa_notify_event_volunteer_ajax');
 
 function spa_notification_should_run_now() {
+    if ( intval(get_option('spa_notifications_enabled', 1)) !== 1 ) {
+        return false;
+    }
+
     $day = intval(get_option('spa_notification_day_of_week', 0));
     $time = get_option('spa_notification_time', '09:00');
     $current_day = intval(wp_date('w'));
@@ -86,6 +90,8 @@ function spa_send_event_notification_to_volunteer($event, $volunteer, $templates
     );
 
     if ( $templates['email'] && ! empty($volunteer->email) && intval($volunteer->email_enabled) === 1 ) {
+        $email_provider = get_option('spa_email_provider', 'wp_mail');
+        $email_log_id = spa_create_delivery_log($event, $volunteer, 'email', $email_provider);
         $email_data = $data;
         $email_data['readings'] = spa_get_readings_tag_value(
             $volunteer->team_name,
@@ -96,15 +102,26 @@ function spa_send_event_notification_to_volunteer($event, $volunteer, $templates
         $subject_data['readings'] = '';
         $subject = spa_process_template($templates['email']->subject ?: 'Volunteer Reminder', $subject_data);
         $body = spa_process_template($templates['email']->body, $email_data);
-        $result = spa_send_email($volunteer->email, $subject, $body);
+        $result = spa_send_email(
+            $volunteer->email,
+            $subject,
+            $body,
+            array(),
+            array(),
+            array('delivery_log_id' => $email_log_id)
+        );
         if ( is_wp_error($result) ) {
+            spa_mark_delivery_failed($email_log_id, $result->get_error_message());
             $errors[] = 'Email: ' . $result->get_error_message();
         } else {
+            spa_mark_delivery_sent($email_log_id, $result, $email_provider === 'sendgrid');
             $sent['email']++;
         }
     }
 
     if ( $templates['sms'] && ! empty($volunteer->phone) && intval($volunteer->phone_enabled) === 1 ) {
+        $sms_provider = get_option('spa_sms_provider', 'twilio');
+        $sms_log_id = spa_create_delivery_log($event, $volunteer, 'sms', $sms_provider);
         $sms_data = $data;
         $sms_data['readings'] = spa_get_readings_tag_value(
             $volunteer->team_name,
@@ -112,10 +129,17 @@ function spa_send_event_notification_to_volunteer($event, $volunteer, $templates
             false
         );
         $body = spa_process_template($templates['sms']->body, $sms_data);
-        $result = spa_send_sms($volunteer->phone, $body);
+        $result = spa_send_sms(
+            $volunteer->phone,
+            $body,
+            $sms_provider,
+            array('delivery_log_id' => $sms_log_id)
+        );
         if ( is_wp_error($result) ) {
+            spa_mark_delivery_failed($sms_log_id, $result->get_error_message());
             $errors[] = 'SMS: ' . $result->get_error_message();
         } else {
+            spa_mark_delivery_sent($sms_log_id, $result, $sms_provider === 'twilio');
             $sent['sms']++;
         }
     }

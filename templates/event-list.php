@@ -56,6 +56,7 @@
         <tr>
             <th>Date</th>
             <th>Event</th>
+            <th class="spa-event-actions-heading">Actions</th>
         </tr>
     </thead>
     <tbody>
@@ -64,7 +65,16 @@
 
     <tr data-event-id="<?php echo intval($event->id); ?>">
         <td class="spa-event-date"><?php echo date('F j Y', strtotime($event->event_date)) ?></td>
-        <td class="spa-event-name"><a href="#" class="spa-event-link" data-event-id="<?php echo intval($event->id) ?>"><?php echo esc_html(wp_unslash($event->name)) ?></a></td>
+    <td class="spa-event-name">
+        <a href="#" class="spa-event-link" data-event-id="<?php echo intval($event->id) ?>"><?php echo esc_html(wp_unslash($event->name)) ?></a>
+    </td>
+    <td class="spa-event-actions">
+        <?php if ( ! empty($event->service_id) ) : ?>
+            <a class="spa-event-service-icon" href="<?php echo esc_url(admin_url('admin.php?page=spa-services&service_id=' . intval($event->service_id) . '&event_id=' . intval($event->id))); ?>" title="Edit service" aria-label="Edit service"><span class="dashicons dashicons-edit"></span></a>
+        <?php else : ?>
+            <a class="spa-event-service-icon" href="<?php echo esc_url(admin_url('admin.php?page=spa-services&event_id=' . intval($event->id))); ?>" title="Add service" aria-label="Add service"><span class="dashicons dashicons-plus-alt"></span></a>
+        <?php endif; ?>
+    </td>
     </tr>
 
     <?php endforeach; ?>

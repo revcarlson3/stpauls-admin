@@ -29,6 +29,7 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
 
     <nav class="nav-tab-wrapper">
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=general')); ?>" class="nav-tab <?php echo ($active_tab === 'general') ? 'nav-tab-active' : ''; ?>">General</a>
+        <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=services')); ?>" class="nav-tab <?php echo ($active_tab === 'services') ? 'nav-tab-active' : ''; ?>">Services</a>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=email')); ?>" class="nav-tab <?php echo ($active_tab === 'email') ? 'nav-tab-active' : ''; ?>">Email</a>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=sms')); ?>" class="nav-tab <?php echo ($active_tab === 'sms') ? 'nav-tab-active' : ''; ?>">SMS</a>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=push')); ?>" class="nav-tab <?php echo ($active_tab === 'push') ? 'nav-tab-active' : ''; ?>">Push Notifications</a>
@@ -56,6 +57,10 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                         <?php echo intval($backup_result['tables']); ?> tables and
                         <?php echo intval($backup_result['options']); ?> settings, plus
                         <?php echo intval($backup_result['user_meta']); ?> user preferences.
+                        <?php if ( ! empty($backup_result['discarded_relationships']) ) : ?>
+                            Skipped <?php echo intval($backup_result['discarded_relationships']); ?>
+                            unusable relationship records whose referenced event, team, volunteer, or service type was absent from the backup.
+                        <?php endif; ?>
                     <?php endif; ?>
                 </p>
             </div>
@@ -167,7 +172,7 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
         <?php
         // Close the main settings form if not on import tab
         if ($active_tab !== 'import') : ?>
-        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+        <form id="spa-settings-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                     <input type="hidden" name="action" value="spa_save_settings">
                     <?php wp_nonce_field('spa_save_settings', 'spa_settings_nonce'); ?>
                     <input type="hidden" name="active_tab" value="<?php echo esc_attr($active_tab); ?>">
@@ -176,6 +181,66 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
         endif;
          
         switch ($active_tab) {
+            case 'services':
+                $service_pages = get_pages(array('post_status' => 'publish', 'sort_column' => 'post_title'));
+                $sermons_page_id = absint(get_option('spa_sermons_page_id', 0));
+                $sermon_details_page_id = absint(get_option('spa_sermon_details_page_id', 0));
+                ?>
+                <h2>Service settings</h2>
+                <p>Scripture references use Logos Reftagger for ESV, HCSB, KJV, and NIV. EHV references open directly in BibleGateway.</p>
+                <?php $youtube_error = get_transient('spa_youtube_last_error'); ?>
+                <?php if ( $youtube_error ) : ?>
+                    <div class="notice notice-warning inline"><p><strong>YouTube lookup failed:</strong> <?php echo esc_html($youtube_error); ?></p></div>
+                <?php endif; ?>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><label for="spa_sermons_page_id">Sermons page</label></th>
+                        <td>
+                            <select name="spa_sermons_page_id" id="spa_sermons_page_id">
+                                <option value="0">Not selected</option>
+                                <?php foreach ( $service_pages as $service_page ) : ?>
+                                    <option value="<?php echo intval($service_page->ID); ?>" <?php selected($sermons_page_id, $service_page->ID); ?>><?php echo esc_html($service_page->post_title); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="description">The published page containing <code>[spa_sermons]</code>.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="spa_sermon_details_page_id">Sermon details page</label></th>
+                        <td>
+                            <select name="spa_sermon_details_page_id" id="spa_sermon_details_page_id">
+                                <option value="0">Not selected</option>
+                                <?php foreach ( $service_pages as $service_page ) : ?>
+                                    <option value="<?php echo intval($service_page->ID); ?>" <?php selected($sermon_details_page_id, $service_page->ID); ?>><?php echo esc_html($service_page->post_title); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="description">The published page containing <code>[spa_sermon_details]</code>.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="spa_youtube_api_key">YouTube Data API key</label></th>
+                        <td>
+                            <?php spa_render_secret_field('spa_youtube_api_key', 'spa_youtube_api_key'); ?>
+                            <p class="description">Optional. When configured, hymn links use a cached YouTube search result; otherwise they continue to use Hymnary.org.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="spa_youtube_preferred_channel_id">Preferred channel ID</label></th>
+                        <td>
+                            <input name="spa_youtube_preferred_channel_id" id="spa_youtube_preferred_channel_id" type="text" value="<?php echo esc_attr(get_option('spa_youtube_preferred_channel_id', '')); ?>" class="regular-text code">
+                            <p class="description">Enter a YouTube channel ID in the <code>UC...</code> format. This channel is searched first, so it should contain the hymn recordings you want to use.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="spa_youtube_secondary_channel_id">Secondary channel ID</label></th>
+                        <td>
+                            <input name="spa_youtube_secondary_channel_id" id="spa_youtube_secondary_channel_id" type="text" value="<?php echo esc_attr(get_option('spa_youtube_secondary_channel_id', '')); ?>" class="regular-text code">
+                            <p class="description">Enter another <code>UC...</code> channel ID. It is searched if the preferred channel has no matching video. If neither channel has a match, the plugin searches YouTube generally and then falls back to Hymnary.org.</p>
+                        </td>
+                    </tr>
+                </table>
+                <?php
+                break;
             case 'email':
                 $notification_email = esc_attr( get_option('spa_notification_email', '') );
                 $enable_email = get_option('spa_enable_email', 0 );
@@ -271,8 +336,33 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                                     <th scope="row">From Name</th>
                                     <td><input name="spa_sendgrid_from_name" type="text" value="<?php echo esc_attr(get_option('spa_sendgrid_from_name', '')); ?>" class="regular-text"></td>
                                 </tr>
+                                <tr>
+                                    <th scope="row"><label for="spa_sendgrid_webhook_url">Event Webhook URL</label></th>
+                                    <td>
+                                        <input
+                                            id="spa_sendgrid_webhook_url"
+                                            type="url"
+                                            readonly
+                                            value="<?php echo esc_url(rest_url('spa/v1/sendgrid-events')); ?>"
+                                            class="large-text code"
+                                            onclick="this.select();">
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="spa_sendgrid_webhook_public_key">Webhook Verification Key</label></th>
+                                    <td>
+                                        <textarea
+                                            name="spa_sendgrid_webhook_public_key"
+                                            id="spa_sendgrid_webhook_public_key"
+                                            rows="4"
+                                            class="large-text code"><?php echo esc_textarea(get_option('spa_sendgrid_webhook_public_key', '')); ?></textarea>
+                                    </td>
+                                </tr>
                             </table>
-                            <p class="description">Instructions: Create an API key in SendGrid (Full Access or Mail Send), verify your sender identity, then paste the key here. See https://sendgrid.com/docs/ for setup help.</p>
+                            <p class="description">
+                                In SendGrid, create an Event Webhook using the URL above, enable the Delivered, Bounced, and Dropped events,
+                                enable Signed Event Webhook, then paste its public verification key here.
+                            </p>
                         </div>
 
                         <div class="spa-provider mailgun" data-provider="mailgun" style="display:none;">
@@ -686,7 +776,7 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                             <?php $render_import_form('spa_import_teams', 'spa_import_teams', 'spa_import_nonce', 'Import Teams'); ?>
 
                             <h4 style="margin:1.5rem 0 4px;">Import Events</h4>
-                            <p style="margin:0 0 4px;font-size:0.85em;color:#555;">Required columns: <code>name</code>, <code>event_date</code> (YYYY-MM-DD), <code>start_time</code> (HH:MM:SS), <code>end_time</code> (HH:MM:SS)<br>Optional: <code>description</code>, <code>location</code>, <code>is_recurring</code>, <code>recurrence_type</code>, <code>recurrence_end_date</code>, <code>active</code></p>
+                            <p style="margin:0 0 4px;font-size:0.85em;color:#555;">Required columns: <code>name</code>, <code>event_date</code> (YYYY-MM-DD), <code>start_time</code> (HH:MM:SS), <code>end_time</code> (HH:MM:SS)<br>Optional: <code>season</code>, <code>special_day</code>, <code>description</code>, <code>location</code>, <code>is_recurring</code>, <code>recurrence_type</code>, <code>recurrence_end_date</code>, <code>active</code></p>
                             <?php $render_import_form('spa_import_events', 'spa_import_events', 'spa_import_nonce', 'Import Events'); ?>
                         </div>
 
@@ -850,6 +940,7 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                     $org_name = esc_attr( get_option('spa_org_name', '') );
                     $active_email_tpl = get_option('spa_active_email_template', '');
                     $active_sms_tpl   = get_option('spa_active_sms_template', '');
+                    $notifications_enabled = intval(get_option('spa_notifications_enabled', 1));
                     $notification_day = intval(get_option('spa_notification_day_of_week', 0));
                     $notification_time = esc_attr(get_option('spa_notification_time', '09:00'));
                     $notification_reminder_24h = intval(get_option('spa_notification_reminder_24h', 0));
@@ -888,6 +979,19 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                                 <?php if ( empty($sms_templates_gen) ) : ?>
                                     <p class="description">No SMS templates yet. <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=templates')); ?>">Create one</a>.</p>
                                 <?php endif; ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Automated Volunteer Alerts</th>
+                            <td>
+                                <label>
+                                    <input type="checkbox" name="spa_notifications_enabled" value="1" <?php checked($notifications_enabled, 1); ?>>
+                                    Enable scheduled email and SMS alerts
+                                </label>
+                                <p class="description">
+                                    Turn this off to pause all scheduled volunteer notifications, including the 24-hour reminder.
+                                    Test notifications and manually requested messages remain available.
+                                </p>
                             </td>
                         </tr>
                         <tr>

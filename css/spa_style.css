@@ -297,6 +297,77 @@
     min-height: 180px;
 }
 
+.spa-upcoming-events-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.spa-upcoming-events-table th,
+.spa-upcoming-events-table td {
+    padding: 9px 6px;
+    border-bottom: 1px solid #dcdcde;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.spa-upcoming-events-table th {
+    padding-top: 0;
+    font-size: 12px;
+    color: #50575e;
+}
+
+.spa-upcoming-events-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.spa-assignment-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    white-space: nowrap;
+}
+
+.spa-assignment-status .dashicons {
+    font-size: 17px;
+    width: 17px;
+    height: 17px;
+}
+
+.spa-assignment-status-assigned {
+    color: #008a20;
+}
+
+.spa-assignment-status-unassigned {
+    color: #646970;
+}
+
+.spa-upcoming-event-conflict {
+    width: 24px;
+    text-align: center !important;
+}
+
+.spa-overlap-warning {
+    color: #8a6500;
+    cursor: help;
+}
+
+.spa-communications-table {
+    font-size: 13px;
+}
+
+.spa-communication-type {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: #f0f0f1;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.spa-communication-reason {
+    overflow-wrap: anywhere;
+}
+
 .spa-sunday-column .spa-service-name {
     margin: 0 0 8px;
     font-size: 26px;
@@ -311,6 +382,18 @@
     font-size: 14px;
     font-weight: 600;
     color: #2271b1;
+}
+
+.spa-sunday-column .spa-service-church-day {
+    margin: 0 0 5px;
+    color: #50575e;
+    font-size: 15px;
+    font-style: italic;
+}
+
+.spa-sunday-column .spa-service-church-day span {
+    font-style: normal;
+    font-weight: 700;
 }
 
 .spa-dashboard-alert-list {
@@ -561,6 +644,29 @@
     width: 100%;
     font-size: 15px;
     font-weight: 600;
+}
+.spa-event-actions {
+    text-align: center;
+    vertical-align: middle;
+    width: 70px;
+}
+.spa-event-actions-heading {
+    text-align: center;
+    width: 70px;
+}
+.spa-event-service-icon {
+    color: #646970;
+    line-height: 1;
+    text-decoration: none;
+}
+.spa-event-service-icon:hover,
+.spa-event-service-icon:focus {
+    color: #2271b1;
+}
+.spa-event-service-icon .dashicons {
+    font-size: 18px;
+    height: 18px;
+    width: 18px;
 }
 
 /* Event Links */
@@ -822,4 +928,11 @@
     border: 1px solid #dcdcde;
     border-top: none;
     padding: 20px;
+}
+.spa-services-page .form-table th {
+    width: 180px;
+}
+
+.spa-services-page .form-table input[type="file"] {
+    max-width: 100%;
 }

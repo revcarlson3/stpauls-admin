@@ -21,8 +21,25 @@
                     <?php if (!empty($sunday_service)) : ?>
 
                         <h3 class="spa-service-name">
-                            <?php echo esc_html($sunday_service->name); ?>
+                            <?php if ( ! empty($sunday_service->service_id) ) : ?>
+                                <a href="<?php echo esc_url(admin_url('admin.php?page=spa-services&service_id=' . intval($sunday_service->service_id) . '&event_id=' . intval($sunday_service->id))); ?>">
+                                    <?php echo esc_html($sunday_service->name); ?>
+                                </a>
+                            <?php else : ?>
+                                <?php echo esc_html($sunday_service->name); ?>
+                            <?php endif; ?>
                         </h3>
+
+                        <?php if ( ! empty($sunday_service->special_day) || ! empty($sunday_service->season) ) : ?>
+                            <p class="spa-service-church-day">
+                                <span>Day of the Church Year:</span>
+                                <?php echo esc_html(spa_get_church_year_day(
+                                    $sunday_service->event_date,
+                                    $sunday_service->special_day,
+                                    $sunday_service->season
+                                )); ?>
+                            </p>
+                        <?php endif; ?>
 
                         <p class="spa-service-date">
                             <?php echo date(
@@ -176,8 +193,138 @@
                     <?php echo esc_html($card['title']); ?>
                 </div>
                 <div class="spa-card-body">
-                    <?php if ( $card_id === 'future' ) : ?>
+                    <?php if ( $card_id === 'upcoming-events' ) : ?>
+                        <?php if ( ! empty($upcoming_events) ) : ?>
+                            <table class="spa-upcoming-events-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Event</th>
+                                        <th>Service</th>
+                                        <th>Volunteers</th>
+                                        <th><span class="screen-reader-text">Conflicts</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ( $upcoming_events as $upcoming_event ) : ?>
+                                        <tr>
+                                            <td>
+                                                <?php echo esc_html(mysql2date('M j, Y', $upcoming_event->event_date)); ?>
+                                            </td>
+                                            <td>
+                                                <a href="<?php echo esc_url(add_query_arg(array('page' => 'spa-events', 'event_id' => intval($upcoming_event->id)), admin_url('admin.php'))); ?>">
+                                                    <?php echo esc_html(wp_unslash($upcoming_event->name)); ?>
+                                                </a>
+                                            </td>
+                                            <td>
+                                                <?php if ( ! empty($upcoming_event->service_id) ) : ?>
+                                                    <span class="spa-assignment-status spa-assignment-status-assigned">
+                                                        <span class="dashicons dashicons-yes-alt" aria-hidden="true"></span>
+                                                        Created
+                                                    </span>
+                                                <?php else : ?>
+                                                    <span class="spa-assignment-status spa-assignment-status-unassigned">
+                                                        <span class="dashicons dashicons-minus" aria-hidden="true"></span>
+                                                        Not created
+                                                    </span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <?php if ( intval($upcoming_event->assigned_count) > 0 ) : ?>
+                                                    <span class="spa-assignment-status spa-assignment-status-assigned">
+                                                        <span class="dashicons dashicons-yes-alt" aria-hidden="true"></span>
+                                                        Assigned
+                                                    </span>
+                                                <?php else : ?>
+                                                    <span class="spa-assignment-status spa-assignment-status-unassigned">
+                                                        <span class="dashicons dashicons-minus" aria-hidden="true"></span>
+                                                        Not assigned
+                                                    </span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="spa-upcoming-event-conflict">
+                                                <?php if ( ! empty($upcoming_event->conflict_names) ) : ?>
+                                                    <span
+                                                        class="dashicons dashicons-warning spa-overlap-warning"
+                                                        title="<?php echo esc_attr('Time overlaps with: ' . $upcoming_event->conflict_names); ?>"
+                                                        aria-label="<?php echo esc_attr('Warning: time overlaps with ' . $upcoming_event->conflict_names); ?>"
+                                                        role="img"></span>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        <?php else : ?>
+                            <p>No upcoming events found.</p>
+                        <?php endif; ?>
+                    <?php elseif ( $card_id === 'communications' ) : ?>
+                        <?php if ( ! empty($communication_deliveries) ) : ?>
+                            <table class="spa-upcoming-events-table spa-communications-table">
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>Date</th>
+                                        <th>Volunteer</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ( $communication_deliveries as $delivery ) : ?>
+                                        <tr>
+                                            <td>
+                                                <span class="spa-communication-type">
+                                                    <?php echo esc_html(strtoupper($delivery->channel)); ?>
+                                                </span>
+                                            </td>
+                                            <td><?php echo esc_html(mysql2date('M j, Y g:i a', $delivery->created_at)); ?></td>
+                                            <td><?php echo esc_html($delivery->volunteer_name); ?></td>
+                                            <td class="spa-communication-reason">
+                                                <?php echo esc_html($delivery->status === 'failed' && $delivery->failure_reason ? $delivery->failure_reason : ucfirst($delivery->status)); ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        <?php else : ?>
+                            <p>No email or SMS deliveries recorded.</p>
+                        <?php endif; ?>
+                    <?php elseif ( $card_id === 'future' ) : ?>
                         <p style="color:#999;font-style:italic;">Reserved for future functionality.</p>
+                    <?php elseif ( $card_id === 'recent-activity' ) : ?>
+                        <form class="spa-activity-filters" method="get">
+                            <input type="hidden" name="page" value="spa-dashboard">
+                            <label for="spa-activity-filter">Filter:</label>
+                            <select id="spa-activity-filter" name="activity_filter" onchange="this.form.submit()">
+                                <?php foreach ( array('all' => 'All', 'events' => 'Events', 'services' => 'Services', 'volunteers' => 'Volunteers', 'communications' => 'Communications', 'scheduling' => 'Scheduling', 'system' => 'System') as $filter_key => $filter_label ) : ?>
+                                    <option value="<?php echo esc_attr($filter_key); ?>" <?php selected($activity_filter, $filter_key); ?>><?php echo esc_html($filter_label); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </form>
+                        <?php if ( ! empty($recent_activity) ) : ?>
+                            <table class="spa-upcoming-events-table spa-recent-activity-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date and time</th>
+                                        <th>Category</th>
+                                        <th>Activity</th>
+                                        <th>Event</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ( $recent_activity as $activity ) : ?>
+                                        <tr>
+                                            <td><?php echo esc_html(mysql2date('M j, Y g:i a', $activity->category === 'communications' ? $activity->activity_time : get_date_from_gmt($activity->activity_time))); ?></td>
+                                            <td><?php echo esc_html(ucfirst($activity->category)); ?></td>
+                                            <td><?php echo esc_html($activity->description); ?></td>
+                                            <td><?php echo esc_html($activity->event_name ?: '—'); ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        <?php else : ?>
+                            <p>No recent notification activity recorded.</p>
+                        <?php endif; ?>
                     <?php else : ?>
                         <p style="color:#999;font-style:italic;">Coming soon.</p>
                     <?php endif; ?>

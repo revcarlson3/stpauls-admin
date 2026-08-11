@@ -134,3 +134,18 @@ function spa_sanitize_service_builder_url($url) {
 
     return $url;
 }
+function spa_log_activity($category, $action, $description, $event_id = 0) {
+    global $wpdb;
+    $wpdb->insert(
+        $wpdb->prefix . 'spa_activity',
+        array(
+            'category' => sanitize_key($category),
+            'action' => sanitize_text_field($action),
+            'description' => sanitize_text_field($description),
+            'event_id' => $event_id ? absint($event_id) : null,
+            'user_id' => get_current_user_id() ?: null,
+            'created_at' => current_time('mysql', true),
+        ),
+        array('%s', '%s', '%s', '%d', '%d', '%s')
+    );
+}

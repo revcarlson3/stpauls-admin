@@ -25,6 +25,26 @@
                     <button type="submit" class="button button-primary">Save Service Type</button>
                 </p>
             </form>
+            <?php if ( ! empty($service_types) ) : ?>
+                <table class="widefat striped" style="margin-top:16px;">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $service_types as $service_type ) : ?>
+                            <tr>
+                                <td><?php echo esc_html($service_type->name); ?></td>
+                                <td><?php echo esc_html($service_type->description); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php else : ?>
+                <p>No service types created yet.</p>
+            <?php endif; ?>
         </div>
 
         <div class="postbox" style="padding:16px;">
@@ -55,7 +75,7 @@
 
                 <p>
                     <strong>Volunteers in rotation order</strong><br>
-                    <span style="color:#666;font-size:12px;">Add volunteers to the ordered list, then move them up or down to control the exact rotation.</span>
+                    <span style="color:#666;font-size:12px;">Add volunteers to the list, then drag them into the exact rotation order.</span>
                 </p>
 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px;">
@@ -96,31 +116,7 @@
         </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
-        <div class="postbox" style="padding:16px;">
-            <h3 style="margin-top:0;">Service Types</h3>
-            <?php if ( ! empty($service_types) ) : ?>
-                <table class="widefat striped">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Description</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ( $service_types as $service_type ) : ?>
-                            <tr>
-                                <td><?php echo esc_html($service_type->name); ?></td>
-                                <td><?php echo esc_html($service_type->description); ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            <?php else : ?>
-                <p>No service types created yet.</p>
-            <?php endif; ?>
-        </div>
-
+    <div style="margin-top:24px;">
         <div class="postbox" style="padding:16px;">
             <h3 style="margin-top:0;">Rotation Preview</h3>
             <?php if ( ! empty($rotations) ) : ?>
@@ -152,54 +148,6 @@
         </div>
     </div>
 
-    <div class="postbox" style="padding:16px;margin-top:24px;">
-        <h3 style="margin-top:0;">Available Volunteers by Team</h3>
-        <?php if ( ! empty($teams) ) : ?>
-            <table class="widefat striped" style="margin-bottom:16px;">
-                <thead>
-                    <tr>
-                        <th>Team</th>
-                        <th>Volunteer IDs</th>
-                        <th>Volunteer Names</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ( $teams as $team ) : ?>
-                        <?php $team_volunteers = isset($volunteers_by_team[$team->id]) ? $volunteers_by_team[$team->id] : array(); ?>
-                        <tr>
-                            <td style="vertical-align:top;"><?php echo esc_html($team->name); ?></td>
-                            <td style="vertical-align:top;">
-                                <?php
-                                $team_ids = array();
-                                foreach ( $team_volunteers as $volunteer ) {
-                                    $team_ids[] = intval($volunteer->id);
-                                }
-                                echo esc_html(implode(', ', $team_ids));
-                                ?>
-                            </td>
-                            <td style="vertical-align:top;">
-                                <?php
-                                $team_names = array();
-                                foreach ( $team_volunteers as $volunteer ) {
-                                    $team_names[] = $volunteer->last_name . ', ' . $volunteer->first_name;
-                                }
-                                echo esc_html(implode(' | ', $team_names));
-                                ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php endif; ?>
-
-        <h3 style="margin-top:0;">Planned Scheduling Model</h3>
-        <p>This page is now scaffolded for the scheduling system. The next step is adding forms to manage:</p>
-        <ol>
-            <li>Service types such as Sunday Service and Midweek Service</li>
-            <li>Team rotation lists per service type</li>
-            <li>Preview/apply assignment generation for upcoming events</li>
-        </ol>
-    </div>
 </div>
 
 <script>
@@ -240,11 +188,9 @@ jQuery(function($) {
 
             var $item = $('<li class="spa-rotation-item" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #eee;"></li>');
             $item.attr('data-volunteer-id', volunteer.id);
-            $item.append('<span><strong>' + (index + 1) + '.</strong> ' + volunteer.last_name + ', ' + volunteer.first_name + ' (#' + volunteer.id + ')</span>');
+            $item.append('<span><span class="spa-rotation-drag-handle" style="cursor:move;font-size:16px;margin-right:6px;" title="Drag to reorder" aria-label="Drag to reorder">&#9776;</span><strong>' + (index + 1) + '.</strong> ' + volunteer.last_name + ', ' + volunteer.first_name + ' (#' + volunteer.id + ')</span>');
             $item.append(
-                '<span>' +
-                '<button type="button" class="button-link spa-rotation-move-up">Up</button> | ' +
-                '<button type="button" class="button-link spa-rotation-move-down">Down</button> | ' +
+                '<span class="spa-rotation-controls">' +
                 '<button type="button" class="button-link-delete spa-rotation-remove">Remove</button>' +
                 '</span>'
             );
@@ -332,38 +278,16 @@ jQuery(function($) {
         spaRenderRotationList(selectedIds, teamId);
     });
 
-    $(document).on('click', '.spa-rotation-move-up', function() {
-        var $item = $(this).closest('.spa-rotation-item');
-        var $prev = $item.prev('.spa-rotation-item');
-        var teamId = $('#rotation_team_id').val();
-
-        if ($prev.length) {
-            $item.insertBefore($prev);
+    $('#spa-rotation-selected-list').sortable({
+        handle: '.spa-rotation-drag-handle',
+        placeholder: 'spa-rotation-sortable-placeholder',
+        update: function() {
+            var selectedIds = [];
+            $('#spa-rotation-selected-list .spa-rotation-item').each(function() {
+                selectedIds.push(String($(this).data('volunteer-id')));
+            });
+            spaRenderRotationList(selectedIds, $('#rotation_team_id').val());
         }
-
-        var selectedIds = [];
-        $('#spa-rotation-selected-list .spa-rotation-item').each(function() {
-            selectedIds.push(String($(this).data('volunteer-id')));
-        });
-
-        spaRenderRotationList(selectedIds, teamId);
-    });
-
-    $(document).on('click', '.spa-rotation-move-down', function() {
-        var $item = $(this).closest('.spa-rotation-item');
-        var $next = $item.next('.spa-rotation-item');
-        var teamId = $('#rotation_team_id').val();
-
-        if ($next.length) {
-            $item.insertAfter($next);
-        }
-
-        var selectedIds = [];
-        $('#spa-rotation-selected-list .spa-rotation-item').each(function() {
-            selectedIds.push(String($(this).data('volunteer-id')));
-        });
-
-        spaRenderRotationList(selectedIds, teamId);
     });
 
     $('#rotation_team_id, #rotation_service_type_id').on('change', spaLoadRotationEditor);
