@@ -8,10 +8,14 @@ function spa_events_calendar_shortcode($atts) {
 
     $atts = shortcode_atts(array('view' => 'month'), $atts, 'spa_events_calendar');
     $events = $wpdb->get_results(
-        "SELECT id, name, event_date, start_time, end_time, description, location
-         FROM {$wpdb->prefix}spa_events
-         WHERE active = 1
-         ORDER BY event_date, start_time, id"
+        $wpdb->prepare(
+            "SELECT id, name, event_date, start_time, end_time, description, location
+             FROM {$wpdb->prefix}spa_events
+             WHERE active = 1
+               AND event_date >= %s
+             ORDER BY event_date, start_time, id",
+            current_time('Y-m-d')
+        )
     );
 
     wp_enqueue_style('spa-public-calendar', SPA_PLUGIN_URL . 'css/spa_calendar.css', array(), SPA_VERSION);
