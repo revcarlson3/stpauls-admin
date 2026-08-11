@@ -182,9 +182,38 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
          
         switch ($active_tab) {
             case 'services':
+                $service_pages = get_pages(array('post_status' => 'publish', 'sort_column' => 'post_title'));
+                $sermons_page_id = absint(get_option('spa_sermons_page_id', 0));
+                $sermon_details_page_id = absint(get_option('spa_sermon_details_page_id', 0));
                 ?>
                 <h2>Service settings</h2>
                 <p>Scripture references use Logos Reftagger for ESV, HCSB, KJV, and NIV. EHV references open directly in BibleGateway.</p>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><label for="spa_sermons_page_id">Sermons page</label></th>
+                        <td>
+                            <select name="spa_sermons_page_id" id="spa_sermons_page_id">
+                                <option value="0">Not selected</option>
+                                <?php foreach ( $service_pages as $service_page ) : ?>
+                                    <option value="<?php echo intval($service_page->ID); ?>" <?php selected($sermons_page_id, $service_page->ID); ?>><?php echo esc_html($service_page->post_title); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="description">The published page containing <code>[spa_sermons]</code>.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="spa_sermon_details_page_id">Sermon details page</label></th>
+                        <td>
+                            <select name="spa_sermon_details_page_id" id="spa_sermon_details_page_id">
+                                <option value="0">Not selected</option>
+                                <?php foreach ( $service_pages as $service_page ) : ?>
+                                    <option value="<?php echo intval($service_page->ID); ?>" <?php selected($sermon_details_page_id, $service_page->ID); ?>><?php echo esc_html($service_page->post_title); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="description">The published page containing <code>[spa_sermon_details]</code>.</p>
+                        </td>
+                    </tr>
+                </table>
                 <?php
                 break;
             case 'email':

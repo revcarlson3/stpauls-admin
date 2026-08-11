@@ -55,5 +55,7 @@ delete_option('spa_biblegateway_api_key');
 delete_option('spa_biblegateway_api_secret');
 delete_option('spa_biblegateway_translations');
 delete_option('spa_reftagger_translations');
+delete_option('spa_sermons_page_id');
+delete_option('spa_sermon_details_page_id');
 
 // End of uninstall

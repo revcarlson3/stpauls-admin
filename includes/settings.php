@@ -21,6 +21,11 @@ function spa_handle_settings_post() {
         update_option('spa_notification_reminder_24h', isset($_POST['spa_notification_reminder_24h']) ? 1 : 0);
     }
 
+    if ( $posted_tab === 'services' ) {
+        update_option('spa_sermons_page_id', isset($_POST['spa_sermons_page_id']) ? absint($_POST['spa_sermons_page_id']) : 0);
+        update_option('spa_sermon_details_page_id', isset($_POST['spa_sermon_details_page_id']) ? absint($_POST['spa_sermon_details_page_id']) : 0);
+    }
+
     if ( $posted_tab === 'email' ) {
         $notification_email = isset($_POST['spa_notification_email']) ? sanitize_email(wp_unslash($_POST['spa_notification_email'])) : '';
         $enable_email = isset($_POST['spa_enable_email']) ? 1 : 0;
