@@ -1,6 +1,6 @@
 <?php
 
-function spa_send_sms($to, $message, $provider = null) {
+function spa_send_sms($to, $message, $provider = null, $tracking = array()) {
     if ( empty($to) ) {
         return new WP_Error('missing_recipient', 'Recipient phone number is required');
     }
@@ -39,6 +39,13 @@ function spa_send_sms($to, $message, $provider = null) {
                 'httpversion' => '1.1',
                 'user-agent' => 'WordPress/' . get_bloginfo('version') . '; ' . get_bloginfo('url')
             );
+            if ( ! empty($tracking['delivery_log_id']) ) {
+                $args['body']['StatusCallback'] = add_query_arg(
+                    'log_id',
+                    intval($tracking['delivery_log_id']),
+                    rest_url('spa/v1/twilio-status')
+                );
+            }
             $args['headers']['Authorization'] = 'Basic ' . base64_encode($sid . ':' . $token);
             $resp = wp_remote_post($url, $args);
             if ( is_wp_error($resp) ) return $resp;
@@ -46,6 +53,12 @@ function spa_send_sms($to, $message, $provider = null) {
             $body = wp_remote_retrieve_body($resp);
             if ( $code < 200 || $code >= 300 ) {
                 return new WP_Error('twilio_error', "Twilio error: " . $body);
+            }
+            $json = json_decode($body, true);
+            if ( ! empty($tracking['delivery_log_id']) ) {
+                return array(
+                    'message_id' => isset($json['sid']) ? sanitize_text_field($json['sid']) : '',
+                );
             }
             return true;
 

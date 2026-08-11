@@ -93,6 +93,14 @@ function spa_dashboard_page() {
         )
     );
 
+    $communication_failures = $wpdb->get_results(
+        "SELECT channel, failed_at, volunteer_name, failure_reason
+         FROM {$wpdb->prefix}spa_notification_delivery_logs
+         WHERE status = 'failed'
+         ORDER BY failed_at DESC, id DESC
+         LIMIT 2"
+    );
+
     $sunday_service = $wpdb->get_row(
         "SELECT *
          FROM {$wpdb->prefix}spa_events

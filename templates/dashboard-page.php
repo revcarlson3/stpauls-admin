@@ -227,6 +227,35 @@
                         <?php else : ?>
                             <p>No upcoming events found.</p>
                         <?php endif; ?>
+                    <?php elseif ( $card_id === 'communications' ) : ?>
+                        <?php if ( ! empty($communication_failures) ) : ?>
+                            <table class="spa-upcoming-events-table spa-communications-table">
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>Date</th>
+                                        <th>Volunteer</th>
+                                        <th>Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ( $communication_failures as $failure ) : ?>
+                                        <tr>
+                                            <td>
+                                                <span class="spa-communication-type">
+                                                    <?php echo esc_html(strtoupper($failure->channel)); ?>
+                                                </span>
+                                            </td>
+                                            <td><?php echo esc_html(mysql2date('M j, Y g:i a', $failure->failed_at)); ?></td>
+                                            <td><?php echo esc_html($failure->volunteer_name); ?></td>
+                                            <td class="spa-communication-reason"><?php echo esc_html($failure->failure_reason); ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        <?php else : ?>
+                            <p>No failed email or SMS deliveries recorded.</p>
+                        <?php endif; ?>
                     <?php elseif ( $card_id === 'future' ) : ?>
                         <p style="color:#999;font-style:italic;">Reserved for future functionality.</p>
                     <?php else : ?>

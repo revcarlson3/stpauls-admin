@@ -18,6 +18,7 @@ $tables = array(
     $wpdb->prefix . 'spa_volunteers',
     $wpdb->prefix . 'spa_teams',
     $wpdb->prefix . 'spa_notification_templates',
+    $wpdb->prefix . 'spa_notification_delivery_logs',
 );
 
 foreach ( $tables as $table ) {

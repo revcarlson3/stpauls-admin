@@ -275,8 +275,33 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                                     <th scope="row">From Name</th>
                                     <td><input name="spa_sendgrid_from_name" type="text" value="<?php echo esc_attr(get_option('spa_sendgrid_from_name', '')); ?>" class="regular-text"></td>
                                 </tr>
+                                <tr>
+                                    <th scope="row"><label for="spa_sendgrid_webhook_url">Event Webhook URL</label></th>
+                                    <td>
+                                        <input
+                                            id="spa_sendgrid_webhook_url"
+                                            type="url"
+                                            readonly
+                                            value="<?php echo esc_url(rest_url('spa/v1/sendgrid-events')); ?>"
+                                            class="large-text code"
+                                            onclick="this.select();">
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="spa_sendgrid_webhook_public_key">Webhook Verification Key</label></th>
+                                    <td>
+                                        <textarea
+                                            name="spa_sendgrid_webhook_public_key"
+                                            id="spa_sendgrid_webhook_public_key"
+                                            rows="4"
+                                            class="large-text code"><?php echo esc_textarea(get_option('spa_sendgrid_webhook_public_key', '')); ?></textarea>
+                                    </td>
+                                </tr>
                             </table>
-                            <p class="description">Instructions: Create an API key in SendGrid (Full Access or Mail Send), verify your sender identity, then paste the key here. See https://sendgrid.com/docs/ for setup help.</p>
+                            <p class="description">
+                                In SendGrid, create an Event Webhook using the URL above, enable the Delivered, Bounced, and Dropped events,
+                                enable Signed Event Webhook, then paste its public verification key here.
+                            </p>
                         </div>
 
                         <div class="spa-provider mailgun" data-provider="mailgun" style="display:none;">

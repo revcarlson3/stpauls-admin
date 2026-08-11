@@ -127,6 +127,28 @@ function spa_activate_plugin() {
 
     dbDelta($sql);
 
+    $delivery_logs_table = $wpdb->prefix . 'spa_notification_delivery_logs';
+
+    $sql = "CREATE TABLE $delivery_logs_table (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        event_id mediumint(9) NULL,
+        volunteer_id mediumint(9) NULL,
+        volunteer_name varchar(255) NOT NULL,
+        channel varchar(10) NOT NULL,
+        provider varchar(30) NOT NULL,
+        status varchar(20) NOT NULL DEFAULT 'pending',
+        provider_message_id varchar(191) NULL,
+        failure_reason text NULL,
+        failed_at datetime NULL,
+        created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY status_failed_at (status, failed_at),
+        KEY provider_message_id (provider_message_id)
+    ) $charset_collate;";
+
+    dbDelta($sql);
+
     // Notification Templates Table
     $templates_table = $wpdb->prefix . 'spa_notification_templates';
 

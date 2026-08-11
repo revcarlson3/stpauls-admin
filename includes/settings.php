@@ -54,9 +54,11 @@ function spa_handle_settings_post() {
                 $sendgrid_key = isset($_POST['spa_sendgrid_api_key']) ? sanitize_text_field(wp_unslash($_POST['spa_sendgrid_api_key'])) : '';
                 $sendgrid_from_address = isset($_POST['spa_sendgrid_from']) ? sanitize_email(wp_unslash($_POST['spa_sendgrid_from'])) : '';
                 $sendgrid_from_name = isset($_POST['spa_sendgrid_from_name']) ? sanitize_text_field(wp_unslash($_POST['spa_sendgrid_from_name'])) : '';
+                $sendgrid_webhook_key = isset($_POST['spa_sendgrid_webhook_public_key']) ? sanitize_textarea_field(wp_unslash($_POST['spa_sendgrid_webhook_public_key'])) : '';
                 if ($sendgrid_key !== '') update_option('spa_sendgrid_api_key', $sendgrid_key);
                 update_option('spa_sendgrid_from', $sendgrid_from_address);
                 update_option('spa_sendgrid_from_name', $sendgrid_from_name);
+                update_option('spa_sendgrid_webhook_public_key', $sendgrid_webhook_key);
                 break;
 
             case 'mailgun':
@@ -853,6 +855,12 @@ function spa_settings_admin_notices() {
             echo '<div class="notice notice-info"><p>Test result: ' . esc_html($test) . '</p></div>';
         }
     }
+    if (
+        get_option('spa_email_provider', 'wp_mail') === 'sendgrid'
+        && get_option('spa_sendgrid_webhook_public_key', '') === ''
+    ) {
+        echo '<div class="notice notice-warning"><p><strong>SendGrid delivery failure tracking is not active.</strong> Configure the signed Event Webhook and paste its verification key on the Email tab.</p></div>';
+    }
 }
 add_action('admin_notices', 'spa_settings_admin_notices');
 
@@ -899,9 +907,11 @@ function spa_ajax_send_test_email() {
             $sendgrid_key = isset($_POST['spa_sendgrid_api_key']) ? sanitize_text_field(wp_unslash($_POST['spa_sendgrid_api_key'])) : '';
             $sendgrid_from_address = isset($_POST['spa_sendgrid_from']) ? sanitize_email(wp_unslash($_POST['spa_sendgrid_from'])) : '';
             $sendgrid_from_name = isset($_POST['spa_sendgrid_from_name']) ? sanitize_text_field(wp_unslash($_POST['spa_sendgrid_from_name'])) : '';
+            $sendgrid_webhook_key = isset($_POST['spa_sendgrid_webhook_public_key']) ? sanitize_textarea_field(wp_unslash($_POST['spa_sendgrid_webhook_public_key'])) : '';
             if ($sendgrid_key !== '') update_option('spa_sendgrid_api_key', $sendgrid_key);
             update_option('spa_sendgrid_from', $sendgrid_from_address);
             update_option('spa_sendgrid_from_name', $sendgrid_from_name);
+            update_option('spa_sendgrid_webhook_public_key', $sendgrid_webhook_key);
             break;
 
         case 'mailgun':

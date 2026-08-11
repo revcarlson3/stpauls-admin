@@ -27,9 +27,9 @@ function spa_get_email_from() {
  * @param string $message
  * @param array $headers
  * @param array $attachments
- * @return true|WP_Error
+ * @return true|array|WP_Error
  */
-function spa_send_email($to, $subject, $message, $headers = array(), $attachments = array()) {
+function spa_send_email($to, $subject, $message, $headers = array(), $attachments = array(), $tracking = array()) {
     $provider = get_option('spa_email_provider', 'wp_mail');
     list($from_email, $from_name) = spa_get_email_from();
 
@@ -72,8 +72,16 @@ function spa_send_email($to, $subject, $message, $headers = array(), $attachment
         case 'sendgrid':
             $key = get_option('spa_sendgrid_api_key', '');
             if (empty($key)) return new WP_Error('no_key', 'SendGrid API key not configured');
+            $personalization = array(
+                'to' => array_map(function($r){ return array('email' => $r); }, (array)$to),
+            );
+            if ( ! empty($tracking['delivery_log_id']) ) {
+                $personalization['custom_args'] = array(
+                    'spa_log_id' => (string) intval($tracking['delivery_log_id']),
+                );
+            }
             $payload = array(
-                'personalizations' => array(array('to' => array_map(function($r){ return array('email' => $r); }, (array)$to))),
+                'personalizations' => array($personalization),
                 'from' => array('email' => $from_email, 'name' => $from_name),
                 'subject' => $subject,
                 'content' => array(array('type' => 'text/html', 'value' => $message))
@@ -86,7 +94,14 @@ function spa_send_email($to, $subject, $message, $headers = array(), $attachment
             $resp = wp_remote_post('https://api.sendgrid.com/v3/mail/send', $args);
             if (is_wp_error($resp)) return $resp;
             $code = wp_remote_retrieve_response_code($resp);
-            if ($code >= 200 && $code < 300) return true;
+            if ($code >= 200 && $code < 300) {
+                if ( ! empty($tracking['delivery_log_id']) ) {
+                    return array(
+                        'message_id' => sanitize_text_field(wp_remote_retrieve_header($resp, 'x-message-id')),
+                    );
+                }
+                return true;
+            }
             return new WP_Error('sendgrid_error', 'SendGrid error: ' . wp_remote_retrieve_response_message($resp));
 
         case 'mailgun':
