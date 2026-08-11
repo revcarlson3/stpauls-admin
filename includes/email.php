@@ -31,6 +31,7 @@ function spa_get_email_from() {
  */
 function spa_send_email($to, $subject, $message, $headers = array(), $attachments = array(), $tracking = array()) {
     $provider = get_option('spa_email_provider', 'wp_mail');
+    $subject = html_entity_decode((string) $subject, ENT_QUOTES, 'UTF-8');
     list($from_email, $from_name) = spa_get_email_from();
 
     // Ensure From header
