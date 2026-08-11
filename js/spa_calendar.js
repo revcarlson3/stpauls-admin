@@ -47,6 +47,50 @@
         return styles[season] || '';
     }
 
+    function specialDayClass(specialDay) {
+        return 'spa-special-day-' + String(specialDay || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    }
+
+    function specialDayStyle(specialDay) {
+        var styles = {
+            'Baptism of Our Lord': 'background-color:#f5f1df;border-left-color:#b18c18;color:#241d00;',
+            'Transfiguration of Our Lord': 'background-color:#f5f1df;border-left-color:#b18c18;color:#241d00;',
+            'Ash Wednesday': 'background-color:#222;border-left-color:#000;color:#fff;',
+            'Palm Sunday': 'background-color:#6a4c93;border-left-color:#493366;color:#fff;',
+            'Maundy Thursday': 'background-color:#f5f1df;border-left-color:#b18c18;color:#241d00;',
+            'Good Friday': 'background-color:#222;border-left-color:#000;color:#fff;',
+            'Easter Vigil': 'background-color:#f5f1df;border-left-color:#b18c18;color:#241d00;',
+            'Ascension Day': 'background-color:#f5f1df;border-left-color:#b18c18;color:#241d00;',
+            'Day of Pentecost': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;',
+            'Holy Trinity': 'background-color:#f5f1df;border-left-color:#b18c18;color:#241d00;',
+            'Reformation Day': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;',
+            'All Saints\' Day': 'background-color:#f5f1df;border-left-color:#b18c18;color:#241d00;',
+            'St. Stephen, Martyr': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;',
+            'St. John, Apostle and Evangelist': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;',
+            'Holy Innocents, Martyrs': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;',
+            'Confession of St. Peter': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;',
+            'Conversion of St. Paul': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;',
+            'Presentation of Our Lord': 'background-color:#f5f1df;border-left-color:#b18c18;color:#241d00;',
+            'St. Joseph, Guardian of Jesus': 'background-color:#f5f1df;border-left-color:#b18c18;color:#241d00;',
+            'Annunciation of Our Lord': 'background-color:#f5f1df;border-left-color:#b18c18;color:#241d00;',
+            'St. Mark, Evangelist': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;',
+            'St. Philip and St. James, Apostles': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;',
+            'St. Barnabas, Apostle': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;',
+            'St. Peter and St. Paul, Apostles': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;',
+            'St. Mary Magdalene': 'background-color:#f5f1df;border-left-color:#b18c18;color:#241d00;',
+            'St. James of Jerusalem': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;',
+            'St. Mary, Mother of Our Lord': 'background-color:#f5f1df;border-left-color:#b18c18;color:#241d00;',
+            'St. Matthew, Evangelist': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;',
+            'St. Michael and All Angels': 'background-color:#f5f1df;border-left-color:#b18c18;color:#241d00;',
+            'St. Luke, Evangelist': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;',
+            'St. Simon and St. Jude, Apostles': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;',
+            'St. Andrew, Apostle': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;',
+            'St. Thomas, Apostle': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;',
+            'St. Matthias, Apostle': 'background-color:#c62828;border-left-color:#8d1d1d;color:#fff;'
+        };
+        return styles[specialDay] || '';
+    }
+
     function initCalendar(container) {
         var events;
         try {
@@ -64,8 +108,9 @@
         }
 
         function eventMarkup(event) {
-            return '<button type="button" class="spa-calendar-event ' + seasonClass(event.season) +
-                '" style="' + seasonStyle(event.season) + '" data-event-id="' + Number(event.id) + '">' +
+            var colorStyle = specialDayStyle(event.special_day) || seasonStyle(event.season);
+            return '<button type="button" class="spa-calendar-event ' + seasonClass(event.season) + ' ' +
+                specialDayClass(event.special_day) + '" style="' + colorStyle + '" data-event-id="' + Number(event.id) + '">' +
                 escapeHtml(event.name) + '</button>';
         }
 
