@@ -1,6 +1,7 @@
 <?php
 
 define('SPA_UPDATE_REPOSITORY', 'revcarlson3/stpauls-admin');
+define('SPA_UPDATE_CACHE_KEY', 'spa_github_release_v2');
 
 function spa_log_update_debug($message) {
     if ( defined('WP_DEBUG') && WP_DEBUG ) {
@@ -9,7 +10,7 @@ function spa_log_update_debug($message) {
 }
 
 function spa_get_github_release() {
-    $cached_release = get_transient('spa_github_release');
+    $cached_release = get_transient(SPA_UPDATE_CACHE_KEY);
     if ( false !== $cached_release ) {
         return $cached_release;
     }
@@ -27,13 +28,13 @@ function spa_get_github_release() {
 
     if ( is_wp_error($response) || 200 !== wp_remote_retrieve_response_code($response) ) {
         spa_log_update_debug('GitHub release request failed: ' . ( is_wp_error($response) ? $response->get_error_message() : 'HTTP ' . wp_remote_retrieve_response_code($response) ));
-        set_transient('spa_github_release', array(), HOUR_IN_SECONDS);
+        set_transient(SPA_UPDATE_CACHE_KEY, array(), HOUR_IN_SECONDS);
         return array();
     }
 
     $release = json_decode(wp_remote_retrieve_body($response), true);
     if ( ! is_array($release) || empty($release['tag_name']) || empty($release['assets']) || ! is_array($release['assets']) ) {
-        set_transient('spa_github_release', array(), HOUR_IN_SECONDS);
+        set_transient(SPA_UPDATE_CACHE_KEY, array(), HOUR_IN_SECONDS);
         return array();
     }
 
@@ -46,12 +47,12 @@ function spa_get_github_release() {
 
     if ( empty($release['package']) ) {
         spa_log_update_debug('Latest release has no stpauls-admin.zip asset.');
-        set_transient('spa_github_release', array(), HOUR_IN_SECONDS);
+        set_transient(SPA_UPDATE_CACHE_KEY, array(), HOUR_IN_SECONDS);
         return array();
     }
 
     spa_log_update_debug('Found release ' . $release['tag_name'] . ' with package asset.');
-    set_transient('spa_github_release', $release, 12 * HOUR_IN_SECONDS);
+    set_transient(SPA_UPDATE_CACHE_KEY, $release, 12 * HOUR_IN_SECONDS);
     return $release;
 }
 
