@@ -93,12 +93,10 @@ function spa_dashboard_page() {
         )
     );
 
-    $communication_failures = $wpdb->get_results(
-        "SELECT channel, failed_at, volunteer_name, failure_reason
+    $communication_deliveries = $wpdb->get_results(
+        "SELECT channel, created_at, volunteer_name, status, failure_reason
          FROM {$wpdb->prefix}spa_notification_delivery_logs
-         WHERE status = 'failed'
-         ORDER BY failed_at DESC, id DESC
-         LIMIT 2"
+         ORDER BY created_at DESC, id DESC"
     );
 
     $activity_filter = isset($_GET['activity_filter']) ? sanitize_key(wp_unslash($_GET['activity_filter'])) : 'all';

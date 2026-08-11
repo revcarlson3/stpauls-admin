@@ -259,33 +259,35 @@
                             <p>No upcoming events found.</p>
                         <?php endif; ?>
                     <?php elseif ( $card_id === 'communications' ) : ?>
-                        <?php if ( ! empty($communication_failures) ) : ?>
+                        <?php if ( ! empty($communication_deliveries) ) : ?>
                             <table class="spa-upcoming-events-table spa-communications-table">
                                 <thead>
                                     <tr>
                                         <th>Type</th>
                                         <th>Date</th>
                                         <th>Volunteer</th>
-                                        <th>Reason</th>
+                                        <th>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php foreach ( $communication_failures as $failure ) : ?>
+                                    <?php foreach ( $communication_deliveries as $delivery ) : ?>
                                         <tr>
                                             <td>
                                                 <span class="spa-communication-type">
-                                                    <?php echo esc_html(strtoupper($failure->channel)); ?>
+                                                    <?php echo esc_html(strtoupper($delivery->channel)); ?>
                                                 </span>
                                             </td>
-                                            <td><?php echo esc_html(mysql2date('M j, Y g:i a', $failure->failed_at)); ?></td>
-                                            <td><?php echo esc_html($failure->volunteer_name); ?></td>
-                                            <td class="spa-communication-reason"><?php echo esc_html($failure->failure_reason); ?></td>
+                                            <td><?php echo esc_html(mysql2date('M j, Y g:i a', $delivery->created_at)); ?></td>
+                                            <td><?php echo esc_html($delivery->volunteer_name); ?></td>
+                                            <td class="spa-communication-reason">
+                                                <?php echo esc_html($delivery->status === 'failed' && $delivery->failure_reason ? $delivery->failure_reason : ucfirst($delivery->status)); ?>
+                                            </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 </tbody>
                             </table>
                         <?php else : ?>
-                            <p>No failed email or SMS deliveries recorded.</p>
+                            <p>No email or SMS deliveries recorded.</p>
                         <?php endif; ?>
                     <?php elseif ( $card_id === 'future' ) : ?>
                         <p style="color:#999;font-style:italic;">Reserved for future functionality.</p>
