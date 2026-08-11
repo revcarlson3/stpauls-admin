@@ -79,6 +79,7 @@ function spa_github_update_plugins($transient) {
 }
 add_filter('site_transient_update_plugins', 'spa_github_update_plugins');
 add_filter('pre_set_site_transient_update_plugins', 'spa_github_update_plugins');
+add_filter('pre_site_transient_update_plugins', 'spa_github_update_plugins');
 
 function spa_github_plugin_information($result, $action, $args) {
     if ( 'plugin_information' !== $action || empty($args->slug) || 'stpauls-admin' !== $args->slug ) {
