@@ -263,7 +263,7 @@ function spa_services_sermon_details_shortcode($atts) {
                     </nav>
                     <h2><?php echo esc_html($service->sermon_title ? $service->sermon_title : $service->event_name); ?></h2>
                     <?php if ( current_user_can('edit_posts') ) : ?>
-                        <a class="spa-sermon-edit-link" href="<?php echo esc_url(admin_url('admin.php?page=spa-services&service_id=' . intval($service->id) . '&event_id=' . intval($service->event_id))); ?>">Edit</a>
+                        <a class="spa-sermon-edit-link" href="<?php echo esc_url(add_query_arg(array('page' => 'spa-services', 'service_id' => intval($service->id), 'event_id' => intval($service->event_id), 'spa_return_url' => rawurlencode(wp_unslash($_SERVER['REQUEST_URI']))), admin_url('admin.php'))); ?>">Edit</a>
                     <?php endif; ?>
                     <p class="spa-sermon-date"><?php echo esc_html(mysql2date(get_option('date_format'), $service->event_date)); ?></p>
                     <?php if ( $service->preacher_name || $service->series_name ) : ?>
@@ -788,7 +788,12 @@ function spa_services_save_record() {
             $wpdb->insert($rel_table, array('service_id' => $service_id, 'tag_id' => intval($tag_id)), array('%d', '%d'));
         }
     }
-    wp_safe_redirect(admin_url('admin.php?page=spa-services&service_saved=1'));
+    $return_url = isset($_POST['spa_return_url']) ? esc_url_raw(wp_unslash($_POST['spa_return_url'])) : '';
+    if ( $return_url !== '' && wp_validate_redirect($return_url, false) ) {
+        wp_safe_redirect(add_query_arg('service_updated', '1', $return_url));
+    } else {
+        wp_safe_redirect(admin_url('admin.php?page=spa-services&service_saved=1'));
+    }
     exit;
 }
 add_action('admin_post_spa_save_service', 'spa_services_save_record');
