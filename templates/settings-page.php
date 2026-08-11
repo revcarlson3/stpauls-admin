@@ -213,6 +213,13 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                             <p class="description">The published page containing <code>[spa_sermon_details]</code>.</p>
                         </td>
                     </tr>
+                    <tr>
+                        <th scope="row"><label for="spa_youtube_api_key">YouTube Data API key</label></th>
+                        <td>
+                            <?php spa_render_secret_field('spa_youtube_api_key', 'spa_youtube_api_key'); ?>
+                            <p class="description">Optional. When configured, hymn links use a cached YouTube search result; otherwise they continue to use Hymnary.org.</p>
+                        </td>
+                    </tr>
                 </table>
                 <?php
                 break;

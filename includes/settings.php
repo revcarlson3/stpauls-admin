@@ -24,6 +24,10 @@ function spa_handle_settings_post() {
     if ( $posted_tab === 'services' ) {
         update_option('spa_sermons_page_id', isset($_POST['spa_sermons_page_id']) ? absint($_POST['spa_sermons_page_id']) : 0);
         update_option('spa_sermon_details_page_id', isset($_POST['spa_sermon_details_page_id']) ? absint($_POST['spa_sermon_details_page_id']) : 0);
+        $youtube_api_key = isset($_POST['spa_youtube_api_key']) ? sanitize_text_field(wp_unslash($_POST['spa_youtube_api_key'])) : '';
+        if ( $youtube_api_key !== '' ) {
+            update_option('spa_youtube_api_key', $youtube_api_key);
+        }
     }
 
     if ( $posted_tab === 'email' ) {
@@ -1232,6 +1236,7 @@ function spa_ajax_delete_secret() {
     $allowed_options = array(
         'spa_smtp_pass',
         'spa_sendgrid_api_key',
+        'spa_youtube_api_key',
         'spa_mailgun_api_key',
         'spa_ses_key',
         'spa_ses_secret',

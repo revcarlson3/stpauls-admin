@@ -287,7 +287,8 @@ function spa_services_sermon_details_shortcode($atts) {
                                     <li>
                                         <span class="spa-sermon-item-icon" aria-hidden="true">&#9835;</span>
                                         <span class="spa-sermon-item-content">
-                                            <a href="<?php echo esc_url($hymn->external_url); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html($hymn->reference); ?></a>
+                                            <?php $hymn_video_url = spa_services_get_hymn_video_url($hymn); ?>
+                                            <a href="<?php echo esc_url($hymn_video_url ?: $hymn->external_url); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html($hymn->reference); ?></a>
                                             <?php if ( $hymn->title ) : ?> &mdash; <?php echo esc_html($hymn->title); ?><?php endif; ?>
                                             <?php if ( $hymn->author ) : ?><span>Author: <?php echo esc_html($hymn->author); ?></span><?php endif; ?>
                                             <?php if ( $hymn->tune ) : ?><span>Tune: <?php echo esc_html($hymn->tune); ?></span><?php endif; ?>
@@ -497,6 +498,47 @@ function spa_services_catalog_hymn($hymn) {
     }
     if ( ! $hymnal_id ) {
         return $hymn;
+    }
+
+    function spa_services_get_hymn_video_url($hymn) {
+        $api_key = trim((string) get_option('spa_youtube_api_key', ''));
+        if ( $api_key === '' ) {
+            return '';
+        }
+
+        $query = trim(implode(' ', array_filter(array(
+            $hymn->title,
+            $hymn->author,
+            $hymn->tune,
+            $hymn->reference,
+            'hymn',
+        ))));
+        if ( $query === '' ) {
+            return '';
+        }
+        $cache_key = 'spa_hymn_video_' . md5(strtolower($query));
+        $cached = get_transient($cache_key);
+        if ( $cached !== false ) {
+            return is_string($cached) ? $cached : '';
+        }
+
+        $response = wp_remote_get(add_query_arg(array(
+            'part' => 'snippet',
+            'maxResults' => 1,
+            'type' => 'video',
+            'q' => $query,
+            'key' => $api_key,
+        ), 'https://www.googleapis.com/youtube/v3/search'), array('timeout' => 5));
+        if ( is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200 ) {
+            set_transient($cache_key, '', DAY_IN_SECONDS);
+            return '';
+        }
+
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        $video_id = isset($body['items'][0]['id']['videoId']) ? sanitize_text_field($body['items'][0]['id']['videoId']) : '';
+        $url = $video_id !== '' ? 'https://www.youtube.com/watch?v=' . rawurlencode($video_id) : '';
+        set_transient($cache_key, $url, 30 * DAY_IN_SECONDS);
+        return $url;
     }
 
     $catalog = $wpdb->get_row($wpdb->prepare(
