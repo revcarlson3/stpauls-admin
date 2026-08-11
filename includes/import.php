@@ -76,8 +76,8 @@ function spa_get_complete_backup_table_definitions() {
         ),
         'services' => array(
             'suffix' => 'spa_services',
-            'columns' => array('id', 'event_id', 'sermon_title', 'sermon_text', 'sermon_file_id', 'sermon_file_url', 'bible_translation', 'video_url', 'audio_file_id', 'audio_file_url', 'bulletin_file_id', 'bulletin_file_url', 'preacher_id', 'series_id', 'featured_image_id', 'active', 'created_by', 'created_at', 'updated_at'),
-            'formats' => array('%d', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%d', '%d', '%d', '%d', '%d', '%s', '%s'),
+            'columns' => array('id', 'event_id', 'sermon_title', 'liturgy', 'sermon_text', 'sermon_file_id', 'sermon_file_url', 'bible_translation', 'video_url', 'audio_file_id', 'audio_file_url', 'bulletin_file_id', 'bulletin_file_url', 'preacher_id', 'series_id', 'featured_image_id', 'active', 'created_by', 'created_at', 'updated_at'),
+            'formats' => array('%d', '%d', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%d', '%d', '%d', '%d', '%d', '%s', '%s'),
             'order_by' => 'id',
         ),
         'service_lessons' => array(
@@ -271,7 +271,7 @@ function spa_handle_export_complete_backup() {
     }
     $backup = array(
         'format' => 'stpauls-admin-complete-backup',
-        'format_version' => 8,
+        'format_version' => 9,
         'plugin_version' => defined('SPA_VERSION') ? SPA_VERSION : '',
         'exported_at' => gmdate('c'),
         'site_url' => home_url(),
@@ -324,7 +324,7 @@ function spa_complete_backup_validate_composite_keys($rows, $table_key, $columns
 }
 
 function spa_upgrade_complete_backup($backup) {
-    if ( ! is_array($backup) || ! in_array(intval($backup['format_version'] ?? 0), array(1, 2, 3, 4, 5, 6, 7), true) ) {
+    if ( ! is_array($backup) || ! in_array(intval($backup['format_version'] ?? 0), array(1, 2, 3, 4, 5, 6, 7, 8), true) ) {
         return $backup;
     }
     if (
@@ -438,6 +438,19 @@ function spa_upgrade_complete_backup($backup) {
         $backup['payload']['tables'] = $ordered_tables;
         $backup['format_version'] = 8;
     }
+    if ( intval($backup['format_version']) < 9 ) {
+        foreach ( $backup['payload']['tables']['services'] as $index => $row ) {
+            $upgraded_row = array();
+            foreach ( $row as $column => $value ) {
+                if ( $column === 'sermon_text' ) {
+                    $upgraded_row['liturgy'] = '';
+                }
+                $upgraded_row[$column] = $value;
+            }
+            $backup['payload']['tables']['services'][$index] = $upgraded_row;
+        }
+        $backup['format_version'] = 9;
+    }
     $backup['checksum'] = spa_get_complete_backup_checksum($backup['payload']);
     return $backup;
 }
@@ -451,7 +464,7 @@ function spa_validate_complete_backup(&$backup, $discard_orphaned_relationships 
         ! is_array($backup)
         || ! isset($backup['format'], $backup['format_version'], $backup['payload'], $backup['checksum'])
         || $backup['format'] !== 'stpauls-admin-complete-backup'
-        || intval($backup['format_version']) !== 8
+        || intval($backup['format_version']) !== 9
         || ! is_array($backup['payload'])
         || ! isset($backup['payload']['tables'], $backup['payload']['options'], $backup['payload']['user_meta'])
         || ! is_array($backup['payload']['tables'])

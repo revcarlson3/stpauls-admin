@@ -99,6 +99,20 @@
     margin-top: 1.75rem;
     padding-top: 1.25rem;
 }
+.spa-sermon-liturgy {
+    border-top: 1px solid #e1e5ea;
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+}
+.spa-sermon-liturgy h3 {
+    color: #172b4d;
+    font-size: 1rem;
+    margin: 0 0 .4rem;
+}
+.spa-sermon-liturgy a {
+    color: #2271b1;
+    font-weight: 600;
+}
 .spa-sermon-hymns h3 {
     color: #172b4d;
     font-size: 1rem;

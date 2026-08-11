@@ -10,6 +10,28 @@ function spa_services_get_translation_choices() {
     return array('ESV', 'HCSB', 'KJV', 'NIV', 'EHV');
 }
 
+function spa_services_get_liturgy_choices() {
+    return array(
+        'Divine Service I',
+        'Divine Service II',
+        'Divine Service III',
+        'Divine Service IV',
+        'Divine Service V',
+        'Morning Prayer',
+        'Evening Prayer',
+        'Matins',
+        'Vespers',
+        'Compline',
+        'Service of Prayer and Preaching',
+        'Corporate Confession and Absolution',
+        'Individual Confession and Absolution',
+        'Holy Baptism',
+        'Confirmation',
+        'Holy Matrimony',
+        'Funeral Service',
+    );
+}
+
 function spa_services_enqueue_reftagger($translation = '') {
     $translation = $translation ? sanitize_text_field($translation) : 'ESV';
     if ( ! in_array($translation, array('ESV', 'HCSB', 'KJV', 'NIV'), true) ) {
@@ -234,6 +256,16 @@ function spa_services_sermon_details_shortcode($atts) {
                             <?php if ( $service->preacher_name ) : ?>Preacher: <?php echo esc_html($service->preacher_name); ?><br><?php endif; ?>
                             <?php if ( $service->series_name ) : ?>Series: <?php echo esc_html($service->series_name); ?><?php endif; ?>
                         </p>
+                    <?php endif; ?>
+                    <?php if ( $service->liturgy ) : ?>
+                        <section class="spa-sermon-liturgy">
+                            <h3>Order of service</h3>
+                            <?php if ( $service->bulletin_file_url ) : ?>
+                                <a href="<?php echo esc_url($service->bulletin_file_url); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html($service->liturgy); ?></a>
+                            <?php else : ?>
+                                <span><?php echo esc_html($service->liturgy); ?></span>
+                            <?php endif; ?>
+                        </section>
                     <?php endif; ?>
                     <?php if ( $hymns ) : ?>
                         <section class="spa-sermon-hymns">
@@ -466,6 +498,10 @@ function spa_services_save_record() {
 
     $sermon_text = isset($_POST['sermon_text']) ? wp_kses_post(wp_unslash($_POST['sermon_text'])) : '';
     $sermon_title = isset($_POST['sermon_title']) ? sanitize_text_field(wp_unslash($_POST['sermon_title'])) : '';
+    $liturgy = isset($_POST['liturgy']) ? sanitize_text_field(wp_unslash($_POST['liturgy'])) : '';
+    if ( ! in_array($liturgy, spa_services_get_liturgy_choices(), true) ) {
+        $liturgy = '';
+    }
     $translation = isset($_POST['bible_translation']) ? sanitize_text_field(wp_unslash($_POST['bible_translation'])) : '';
     if ( ! in_array($translation, spa_services_get_translation_choices(), true) ) {
         $translation = '';
@@ -516,6 +552,7 @@ function spa_services_save_record() {
     $data = array(
         'event_id' => $event_id,
         'sermon_title' => $sermon_title,
+        'liturgy' => $liturgy,
         'sermon_text' => $sermon_text,
         'sermon_file_id' => $sermon_file_id ?: null,
         'sermon_file_url' => $sermon_file_id ? wp_get_attachment_url($sermon_file_id) : '',
@@ -531,7 +568,7 @@ function spa_services_save_record() {
         'active' => isset($_POST['active']) ? 1 : 0,
         'created_by' => $existing ? intval($existing->created_by) : get_current_user_id(),
     );
-    $formats = array('%d', '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%d', '%d', '%d', '%d', '%d');
+    $formats = array('%d', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%d', '%d', '%d', '%d', '%d');
     if ( ! empty($_FILES['featured_image']['name']) ) {
         $image_id = spa_services_handle_upload('featured_image', array(
             'jpg' => 'image/jpeg',
@@ -545,7 +582,7 @@ function spa_services_save_record() {
             wp_die(esc_html($image_id->get_error_message()), 'Upload Error', array('response' => 400));
         }
         $data['featured_image_id'] = intval($image_id);
-        $formats[13] = '%d';
+        $formats[14] = '%d';
     }
 
     if ( $existing ) {
