@@ -48,7 +48,11 @@ function spa_get_github_release() {
 
 function spa_github_update_plugins($transient) {
     if ( ! is_object($transient) ) {
-        return $transient;
+        $transient = new stdClass();
+    }
+
+    if ( ! isset($transient->response) || ! is_array($transient->response) ) {
+        $transient->response = array();
     }
 
     $plugin_file = plugin_basename(SPA_PLUGIN_DIR . 'stpauls-admin.php');
@@ -74,6 +78,7 @@ function spa_github_update_plugins($transient) {
     return $transient;
 }
 add_filter('site_transient_update_plugins', 'spa_github_update_plugins');
+add_filter('pre_set_site_transient_update_plugins', 'spa_github_update_plugins');
 
 function spa_github_plugin_information($result, $action, $args) {
     if ( 'plugin_information' !== $action || empty($args->slug) || 'stpauls-admin' !== $args->slug ) {
