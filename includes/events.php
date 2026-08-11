@@ -90,7 +90,7 @@ function spa_save_event_details_ajax() {
         'is_recurring'        => intval($_POST['is_recurring']),
         'recurrence_type'     => sanitize_text_field($_POST['recurrence_type']),
         'recurrence_end_date' => sanitize_text_field($_POST['recurrence_end_date']),
-        'notify_volunteers'   => isset($_POST['notify_volunteers']) ? 1 : 0,
+        'notify_volunteers'   => ! empty($_POST['notify_volunteers']) ? 1 : 0,
     );
     $event_formats = array('%s','%s','%s','%s','%s','%s','%d','%d','%s','%s','%d');
     if ( $service_builder_url !== null ) {
@@ -377,7 +377,7 @@ function spa_save_event_modal_ajax() {
         'is_recurring' => $is_recurring,
         'recurrence_type' => $recurrence_type,
         'recurrence_end_date' => $recurrence_end_date,
-        'notify_volunteers' => isset($_POST['notify_volunteers']) ? 1 : 0
+        'notify_volunteers' => ! empty($_POST['notify_volunteers']) ? 1 : 0
     );
     if ( $service_builder_url !== null ) {
         $data['service_builder_url'] = $service_builder_url ?: null;
