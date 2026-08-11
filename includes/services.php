@@ -500,47 +500,6 @@ function spa_services_catalog_hymn($hymn) {
         return $hymn;
     }
 
-    function spa_services_get_hymn_video_url($hymn) {
-        $api_key = trim((string) get_option('spa_youtube_api_key', ''));
-        if ( $api_key === '' ) {
-            return '';
-        }
-
-        $query = trim(implode(' ', array_filter(array(
-            $hymn->title,
-            $hymn->author,
-            $hymn->tune,
-            $hymn->reference,
-            'hymn',
-        ))));
-        if ( $query === '' ) {
-            return '';
-        }
-        $cache_key = 'spa_hymn_video_' . md5(strtolower($query));
-        $cached = get_transient($cache_key);
-        if ( $cached !== false ) {
-            return is_string($cached) ? $cached : '';
-        }
-
-        $response = wp_remote_get(add_query_arg(array(
-            'part' => 'snippet',
-            'maxResults' => 1,
-            'type' => 'video',
-            'q' => $query,
-            'key' => $api_key,
-        ), 'https://www.googleapis.com/youtube/v3/search'), array('timeout' => 5));
-        if ( is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200 ) {
-            set_transient($cache_key, '', DAY_IN_SECONDS);
-            return '';
-        }
-
-        $body = json_decode(wp_remote_retrieve_body($response), true);
-        $video_id = isset($body['items'][0]['id']['videoId']) ? sanitize_text_field($body['items'][0]['id']['videoId']) : '';
-        $url = $video_id !== '' ? 'https://www.youtube.com/watch?v=' . rawurlencode($video_id) : '';
-        set_transient($cache_key, $url, 30 * DAY_IN_SECONDS);
-        return $url;
-    }
-
     $catalog = $wpdb->get_row($wpdb->prepare(
         "SELECT * FROM {$catalog_table} WHERE hymnal_id = %d AND hymn_number = %s",
         $hymnal_id,
@@ -570,6 +529,47 @@ function spa_services_catalog_hymn($hymn) {
         }
     }
     return $hymn;
+}
+
+function spa_services_get_hymn_video_url($hymn) {
+    $api_key = trim((string) get_option('spa_youtube_api_key', ''));
+    if ( $api_key === '' ) {
+        return '';
+    }
+
+    $query = trim(implode(' ', array_filter(array(
+        $hymn->title,
+        $hymn->author,
+        $hymn->tune,
+        $hymn->reference,
+        'hymn',
+    ))));
+    if ( $query === '' ) {
+        return '';
+    }
+    $cache_key = 'spa_hymn_video_' . md5(strtolower($query));
+    $cached = get_transient($cache_key);
+    if ( $cached !== false ) {
+        return is_string($cached) ? $cached : '';
+    }
+
+    $response = wp_remote_get(add_query_arg(array(
+        'part' => 'snippet',
+        'maxResults' => 1,
+        'type' => 'video',
+        'q' => $query,
+        'key' => $api_key,
+    ), 'https://www.googleapis.com/youtube/v3/search'), array('timeout' => 5));
+    if ( is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200 ) {
+        set_transient($cache_key, '', DAY_IN_SECONDS);
+        return '';
+    }
+
+    $body = json_decode(wp_remote_retrieve_body($response), true);
+    $video_id = isset($body['items'][0]['id']['videoId']) ? sanitize_text_field($body['items'][0]['id']['videoId']) : '';
+    $url = $video_id !== '' ? 'https://www.youtube.com/watch?v=' . rawurlencode($video_id) : '';
+    set_transient($cache_key, $url, 30 * DAY_IN_SECONDS);
+    return $url;
 }
 
 function spa_services_parse_tags($raw) {
