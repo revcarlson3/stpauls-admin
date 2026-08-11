@@ -427,11 +427,15 @@ jQuery(function($) {
     $(document).on('click', '#spa-send-test-btn', function(e) {
         e.preventDefault();
         var $btn = $(this);
-        var dataArray = [
+        var dataArray = $('#spa-settings-form').serializeArray();
+        dataArray = dataArray.filter(function(item) {
+            return item.name !== 'action' && item.name !== 'nonce';
+        });
+        dataArray.push(
             { name: 'action', value: 'spa_send_test_email' },
             { name: 'nonce', value: spaAdmin.nonce },
             { name: 'spa_test_recipient', value: ($('#spa_test_recipient').val() || '').trim() }
-        ];
+        );
 
         $btn.prop('disabled', true).text('Sending...');
         var $result = $('#spa-test-result');

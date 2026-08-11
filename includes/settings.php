@@ -963,10 +963,22 @@ function spa_ajax_send_test_email() {
     if ( empty($test_to) ) {
         wp_send_json_error('missing_recipient');
     }
+    $test_event = (object) array();
+    $test_volunteer = (object) array(
+        'first_name' => $test_to,
+        'last_name' => '(test)',
+    );
+    $test_log_id = spa_create_delivery_log($test_event, $test_volunteer, 'email', $email_provider);
     $sent = spa_send_email($test_to, 'St. Paul\'s Admin - Test Email', '<p>This is a test email sent from the plugin to verify provider settings.</p>');
     if ( is_wp_error($sent) ) {
-        wp_send_json_error($sent->get_error_message());
+    if ( $test_log_id ) {
+        spa_mark_delivery_failed($test_log_id, $sent->get_error_message());
     }
+    wp_send_json_error($sent->get_error_message());
+}
+if ( $test_log_id ) {
+    spa_mark_delivery_sent($test_log_id, $sent, false);
+}
     wp_send_json_success('sent');
 }
 add_action('wp_ajax_spa_send_test_email', 'spa_ajax_send_test_email');
