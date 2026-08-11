@@ -68,6 +68,7 @@ function spa_dashboard_page() {
             e.event_date,
             e.start_time,
             e.end_time,
+            s.id AS service_id,
             (
                 SELECT COUNT(*)
                 FROM {$wpdb->prefix}spa_event_volunteers ev
@@ -83,6 +84,7 @@ function spa_dashboard_page() {
                 AND conflicting.end_time > e.start_time
             ) AS conflict_names
          FROM {$wpdb->prefix}spa_events e
+         LEFT JOIN {$wpdb->prefix}spa_services s ON s.event_id = e.id AND s.active = 1
          WHERE e.active = 1
          AND e.event_date >= %s
          ORDER BY e.event_date, e.start_time, e.id

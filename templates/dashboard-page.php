@@ -200,6 +200,7 @@
                                     <tr>
                                         <th>Date</th>
                                         <th>Event</th>
+                                        <th>Service</th>
                                         <th>Volunteers</th>
                                         <th><span class="screen-reader-text">Conflicts</span></th>
                                     </tr>
@@ -209,6 +210,19 @@
                                         <tr>
                                             <td>
                                                 <?php echo esc_html(mysql2date('M j, Y', $upcoming_event->event_date)); ?>
+                                            </td>
+                                            <td>
+                                                <?php if ( ! empty($upcoming_event->service_id) ) : ?>
+                                                    <span class="spa-assignment-status spa-assignment-status-assigned">
+                                                        <span class="dashicons dashicons-yes-alt" aria-hidden="true"></span>
+                                                        Created
+                                                    </span>
+                                                <?php else : ?>
+                                                    <span class="spa-assignment-status spa-assignment-status-unassigned">
+                                                        <span class="dashicons dashicons-minus" aria-hidden="true"></span>
+                                                        Not created
+                                                    </span>
+                                                <?php endif; ?>
                                             </td>
                                             <td>
                                                 <a href="<?php echo esc_url(add_query_arg(array('page' => 'spa-events', 'event_id' => intval($upcoming_event->id)), admin_url('admin.php'))); ?>">
