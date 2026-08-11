@@ -290,25 +290,32 @@
                     <?php elseif ( $card_id === 'future' ) : ?>
                         <p style="color:#999;font-style:italic;">Reserved for future functionality.</p>
                     <?php elseif ( $card_id === 'recent-activity' ) : ?>
+                        <form class="spa-activity-filters" method="get">
+                            <input type="hidden" name="page" value="spa-dashboard">
+                            <label for="spa-activity-filter">Filter:</label>
+                            <select id="spa-activity-filter" name="activity_filter" onchange="this.form.submit()">
+                                <?php foreach ( array('all' => 'All', 'events' => 'Events', 'services' => 'Services', 'volunteers' => 'Volunteers', 'communications' => 'Communications', 'scheduling' => 'Scheduling', 'system' => 'System') as $filter_key => $filter_label ) : ?>
+                                    <option value="<?php echo esc_attr($filter_key); ?>" <?php selected($activity_filter, $filter_key); ?>><?php echo esc_html($filter_label); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </form>
                         <?php if ( ! empty($recent_activity) ) : ?>
                             <table class="spa-upcoming-events-table spa-recent-activity-table">
                                 <thead>
                                     <tr>
                                         <th>Date and time</th>
+                                        <th>Category</th>
+                                        <th>Activity</th>
                                         <th>Event</th>
-                                        <th>Email</th>
-                                        <th>SMS</th>
-                                        <th>Push</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php foreach ( $recent_activity as $activity ) : ?>
                                         <tr>
                                             <td><?php echo esc_html(mysql2date('M j, Y g:i a', $activity->activity_time)); ?></td>
-                                            <td><?php echo esc_html($activity->event_name ?: 'Notification'); ?></td>
-                                            <td><?php echo intval($activity->email_count); ?></td>
-                                            <td><?php echo intval($activity->sms_count); ?></td>
-                                            <td>Not sent</td>
+                                            <td><?php echo esc_html(ucfirst($activity->category)); ?></td>
+                                            <td><?php echo esc_html($activity->description); ?></td>
+                                            <td><?php echo esc_html($activity->event_name ?: '—'); ?></td>
                                         </tr>
                                     <?php endforeach; ?>
                                 </tbody>

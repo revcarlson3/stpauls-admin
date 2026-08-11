@@ -599,6 +599,12 @@ function spa_save_event_modal_ajax() {
         }
     }
 
+    spa_log_activity(
+        'events',
+        $event_id ? 'updated' : 'created',
+        ($event_id ? 'Updated event: ' : 'Created event: ') . $name,
+        $event_id
+    );
     wp_send_json_success('Event saved');
 }
 

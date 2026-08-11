@@ -32,6 +32,12 @@ function spa_get_complete_backup_table_definitions() {
             'formats' => array('%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s'),
             'order_by' => 'id',
         ),
+        'activity' => array(
+            'suffix' => 'spa_activity',
+            'columns' => array('id', 'category', 'action', 'description', 'event_id', 'user_id', 'created_at'),
+            'formats' => array('%d', '%s', '%s', '%s', '%d', '%d', '%s'),
+            'order_by' => 'id',
+        ),
         'events' => array(
             'suffix' => 'spa_events',
             'columns' => array('id', 'name', 'season', 'special_day', 'event_date', 'start_time', 'end_time', 'description', 'location', 'service_builder_url', 'service_type_id', 'is_recurring', 'recurrence_type', 'recurrence_end_date', 'parent_event_id', 'notify_volunteers', 'active', 'created_at'),
@@ -283,7 +289,7 @@ function spa_handle_export_complete_backup() {
     }
     $backup = array(
         'format' => 'stpauls-admin-complete-backup',
-        'format_version' => 10,
+        'format_version' => 11,
         'plugin_version' => defined('SPA_VERSION') ? SPA_VERSION : '',
         'exported_at' => gmdate('c'),
         'site_url' => home_url(),
@@ -336,7 +342,7 @@ function spa_complete_backup_validate_composite_keys($rows, $table_key, $columns
 }
 
 function spa_upgrade_complete_backup($backup) {
-    if ( ! is_array($backup) || ! in_array(intval($backup['format_version'] ?? 0), array(1, 2, 3, 4, 5, 6, 7, 8, 9), true) ) {
+    if ( ! is_array($backup) || ! in_array(intval($backup['format_version'] ?? 0), array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11), true) ) {
         return $backup;
     }
     if (
@@ -475,6 +481,17 @@ function spa_upgrade_complete_backup($backup) {
         $backup['payload']['tables'] = $ordered_tables;
         $backup['format_version'] = 10;
     }
+    if ( intval($backup['format_version']) < 11 ) {
+        $backup['payload']['tables']['activity'] = array();
+        $ordered_tables = array();
+        foreach ( spa_get_complete_backup_table_definitions() as $table_key => $definition ) {
+            $ordered_tables[$table_key] = isset($backup['payload']['tables'][$table_key])
+                ? $backup['payload']['tables'][$table_key]
+                : array();
+        }
+        $backup['payload']['tables'] = $ordered_tables;
+        $backup['format_version'] = 11;
+    }
     $backup['checksum'] = spa_get_complete_backup_checksum($backup['payload']);
     return $backup;
 }
@@ -488,7 +505,7 @@ function spa_validate_complete_backup(&$backup, $discard_orphaned_relationships 
         ! is_array($backup)
         || ! isset($backup['format'], $backup['format_version'], $backup['payload'], $backup['checksum'])
         || $backup['format'] !== 'stpauls-admin-complete-backup'
-        || intval($backup['format_version']) !== 10
+        || intval($backup['format_version']) !== 11
         || ! is_array($backup['payload'])
         || ! isset($backup['payload']['tables'], $backup['payload']['options'], $backup['payload']['user_meta'])
         || ! is_array($backup['payload']['tables'])

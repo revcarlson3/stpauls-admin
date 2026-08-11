@@ -282,6 +282,20 @@ function spa_activate_plugin() {
         KEY source (source)
     ) $charset_collate;");
 
+    $activity_table = $wpdb->prefix . 'spa_activity';
+    dbDelta("CREATE TABLE $activity_table (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        category varchar(40) NOT NULL,
+        action varchar(100) NOT NULL,
+        description text NOT NULL,
+        event_id bigint(20) unsigned NULL,
+        user_id bigint(20) unsigned NULL,
+        created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY category_created (category, created_at),
+        KEY created_at (created_at)
+    ) $charset_collate;");
+
     $tags_table = $wpdb->prefix . 'spa_service_tags';
     dbDelta("CREATE TABLE $tags_table (
         id bigint(20) unsigned NOT NULL AUTO_INCREMENT,

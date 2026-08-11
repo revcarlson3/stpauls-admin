@@ -695,6 +695,12 @@ function spa_services_save_record() {
             'hymn_order' => $hymn['hymn_order'],
         ), array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d'));
     }
+    spa_log_activity(
+        'services',
+        $existing ? 'updated' : 'created',
+        ($existing ? 'Updated service for ' : 'Created service for ') . $event_id,
+        $event_id
+    );
 
     $rel_table = $wpdb->prefix . 'spa_service_tag_relationships';
     $tags_table = $wpdb->prefix . 'spa_service_tags';

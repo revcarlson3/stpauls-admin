@@ -101,21 +101,28 @@ function spa_dashboard_page() {
          LIMIT 2"
     );
 
+    $activity_filter = isset($_GET['activity_filter']) ? sanitize_key(wp_unslash($_GET['activity_filter'])) : 'all';
+    $allowed_activity_filters = array('all', 'events', 'services', 'volunteers', 'communications', 'scheduling', 'system');
+    if ( ! in_array($activity_filter, $allowed_activity_filters, true) ) {
+        $activity_filter = 'all';
+    }
+    $category_sql = $activity_filter === 'all' ? '' : $wpdb->prepare('AND a.category = %s', $activity_filter);
     $recent_activity = $wpdb->get_results(
-        "SELECT
-            DATE_FORMAT(log.created_at, '%Y-%m-%d %H:%i:00') AS activity_time,
-            log.event_id,
-            MAX(e.name) AS event_name,
-            COUNT(CASE WHEN log.channel = 'email' THEN 1 END) AS email_count,
-            COUNT(CASE WHEN log.channel = 'sms' THEN 1 END) AS sms_count,
-            COUNT(*) AS total_count
+        "SELECT a.created_at AS activity_time, a.category, a.description, e.name AS event_name
+         FROM {$wpdb->prefix}spa_activity a
+         LEFT JOIN {$wpdb->prefix}spa_events e ON e.id = a.event_id
+         WHERE a.created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 90 DAY)
+         {$category_sql}
+         UNION ALL
+         SELECT log.created_at AS activity_time, 'communications' AS category,
+                CONCAT('Notification sent via ', log.channel) AS description, e.name AS event_name
          FROM {$wpdb->prefix}spa_notification_delivery_logs log
          LEFT JOIN {$wpdb->prefix}spa_events e ON e.id = log.event_id
-         WHERE log.created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 30 DAY)
+         WHERE log.created_at >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 90 DAY)
            AND log.status IN ('sent', 'delivered')
-         GROUP BY log.event_id, DATE_FORMAT(log.created_at, '%Y-%m-%d %H:%i:00')
+           " . ($activity_filter === 'all' || $activity_filter === 'communications' ? '' : 'AND 1 = 0') . "
          ORDER BY activity_time DESC
-         LIMIT 10"
+         LIMIT 20"
     );
 
     $sunday_service = $wpdb->get_row(
