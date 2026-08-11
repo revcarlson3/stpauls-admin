@@ -48,6 +48,19 @@ function spa_services_render_sermon_text($text) {
     return wpautop(wp_kses_post((string) $text));
 }
 
+function spa_services_render_video($url) {
+    $url = esc_url_raw($url, array('http', 'https'));
+    if ( $url === '' ) {
+        return '';
+    }
+    if ( preg_match('/(?:youtube\.com|youtu\.be)/i', $url) ) {
+        $url = add_query_arg(array('autoplay' => 0, 'controls' => 1, 'rel' => 0), $url);
+    } elseif ( preg_match('/vimeo\.com/i', $url) ) {
+        $url = add_query_arg(array('autoplay' => 0, 'title' => 0, 'byline' => 0), $url);
+    }
+    return wp_oembed_get($url, array('width' => 640));
+}
+
 add_shortcode('spa_sermon_details', 'spa_services_sermon_details_shortcode');
 
 function spa_services_sermon_details_shortcode($atts) {
@@ -120,6 +133,7 @@ function spa_services_sermon_details_shortcode($atts) {
     if ( $service->bulletin_file_url ) {
         $download_links[] = '<a href="' . esc_url($service->bulletin_file_url) . '" target="_blank" rel="noopener noreferrer">View bulletin</a>';
     }
+    $video_embed = $service->video_url ? spa_services_render_video($service->video_url) : '';
 
     ob_start();
     ?>
@@ -128,14 +142,21 @@ function spa_services_sermon_details_shortcode($atts) {
             <div class="spa-sermon-image"><?php echo wp_get_attachment_image($service->featured_image_id, 'large', false, array('loading' => 'lazy')); ?></div>
         <?php endif; ?>
         <div class="spa-sermon-content">
-            <h2><?php echo esc_html($service->sermon_title ? $service->sermon_title : $service->event_name); ?></h2>
-            <p class="spa-sermon-date"><?php echo esc_html(mysql2date(get_option('date_format'), $service->event_date)); ?></p>
-            <?php if ( $service->preacher_name || $service->series_name ) : ?>
-                <p class="spa-sermon-meta">
-                    <?php if ( $service->preacher_name ) : ?>Preacher: <?php echo esc_html($service->preacher_name); ?><br><?php endif; ?>
-                    <?php if ( $service->series_name ) : ?>Series: <?php echo esc_html($service->series_name); ?><?php endif; ?>
-                </p>
-            <?php endif; ?>
+            <div class="spa-sermon-header">
+                <div class="spa-sermon-details">
+                    <h2><?php echo esc_html($service->sermon_title ? $service->sermon_title : $service->event_name); ?></h2>
+                    <p class="spa-sermon-date"><?php echo esc_html(mysql2date(get_option('date_format'), $service->event_date)); ?></p>
+                    <?php if ( $service->preacher_name || $service->series_name ) : ?>
+                        <p class="spa-sermon-meta">
+                            <?php if ( $service->preacher_name ) : ?>Preacher: <?php echo esc_html($service->preacher_name); ?><br><?php endif; ?>
+                            <?php if ( $service->series_name ) : ?>Series: <?php echo esc_html($service->series_name); ?><?php endif; ?>
+                        </p>
+                    <?php endif; ?>
+                </div>
+                <?php if ( $video_embed ) : ?>
+                    <div class="spa-sermon-video"><?php echo $video_embed; ?></div>
+                <?php endif; ?>
+            </div>
             <?php if ( $lessons ) : ?>
                 <section class="spa-sermon-lessons">
                     <h3>Scripture lessons</h3>
@@ -151,7 +172,6 @@ function spa_services_sermon_details_shortcode($atts) {
             <?php endif; ?>
             <?php if ( $service->video_url || $download_links ) : ?>
                 <div class="spa-sermon-actions">
-                    <?php if ( $service->video_url ) : ?><a class="spa-sermon-button" href="<?php echo esc_url($service->video_url); ?>" target="_blank" rel="noopener noreferrer">Watch service</a><?php endif; ?>
                     <?php foreach ( $download_links as $download_link ) : ?><span><?php echo $download_link; ?></span><?php endforeach; ?>
                 </div>
             <?php endif; ?>

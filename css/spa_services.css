@@ -40,6 +40,19 @@
     color: #5b6878;
     margin: .65rem 0;
 }
+.spa-sermon-header {
+    align-items: start;
+    display: grid;
+    gap: 2rem;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, .9fr);
+}
+.spa-sermon-video iframe {
+    aspect-ratio: 16 / 9;
+    display: block;
+    height: auto;
+    max-width: 100%;
+    width: 100%;
+}
 .spa-sermon-text {
     color: #283747;
     font-size: 1.05rem;
@@ -158,6 +171,12 @@
     .spa-sermon-image {
         min-height: 180px;
         max-height: 280px;
+    }
+    .spa-sermon-header {
+        display: block;
+    }
+    .spa-sermon-video {
+        margin-top: 1.5rem;
     }
     .spa-related-sermon-grid {
         grid-template-columns: 1fr;
