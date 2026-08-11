@@ -45,7 +45,7 @@
         <h3><?php echo $edit_service ? 'Edit service' : 'Add service'; ?>: <?php echo esc_html($selected_event->name); ?></h3>
         <form id="spa-service-form" method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data">
             <input type="hidden" name="action" value="spa_save_service">
-            <input type="hidden" name="spa_return_url" value="<?php echo esc_attr(isset($_GET['spa_return_url']) ? rawurldecode(wp_unslash($_GET['spa_return_url'])) : ''); ?>">
+            <input type="hidden" name="spa_return_url" value="<?php echo esc_attr(isset($_GET['spa_return_url']) ? esc_url_raw(wp_unslash($_GET['spa_return_url'])) : ''); ?>">
             <input type="hidden" name="event_id" value="<?php echo intval($form_event_id); ?>">
             <input type="hidden" name="service_id" value="<?php echo $edit_service ? intval($edit_service->id) : 0; ?>">
             <?php wp_nonce_field('spa_save_service', 'spa_service_nonce'); ?>

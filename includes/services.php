@@ -263,7 +263,7 @@ function spa_services_sermon_details_shortcode($atts) {
                     </nav>
                     <h2><?php echo esc_html($service->sermon_title ? $service->sermon_title : $service->event_name); ?></h2>
                     <?php if ( current_user_can('edit_posts') ) : ?>
-                        <a class="spa-sermon-edit-link" href="<?php echo esc_url(add_query_arg(array('page' => 'spa-services', 'service_id' => intval($service->id), 'event_id' => intval($service->event_id), 'spa_return_url' => rawurlencode(wp_unslash($_SERVER['REQUEST_URI']))), admin_url('admin.php'))); ?>">Edit</a>
+                        <a class="spa-sermon-edit-link" href="<?php echo esc_url(add_query_arg(array('page' => 'spa-services', 'service_id' => intval($service->id), 'event_id' => intval($service->event_id), 'spa_return_url' => esc_url_raw(home_url(wp_unslash($_SERVER['REQUEST_URI'])))), admin_url('admin.php'))); ?>">Edit</a>
                     <?php endif; ?>
                     <p class="spa-sermon-date"><?php echo esc_html(mysql2date(get_option('date_format'), $service->event_date)); ?></p>
                     <?php if ( $service->preacher_name || $service->series_name ) : ?>
@@ -557,7 +557,7 @@ function spa_services_get_hymn_video_url($hymn) {
         return is_string($cached) ? $cached : '';
     }
 
-    $channels = array_filter(array($preferred_channel, $secondary_channel, ''));
+    $channels = array_values(array_unique(array($preferred_channel, $secondary_channel, '')));
     foreach ( $channels as $channel_id ) {
         $request_args = array(
             'part' => 'snippet',
