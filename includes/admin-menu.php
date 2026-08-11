@@ -8,7 +8,7 @@ function spa_register_admin_menu() {
     add_menu_page(
         __('St. Paul\'s Admin', 'stpauls-admin'),
         __('St. Paul\'s Admin', 'stpauls-admin'),
-        'manage_options',
+        'edit_posts',
         'spa-dashboard',
         'spa_dashboard_page',
         $icon,
@@ -37,7 +37,7 @@ function spa_register_admin_menu() {
         'spa-dashboard',
         __('Services', 'stpauls-admin'),
         __('Services', 'stpauls-admin'),
-        'manage_options',
+        'edit_posts',
         'spa-services',
         'spa_services_page'
     );

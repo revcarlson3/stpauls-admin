@@ -906,3 +906,10 @@
     border-top: none;
     padding: 20px;
 }
+.spa-services-page .form-table th {
+    width: 180px;
+}
+
+.spa-services-page .form-table input[type="file"] {
+    max-width: 100%;
+}

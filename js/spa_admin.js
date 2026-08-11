@@ -1,4 +1,30 @@
 jQuery(function($) {
+    $('#spa-service-form').on('submit', function(e) {
+        var rules = {
+            sermon_file: ['doc', 'docx', 'pdf', 'rtf'],
+            audio_file: ['mp3'],
+            bulletin_file: ['pdf'],
+            featured_image: ['jpg', 'jpeg', 'jpe', 'png', 'gif', 'webp']
+        };
+        var invalid = false;
+        $.each(rules, function(field, extensions) {
+            var input = document.getElementById(field);
+            if (!input || !input.files.length) {
+                return;
+            }
+            var name = input.files[0].name.toLowerCase();
+            var extension = name.indexOf('.') > -1 ? name.split('.').pop() : '';
+            if ($.inArray(extension, extensions) === -1) {
+                invalid = true;
+                input.value = '';
+            }
+        });
+        if (invalid) {
+            e.preventDefault();
+            window.alert('Please select only the allowed file types for each service upload.');
+        }
+    });
+
     function spaResponseMessage(response, fallback) {
         var data = response && response.data;
 

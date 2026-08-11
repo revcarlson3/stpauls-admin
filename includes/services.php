@@ -1,6 +1,311 @@
 <?php
+/**
+ * Service records attached to scheduled events.
+ *
+ * These tables intentionally do not use WordPress posts. They are a normalized
+ * foundation for the public service API that can be added later.
+ */
+
+function spa_services_get_translation_choices() {
+    $default = array('ESV', 'NIV', 'KJV', 'NKJV', 'NASB', 'NRSV', 'CSB');
+    $saved = get_option('spa_biblegateway_translations', '');
+    if ( ! is_string($saved) || trim($saved) === '' ) {
+        return $default;
+    }
+    $choices = array();
+    foreach ( preg_split('/[\r\n,]+/', $saved) as $choice ) {
+        $choice = sanitize_text_field($choice);
+        if ( $choice !== '' && strlen($choice) <= 100 && ! in_array($choice, $choices, true) ) {
+            $choices[] = $choice;
+        }
+    }
+    return $choices ? $choices : $default;
+}
+
+function spa_services_get_service($service_id) {
+    global $wpdb;
+    return $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM {$wpdb->prefix}spa_services WHERE id = %d",
+        intval($service_id)
+    ));
+}
+
+function spa_services_normalize_name($value) {
+    return sanitize_text_field(wp_unslash((string) $value));
+}
+
+function spa_services_get_or_create_reference($table_suffix, $name) {
+    global $wpdb;
+    $name = spa_services_normalize_name($name);
+    if ( $name === '' ) {
+        return 0;
+    }
+    $table = $wpdb->prefix . $table_suffix;
+    $id = $wpdb->get_var($wpdb->prepare("SELECT id FROM {$table} WHERE name = %s LIMIT 1", $name));
+    if ( $id ) {
+        return intval($id);
+    }
+    $wpdb->insert(
+        $table,
+        array('name' => $name, 'active' => 1),
+        array('%s', '%d')
+    );
+    return intval($wpdb->insert_id);
+}
+
+function spa_services_validate_upload($field, $allowed) {
+    if ( empty($_FILES[$field]) || ! isset($_FILES[$field]['error']) || intval($_FILES[$field]['error']) === UPLOAD_ERR_NO_FILE ) {
+        return 0;
+    }
+    $file = $_FILES[$field];
+    if ( intval($file['error']) !== UPLOAD_ERR_OK || empty($file['tmp_name']) || ! is_uploaded_file($file['tmp_name']) ) {
+        return new WP_Error('invalid_upload', sprintf('The %s upload failed.', $field));
+    }
+    $name = sanitize_file_name($file['name']);
+    $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+    if ( ! isset($allowed[$extension]) ) {
+        return new WP_Error('invalid_upload_type', sprintf('The %s file type is not allowed.', $field));
+    }
+    $filetype = wp_check_filetype_and_ext($file['tmp_name'], $name, $allowed);
+    if ( empty($filetype['ext']) || empty($filetype['type']) || strtolower($filetype['ext']) !== $extension ) {
+        return new WP_Error('invalid_upload_type', sprintf('The %s file type could not be verified.', $field));
+    }
+    return 1;
+}
+
+function spa_services_handle_upload($field, $allowed) {
+    $valid = spa_services_validate_upload($field, $allowed);
+    if ( is_wp_error($valid) || ! $valid ) {
+        return $valid;
+    }
+    require_once ABSPATH . 'wp-admin/includes/file.php';
+    require_once ABSPATH . 'wp-admin/includes/media.php';
+    require_once ABSPATH . 'wp-admin/includes/image.php';
+    $attachment_id = media_handle_upload(
+        $field,
+        0,
+        array(),
+        array('test_form' => false, 'mimes' => $allowed)
+    );
+    return is_wp_error($attachment_id) ? $attachment_id : intval($attachment_id);
+}
+
+function spa_services_parse_lessons($raw) {
+    $lessons = array();
+    foreach ( preg_split('/\r\n|\r|\n/', (string) $raw) as $line ) {
+        $line = trim($line);
+        if ( $line === '' ) {
+            continue;
+        }
+        $parts = array_map('trim', explode('|', $line, 2));
+        $reference = sanitize_text_field($parts[0]);
+        $link = isset($parts[1]) ? esc_url_raw($parts[1], array('http', 'https')) : '';
+        if ( $reference !== '' ) {
+            $lessons[] = array('reference' => $reference, 'link_url' => $link);
+        }
+    }
+    return $lessons;
+}
+
+function spa_services_parse_tags($raw) {
+    $tags = array();
+    foreach ( explode(',', (string) $raw) as $tag ) {
+        $tag = sanitize_text_field(trim($tag));
+        if ( $tag !== '' && strlen($tag) <= 100 && ! in_array($tag, $tags, true) ) {
+            $tags[] = $tag;
+        }
+    }
+    return $tags;
+}
+
+function spa_services_save_record() {
+    global $wpdb;
+    if ( ! current_user_can('edit_posts') ) {
+        wp_die('Unauthorized', 'Error', array('response' => 403));
+    }
+    if ( ! isset($_POST['spa_service_nonce']) || ! wp_verify_nonce(wp_unslash($_POST['spa_service_nonce']), 'spa_save_service') ) {
+        wp_die('Invalid nonce', 'Error', array('response' => 403));
+    }
+
+    $event_id = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
+    $service_id = isset($_POST['service_id']) ? intval($_POST['service_id']) : 0;
+    $event = $wpdb->get_row($wpdb->prepare(
+        "SELECT id FROM {$wpdb->prefix}spa_events WHERE id = %d AND active = 1",
+        $event_id
+    ));
+    if ( ! $event ) {
+        wp_die('Select a valid active event.', 'Service Error', array('response' => 400));
+    }
+
+    $existing = $service_id ? spa_services_get_service($service_id) : null;
+    if ( $service_id && ( ! $existing || intval($existing->event_id) !== $event_id ) ) {
+        wp_die('The service record could not be found.', 'Service Error', array('response' => 404));
+    }
+    $duplicate = $wpdb->get_var($wpdb->prepare(
+        "SELECT id FROM {$wpdb->prefix}spa_services WHERE event_id = %d AND id <> %d",
+        $event_id,
+        $service_id
+    ));
+    if ( $duplicate ) {
+        wp_die('This event already has a service record.', 'Service Error', array('response' => 409));
+    }
+
+    $sermon_text = isset($_POST['sermon_text']) ? wp_kses_post(wp_unslash($_POST['sermon_text'])) : '';
+    $translation = isset($_POST['bible_translation']) ? sanitize_text_field(wp_unslash($_POST['bible_translation'])) : '';
+    if ( ! in_array($translation, spa_services_get_translation_choices(), true) ) {
+        $translation = '';
+    }
+    $video_url = isset($_POST['video_url']) ? esc_url_raw(wp_unslash($_POST['video_url']), array('http', 'https')) : '';
+    $preacher_id = spa_services_get_or_create_reference('spa_preachers', $_POST['preacher'] ?? '');
+    $series_id = spa_services_get_or_create_reference('spa_sermon_series', $_POST['series'] ?? '');
+    if ( ! $preacher_id && $existing ) {
+        $preacher_id = intval($existing->preacher_id);
+    }
+    if ( ! $series_id && $existing ) {
+        $series_id = intval($existing->series_id);
+    }
+
+    $allowed_sermon = array(
+        'doc' => 'application/msword',
+        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'pdf' => 'application/pdf',
+        'rtf' => 'application/rtf',
+    );
+    $allowed_audio = array('mp3' => 'audio/mpeg');
+    $allowed_bulletin = array('pdf' => 'application/pdf');
+    $upload_rules = array(
+        'sermon_file' => $allowed_sermon,
+        'audio_file' => $allowed_audio,
+        'bulletin_file' => $allowed_bulletin,
+    );
+    foreach ( $upload_rules as $field => $allowed ) {
+        $validation = spa_services_validate_upload($field, $allowed);
+        if ( is_wp_error($validation) ) {
+            wp_die(esc_html($validation->get_error_message()), 'Upload Error', array('response' => 400));
+        }
+    }
+    $uploads = array();
+    foreach ( $upload_rules as $field => $allowed ) {
+        $uploads[$field] = spa_services_handle_upload($field, $allowed);
+        if ( is_wp_error($uploads[$field]) ) {
+            wp_die(esc_html($uploads[$field]->get_error_message()), 'Upload Error', array('response' => 400));
+        }
+    }
+
+    $sermon_file_id = $uploads['sermon_file'] ? intval($uploads['sermon_file']) : ($existing ? intval($existing->sermon_file_id) : 0);
+    $audio_file_id = $uploads['audio_file'] ? intval($uploads['audio_file']) : ($existing ? intval($existing->audio_file_id) : 0);
+    $bulletin_file_id = $uploads['bulletin_file'] ? intval($uploads['bulletin_file']) : ($existing ? intval($existing->bulletin_file_id) : 0);
+    if ( trim(wp_strip_all_tags($sermon_text)) === '' && ! $sermon_file_id ) {
+        wp_die('Add sermon text or upload a sermon file.', 'Service Error', array('response' => 400));
+    }
+    $data = array(
+        'event_id' => $event_id,
+        'sermon_text' => $sermon_text,
+        'sermon_file_id' => $sermon_file_id ?: null,
+        'sermon_file_url' => $sermon_file_id ? wp_get_attachment_url($sermon_file_id) : '',
+        'bible_translation' => $translation,
+        'video_url' => $video_url,
+        'audio_file_id' => $audio_file_id ?: null,
+        'audio_file_url' => $audio_file_id ? wp_get_attachment_url($audio_file_id) : '',
+        'bulletin_file_id' => $bulletin_file_id ?: null,
+        'bulletin_file_url' => $bulletin_file_id ? wp_get_attachment_url($bulletin_file_id) : '',
+        'preacher_id' => $preacher_id ?: null,
+        'series_id' => $series_id ?: null,
+        'featured_image_id' => $existing ? intval($existing->featured_image_id) : 0,
+        'active' => isset($_POST['active']) ? 1 : 0,
+        'created_by' => $existing ? intval($existing->created_by) : get_current_user_id(),
+    );
+    $formats = array('%d', '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%d', '%d', '%d', '%d', '%d');
+    if ( ! empty($_FILES['featured_image']['name']) ) {
+        $image_id = spa_services_handle_upload('featured_image', array(
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'jpe' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+        ));
+        if ( is_wp_error($image_id) ) {
+            wp_die(esc_html($image_id->get_error_message()), 'Upload Error', array('response' => 400));
+        }
+        $data['featured_image_id'] = intval($image_id);
+        $formats[12] = '%d';
+    }
+
+    if ( $existing ) {
+        $wpdb->update($wpdb->prefix . 'spa_services', $data, array('id' => $service_id), $formats, array('%d'));
+    } else {
+        $wpdb->insert($wpdb->prefix . 'spa_services', $data, $formats);
+        $service_id = intval($wpdb->insert_id);
+    }
+    if ( ! $service_id || $wpdb->last_error ) {
+        wp_die('The service could not be saved.', 'Service Error', array('response' => 500));
+    }
+
+    $lessons_table = $wpdb->prefix . 'spa_service_lessons';
+    $wpdb->delete($lessons_table, array('service_id' => $service_id), array('%d'));
+    $lessons = spa_services_parse_lessons($_POST['lessons'] ?? '');
+    foreach ( $lessons as $order => $lesson ) {
+        $wpdb->insert($lessons_table, array(
+            'service_id' => $service_id,
+            'reference' => $lesson['reference'],
+            'link_url' => $lesson['link_url'],
+            'lesson_order' => $order,
+        ), array('%d', '%s', '%s', '%d'));
+    }
+
+    $rel_table = $wpdb->prefix . 'spa_service_tag_relationships';
+    $tags_table = $wpdb->prefix . 'spa_service_tags';
+    $wpdb->delete($rel_table, array('service_id' => $service_id), array('%d'));
+    foreach ( spa_services_parse_tags($_POST['tags'] ?? '') as $tag_name ) {
+        $slug = sanitize_title($tag_name);
+        if ( $slug === '' ) {
+            continue;
+        }
+        $tag_id = $wpdb->get_var($wpdb->prepare("SELECT id FROM {$tags_table} WHERE slug = %s", $slug));
+        if ( ! $tag_id ) {
+            $wpdb->insert($tags_table, array('name' => $tag_name, 'slug' => $slug), array('%s', '%s'));
+            $tag_id = $wpdb->insert_id;
+        }
+        if ( $tag_id ) {
+            $wpdb->insert($rel_table, array('service_id' => $service_id, 'tag_id' => intval($tag_id)), array('%d', '%d'));
+        }
+    }
+    wp_safe_redirect(admin_url('admin.php?page=spa-services&service_saved=1'));
+    exit;
+}
+add_action('admin_post_spa_save_service', 'spa_services_save_record');
 
 function spa_services_page() {
-    $page_title = "Services";
+    if ( ! current_user_can('edit_posts') ) {
+        wp_die('You do not have permission to manage services.', 'Unauthorized', array('response' => 403));
+    }
+    global $wpdb;
+    $page_title = 'Services';
+    $events = $wpdb->get_results(
+        "SELECT e.* FROM {$wpdb->prefix}spa_events e
+         WHERE e.active = 1
+         ORDER BY e.event_date DESC, e.start_time DESC"
+    );
+    $service_rows = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}spa_services ORDER BY event_id");
+    $services = array();
+    foreach ( $service_rows as $service_row ) {
+        $services[intval($service_row->event_id)] = $service_row;
+    }
+    $edit_service = isset($_GET['service_id']) ? spa_services_get_service(intval($_GET['service_id'])) : null;
+    $preacher_name = '';
+    $series_name = '';
+    $lessons = array();
+    $tags = array();
+    if ( $edit_service ) {
+        $preacher_name = $wpdb->get_var($wpdb->prepare("SELECT name FROM {$wpdb->prefix}spa_preachers WHERE id = %d", $edit_service->preacher_id));
+        $series_name = $wpdb->get_var($wpdb->prepare("SELECT name FROM {$wpdb->prefix}spa_sermon_series WHERE id = %d", $edit_service->series_id));
+        $lessons = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}spa_service_lessons WHERE service_id = %d ORDER BY lesson_order", $edit_service->id));
+        $tags = $wpdb->get_col($wpdb->prepare(
+            "SELECT t.name FROM {$wpdb->prefix}spa_service_tags t
+             INNER JOIN {$wpdb->prefix}spa_service_tag_relationships r ON r.tag_id = t.id
+             WHERE r.service_id = %d ORDER BY t.name", $edit_service->id
+        ));
+    }
     include SPA_TEMPLATE_DIR . 'services-page.php';
 }

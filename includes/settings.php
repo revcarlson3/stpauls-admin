@@ -21,6 +21,19 @@ function spa_handle_settings_post() {
         update_option('spa_notification_reminder_24h', isset($_POST['spa_notification_reminder_24h']) ? 1 : 0);
     }
 
+    if ( $posted_tab === 'services' ) {
+        $api_key = isset($_POST['spa_biblegateway_api_key']) ? sanitize_text_field(wp_unslash($_POST['spa_biblegateway_api_key'])) : '';
+        $api_secret = isset($_POST['spa_biblegateway_api_secret']) ? sanitize_text_field(wp_unslash($_POST['spa_biblegateway_api_secret'])) : '';
+        $translations = isset($_POST['spa_biblegateway_translations']) ? sanitize_textarea_field(wp_unslash($_POST['spa_biblegateway_translations'])) : '';
+        if ( $api_key !== '' ) {
+            update_option('spa_biblegateway_api_key', $api_key);
+        }
+        if ( $api_secret !== '' ) {
+            update_option('spa_biblegateway_api_secret', $api_secret);
+        }
+        update_option('spa_biblegateway_translations', $translations);
+    }
+
     if ( $posted_tab === 'email' ) {
         $notification_email = isset($_POST['spa_notification_email']) ? sanitize_email(wp_unslash($_POST['spa_notification_email'])) : '';
         $enable_email = isset($_POST['spa_enable_email']) ? 1 : 0;
@@ -1215,6 +1228,8 @@ function spa_ajax_delete_secret() {
         'spa_textmagic_api_key',
         'spa_onesignal_api_key',
         'spa_firebase_server_key',
+        'spa_biblegateway_api_key',
+        'spa_biblegateway_api_secret',
     );
     if ( ! in_array($option_name, $allowed_options, true) ) {
         wp_send_json_error('Invalid credential option');

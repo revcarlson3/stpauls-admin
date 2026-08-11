@@ -62,6 +62,42 @@ function spa_get_complete_backup_table_definitions() {
             'formats' => array('%d', '%d', '%d', '%d', '%d', '%d', '%s', '%s'),
             'order_by' => 'id',
         ),
+        'preachers' => array(
+            'suffix' => 'spa_preachers',
+            'columns' => array('id', 'name', 'bio', 'active', 'created_at', 'updated_at'),
+            'formats' => array('%d', '%s', '%s', '%d', '%s', '%s'),
+            'order_by' => 'id',
+        ),
+        'sermon_series' => array(
+            'suffix' => 'spa_sermon_series',
+            'columns' => array('id', 'name', 'description', 'active', 'created_at', 'updated_at'),
+            'formats' => array('%d', '%s', '%s', '%d', '%s', '%s'),
+            'order_by' => 'id',
+        ),
+        'services' => array(
+            'suffix' => 'spa_services',
+            'columns' => array('id', 'event_id', 'sermon_text', 'sermon_file_id', 'sermon_file_url', 'bible_translation', 'video_url', 'audio_file_id', 'audio_file_url', 'bulletin_file_id', 'bulletin_file_url', 'preacher_id', 'series_id', 'featured_image_id', 'active', 'created_by', 'created_at', 'updated_at'),
+            'formats' => array('%d', '%d', '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%d', '%d', '%d', '%d', '%d', '%s', '%s'),
+            'order_by' => 'id',
+        ),
+        'service_lessons' => array(
+            'suffix' => 'spa_service_lessons',
+            'columns' => array('id', 'service_id', 'reference', 'link_url', 'lesson_order', 'created_at'),
+            'formats' => array('%d', '%d', '%s', '%s', '%d', '%s'),
+            'order_by' => 'id',
+        ),
+        'service_tags' => array(
+            'suffix' => 'spa_service_tags',
+            'columns' => array('id', 'name', 'slug', 'created_at'),
+            'formats' => array('%d', '%s', '%s', '%s'),
+            'order_by' => 'id',
+        ),
+        'service_tag_relationships' => array(
+            'suffix' => 'spa_service_tag_relationships',
+            'columns' => array('service_id', 'tag_id'),
+            'formats' => array('%d', '%d'),
+            'order_by' => 'service_id, tag_id',
+        ),
     );
 }
 
@@ -229,7 +265,7 @@ function spa_handle_export_complete_backup() {
     }
     $backup = array(
         'format' => 'stpauls-admin-complete-backup',
-        'format_version' => 5,
+        'format_version' => 6,
         'plugin_version' => defined('SPA_VERSION') ? SPA_VERSION : '',
         'exported_at' => gmdate('c'),
         'site_url' => home_url(),
@@ -282,7 +318,7 @@ function spa_complete_backup_validate_composite_keys($rows, $table_key, $columns
 }
 
 function spa_upgrade_complete_backup($backup) {
-    if ( ! is_array($backup) || ! in_array(intval($backup['format_version'] ?? 0), array(1, 2, 3, 4), true) ) {
+    if ( ! is_array($backup) || ! in_array(intval($backup['format_version'] ?? 0), array(1, 2, 3, 4, 5), true) ) {
         return $backup;
     }
     if (
@@ -356,6 +392,22 @@ function spa_upgrade_complete_backup($backup) {
         }
         $backup['format_version'] = 5;
     }
+    if ( intval($backup['format_version']) < 6 ) {
+        $new_table_keys = array('preachers', 'sermon_series', 'services', 'service_lessons', 'service_tags', 'service_tag_relationships');
+        foreach ( $new_table_keys as $table_key ) {
+            if ( ! isset($backup['payload']['tables'][$table_key]) ) {
+                $backup['payload']['tables'][$table_key] = array();
+            }
+        }
+        $ordered_tables = array();
+        foreach ( spa_get_complete_backup_table_definitions() as $table_key => $definition ) {
+            $ordered_tables[$table_key] = isset($backup['payload']['tables'][$table_key])
+                ? $backup['payload']['tables'][$table_key]
+                : array();
+        }
+        $backup['payload']['tables'] = $ordered_tables;
+        $backup['format_version'] = 6;
+    }
     $backup['checksum'] = spa_get_complete_backup_checksum($backup['payload']);
     return $backup;
 }
@@ -369,7 +421,7 @@ function spa_validate_complete_backup(&$backup, $discard_orphaned_relationships 
         ! is_array($backup)
         || ! isset($backup['format'], $backup['format_version'], $backup['payload'], $backup['checksum'])
         || $backup['format'] !== 'stpauls-admin-complete-backup'
-        || intval($backup['format_version']) !== 5
+        || intval($backup['format_version']) !== 6
         || ! is_array($backup['payload'])
         || ! isset($backup['payload']['tables'], $backup['payload']['options'], $backup['payload']['user_meta'])
         || ! is_array($backup['payload']['tables'])
@@ -456,7 +508,11 @@ function spa_validate_complete_backup(&$backup, $discard_orphaned_relationships 
     $volunteer_ids = spa_complete_backup_collect_ids($tables['volunteers'], 'volunteers');
     $service_type_ids = spa_complete_backup_collect_ids($tables['service_types'], 'service_types');
     $event_ids = spa_complete_backup_collect_ids($tables['events'], 'events');
-    foreach ( array($team_ids, $volunteer_ids, $service_type_ids, $event_ids) as $id_result ) {
+    $preacher_ids = spa_complete_backup_collect_ids($tables['preachers'], 'preachers');
+    $series_ids = spa_complete_backup_collect_ids($tables['sermon_series'], 'sermon_series');
+    $service_ids = spa_complete_backup_collect_ids($tables['services'], 'services');
+    $tag_ids = spa_complete_backup_collect_ids($tables['service_tags'], 'service_tags');
+    foreach ( array($team_ids, $volunteer_ids, $service_type_ids, $event_ids, $preacher_ids, $series_ids, $service_ids, $tag_ids) as $id_result ) {
         if ( is_wp_error($id_result) ) {
             return $id_result;
         }
@@ -474,6 +530,27 @@ function spa_validate_complete_backup(&$backup, $discard_orphaned_relationships 
         }
         if ( $row['parent_event_id'] !== null && intval($row['parent_event_id']) > 0 && ! isset($event_ids[intval($row['parent_event_id'])]) ) {
             return new WP_Error('broken_backup_reference', 'A recurring event references a missing parent event.');
+        }
+    }
+    foreach ( $tables['services'] as $row ) {
+        if ( ! isset($event_ids[intval($row['event_id'])]) ) {
+            return new WP_Error('broken_backup_reference', 'A service references a missing event.');
+        }
+        if ( $row['preacher_id'] !== null && intval($row['preacher_id']) > 0 && ! isset($preacher_ids[intval($row['preacher_id'])]) ) {
+            return new WP_Error('broken_backup_reference', 'A service references a missing preacher.');
+        }
+        if ( $row['series_id'] !== null && intval($row['series_id']) > 0 && ! isset($series_ids[intval($row['series_id'])]) ) {
+            return new WP_Error('broken_backup_reference', 'A service references a missing sermon series.');
+        }
+    }
+    foreach ( $tables['service_lessons'] as $row ) {
+        if ( ! isset($service_ids[intval($row['service_id'])]) ) {
+            return new WP_Error('broken_backup_reference', 'A lesson references a missing service.');
+        }
+    }
+    foreach ( $tables['service_tag_relationships'] as $row ) {
+        if ( ! isset($service_ids[intval($row['service_id'])], $tag_ids[intval($row['tag_id'])]) ) {
+            return new WP_Error('broken_backup_reference', 'A service tag relationship references a missing record.');
         }
     }
     $discarded_relationships = array(
@@ -546,6 +623,8 @@ function spa_validate_complete_backup(&$backup, $discard_orphaned_relationships 
     $composite_checks = array(
         array('volunteer_teams', array('volunteer_id', 'team_id')),
         array('event_volunteers', array('event_id', 'team_id', 'volunteer_id')),
+        array('services', array('event_id')),
+        array('service_tag_relationships', array('service_id', 'tag_id')),
     );
     foreach ( $composite_checks as $check ) {
         $result = spa_complete_backup_validate_composite_keys($tables[$check[0]], $check[0], $check[1]);
@@ -636,7 +715,24 @@ function spa_handle_import_complete_backup() {
     }
 
     $definitions = spa_get_complete_backup_table_definitions();
-    $delete_order = array('event_volunteers', 'events_teams', 'team_rotations', 'volunteer_teams', 'delivery_logs', 'events', 'notification_templates', 'service_types', 'volunteers', 'teams');
+    $delete_order = array(
+        'service_tag_relationships',
+        'service_lessons',
+        'services',
+        'service_tags',
+        'sermon_series',
+        'preachers',
+        'event_volunteers',
+        'events_teams',
+        'team_rotations',
+        'volunteer_teams',
+        'delivery_logs',
+        'events',
+        'notification_templates',
+        'service_types',
+        'volunteers',
+        'teams',
+    );
     foreach ( $delete_order as $table_key ) {
         $table = $wpdb->prefix . $definitions[$table_key]['suffix'];
         if ( $wpdb->query("DELETE FROM {$table}") === false ) {

@@ -11,6 +11,12 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 global $wpdb;
 
 $tables = array(
+    $wpdb->prefix . 'spa_service_tag_relationships',
+    $wpdb->prefix . 'spa_service_tags',
+    $wpdb->prefix . 'spa_service_lessons',
+    $wpdb->prefix . 'spa_services',
+    $wpdb->prefix . 'spa_sermon_series',
+    $wpdb->prefix . 'spa_preachers',
     $wpdb->prefix . 'spa_event_volunteers',
     $wpdb->prefix . 'spa_events_teams',
     $wpdb->prefix . 'spa_events',
@@ -45,5 +51,8 @@ delete_option('spa_notification_email');
 delete_option('spa_enable_email');
 delete_option('spa_sms_provider');
 delete_option('spa_enable_sms');
+delete_option('spa_biblegateway_api_key');
+delete_option('spa_biblegateway_api_secret');
+delete_option('spa_biblegateway_translations');
 
 // End of uninstall

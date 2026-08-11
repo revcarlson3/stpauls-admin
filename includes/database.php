@@ -166,5 +166,88 @@ function spa_activate_plugin() {
     ) $charset_collate;";
 
     dbDelta($sql);
+
+    // Services foundation. A service is intentionally a one-to-one extension
+    // of an event so the records can later be exposed through a public API.
+    $preachers_table = $wpdb->prefix . 'spa_preachers';
+    dbDelta("CREATE TABLE $preachers_table (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        name varchar(255) NOT NULL,
+        bio text NULL,
+        active tinyint(1) NOT NULL DEFAULT 1,
+        created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY active_name (active, name)
+    ) $charset_collate;");
+
+    $series_table = $wpdb->prefix . 'spa_sermon_series';
+    dbDelta("CREATE TABLE $series_table (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        name varchar(255) NOT NULL,
+        description text NULL,
+        active tinyint(1) NOT NULL DEFAULT 1,
+        created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY active_name (active, name)
+    ) $charset_collate;");
+
+    $services_table = $wpdb->prefix . 'spa_services';
+    dbDelta("CREATE TABLE $services_table (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        event_id bigint(20) unsigned NOT NULL,
+        sermon_text longtext NULL,
+        sermon_file_id bigint(20) unsigned NULL,
+        sermon_file_url varchar(500) NULL,
+        bible_translation varchar(100) NOT NULL DEFAULT '',
+        video_url varchar(500) NULL,
+        audio_file_id bigint(20) unsigned NULL,
+        audio_file_url varchar(500) NULL,
+        bulletin_file_id bigint(20) unsigned NULL,
+        bulletin_file_url varchar(500) NULL,
+        preacher_id bigint(20) unsigned NULL,
+        series_id bigint(20) unsigned NULL,
+        featured_image_id bigint(20) unsigned NULL,
+        active tinyint(1) NOT NULL DEFAULT 1,
+        created_by bigint(20) unsigned NULL,
+        created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY event_id (event_id),
+        KEY active_event (active, event_id),
+        KEY preacher_id (preacher_id),
+        KEY series_id (series_id)
+    ) $charset_collate;");
+
+    $lessons_table = $wpdb->prefix . 'spa_service_lessons';
+    dbDelta("CREATE TABLE $lessons_table (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        service_id bigint(20) unsigned NOT NULL,
+        reference varchar(255) NOT NULL,
+        link_url varchar(500) NULL,
+        lesson_order smallint(5) unsigned NOT NULL DEFAULT 0,
+        created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY service_order (service_id, lesson_order)
+    ) $charset_collate;");
+
+    $tags_table = $wpdb->prefix . 'spa_service_tags';
+    dbDelta("CREATE TABLE $tags_table (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        name varchar(100) NOT NULL,
+        slug varchar(100) NOT NULL,
+        created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY slug (slug)
+    ) $charset_collate;");
+
+    $tag_rel_table = $wpdb->prefix . 'spa_service_tag_relationships';
+    dbDelta("CREATE TABLE $tag_rel_table (
+        service_id bigint(20) unsigned NOT NULL,
+        tag_id bigint(20) unsigned NOT NULL,
+        PRIMARY KEY (service_id, tag_id),
+        KEY tag_id (tag_id)
+    ) $charset_collate;");
 }
 ?>

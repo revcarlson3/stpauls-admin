@@ -38,6 +38,10 @@ function spa_save_dashboard_order_ajax() {
 
 function spa_dashboard_page() {
 
+    if ( ! current_user_can('manage_options') ) {
+        wp_die('Unauthorized', 'Error', array('response' => 403));
+    }
+
     global $wpdb;
 
     $dashboard_order = get_user_meta(get_current_user_id(), 'spa_dashboard_order', true);

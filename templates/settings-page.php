@@ -29,6 +29,7 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
 
     <nav class="nav-tab-wrapper">
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=general')); ?>" class="nav-tab <?php echo ($active_tab === 'general') ? 'nav-tab-active' : ''; ?>">General</a>
+        <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=services')); ?>" class="nav-tab <?php echo ($active_tab === 'services') ? 'nav-tab-active' : ''; ?>">Services</a>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=email')); ?>" class="nav-tab <?php echo ($active_tab === 'email') ? 'nav-tab-active' : ''; ?>">Email</a>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=sms')); ?>" class="nav-tab <?php echo ($active_tab === 'sms') ? 'nav-tab-active' : ''; ?>">SMS</a>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=push')); ?>" class="nav-tab <?php echo ($active_tab === 'push') ? 'nav-tab-active' : ''; ?>">Push Notifications</a>
@@ -180,6 +181,29 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
         endif;
          
         switch ($active_tab) {
+            case 'services':
+                ?>
+                <h2>Service settings</h2>
+                <p>Credentials are stored only on this site and are reserved for a future BibleGateway integration. No external API calls are made by this version.</p>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">BibleGateway API key</th>
+                        <td><?php spa_render_secret_field('spa_biblegateway_api_key', 'spa_biblegateway_api_key'); ?></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">BibleGateway API secret</th>
+                        <td><?php spa_render_secret_field('spa_biblegateway_api_secret', 'spa_biblegateway_api_secret'); ?></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="spa_biblegateway_translations">Bible translations</label></th>
+                        <td>
+                            <textarea name="spa_biblegateway_translations" id="spa_biblegateway_translations" rows="5" class="large-text"><?php echo esc_textarea(get_option('spa_biblegateway_translations', 'ESV, NIV, KJV, NKJV, NASB, NRSV, CSB')); ?></textarea>
+                            <p class="description">Comma- or line-separated choices shown on service records. Leave blank to use the safe default list.</p>
+                        </td>
+                    </tr>
+                </table>
+                <?php
+                break;
             case 'email':
                 $notification_email = esc_attr( get_option('spa_notification_email', '') );
                 $enable_email = get_option('spa_enable_email', 0 );
