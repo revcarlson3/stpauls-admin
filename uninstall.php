@@ -62,5 +62,7 @@ delete_option('spa_reftagger_translations');
 delete_option('spa_sermons_page_id');
 delete_option('spa_sermon_details_page_id');
 delete_option('spa_youtube_api_key');
+delete_option('spa_youtube_preferred_channel_id');
+delete_option('spa_youtube_secondary_channel_id');
 
 // End of uninstall

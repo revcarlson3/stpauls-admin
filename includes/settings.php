@@ -28,6 +28,8 @@ function spa_handle_settings_post() {
         if ( $youtube_api_key !== '' ) {
             update_option('spa_youtube_api_key', $youtube_api_key);
         }
+        update_option('spa_youtube_preferred_channel_id', sanitize_text_field(wp_unslash($_POST['spa_youtube_preferred_channel_id'] ?? '')));
+        update_option('spa_youtube_secondary_channel_id', sanitize_text_field(wp_unslash($_POST['spa_youtube_secondary_channel_id'] ?? '')));
     }
 
     if ( $posted_tab === 'email' ) {

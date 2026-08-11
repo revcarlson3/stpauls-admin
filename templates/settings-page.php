@@ -224,6 +224,20 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                             <p class="description">Optional. When configured, hymn links use a cached YouTube search result; otherwise they continue to use Hymnary.org.</p>
                         </td>
                     </tr>
+                    <tr>
+                        <th scope="row"><label for="spa_youtube_preferred_channel_id">Preferred channel ID</label></th>
+                        <td>
+                            <input name="spa_youtube_preferred_channel_id" id="spa_youtube_preferred_channel_id" type="text" value="<?php echo esc_attr(get_option('spa_youtube_preferred_channel_id', '')); ?>" class="regular-text code">
+                            <p class="description">The first channel searched for hymn videos, such as the Concordia Publishing House channel.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="spa_youtube_secondary_channel_id">Secondary channel ID</label></th>
+                        <td>
+                            <input name="spa_youtube_secondary_channel_id" id="spa_youtube_secondary_channel_id" type="text" value="<?php echo esc_attr(get_option('spa_youtube_secondary_channel_id', '')); ?>" class="regular-text code">
+                            <p class="description">Searched if the preferred channel has no matching video.</p>
+                        </td>
+                    </tr>
                 </table>
                 <?php
                 break;
