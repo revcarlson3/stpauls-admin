@@ -68,11 +68,12 @@ function spa_get_event_notification_templates() {
     );
 }
 
-function spa_send_event_notification_to_volunteer($event, $volunteer, $templates = null) {
-    if ( $templates === null ) {
+function spa_send_event_notification_to_volunteer($event, $volunteer, $templates = null, $reminder_type = 'scheduled') {
+    $is_24h_reminder = $reminder_type === '24h';
+    if ( ! $is_24h_reminder && $templates === null ) {
         $templates = spa_get_event_notification_templates();
     }
-    if ( is_wp_error($templates) ) {
+    if ( ! $is_24h_reminder && is_wp_error($templates) ) {
         return $templates;
     }
 
@@ -88,6 +89,9 @@ function spa_send_event_notification_to_volunteer($event, $volunteer, $templates
         'event_location' => $event->location,
         'team_name'      => $volunteer->team_name,
     );
+    $team_name = trim((string) $volunteer->team_name);
+    $article = $team_name !== '' && in_array(strtolower($team_name[0]), array('a', 'e', 'i', 'o', 'u'), true) ? 'an' : 'a';
+    $fixed_reminder = sprintf('Reminder: you are serving as %s %s on Sunday. See you there!', $article, $team_name);
 
     if ( $templates['email'] && ! empty($volunteer->email) && intval($volunteer->email_enabled) === 1 ) {
         $email_provider = get_option('spa_email_provider', 'wp_mail');
@@ -98,10 +102,15 @@ function spa_send_event_notification_to_volunteer($event, $volunteer, $templates
             $event->service_builder_url ?? '',
             true
         );
-        $subject_data = $email_data;
-        $subject_data['readings'] = '';
-        $subject = spa_process_template($templates['email']->subject ?: 'Volunteer Reminder', $subject_data);
-        $body = spa_process_template($templates['email']->body, $email_data);
+        if ( $is_24h_reminder ) {
+            $subject = 'Volunteer Reminder';
+            $body = '<p>' . esc_html($fixed_reminder) . '</p>';
+        } else {
+            $subject_data = $email_data;
+            $subject_data['readings'] = '';
+            $subject = spa_process_template($templates['email']->subject ?: 'Volunteer Reminder', $subject_data);
+            $body = spa_process_template($templates['email']->body, $email_data);
+        }
         $result = spa_send_email(
             $volunteer->email,
             $subject,
@@ -119,7 +128,7 @@ function spa_send_event_notification_to_volunteer($event, $volunteer, $templates
         }
     }
 
-    if ( $templates['sms'] && ! empty($volunteer->phone) && intval($volunteer->phone_enabled) === 1 ) {
+    if ( ( $is_24h_reminder || $templates['sms'] ) && ! empty($volunteer->phone) && intval($volunteer->phone_enabled) === 1 ) {
         $sms_provider = get_option('spa_sms_provider', 'twilio');
         $sms_log_id = spa_create_delivery_log($event, $volunteer, 'sms', $sms_provider);
         $sms_data = $data;
@@ -128,7 +137,7 @@ function spa_send_event_notification_to_volunteer($event, $volunteer, $templates
             $event->service_builder_url ?? '',
             false
         );
-        $body = spa_process_template($templates['sms']->body, $sms_data);
+        $body = $is_24h_reminder ? $fixed_reminder : spa_process_template($templates['sms']->body, $sms_data);
         $result = spa_send_sms(
             $volunteer->phone,
             $body,
@@ -156,7 +165,7 @@ function spa_send_event_notification_to_volunteer($event, $volunteer, $templates
 }
 
 function spa_send_event_reminders($event, $reminder_type = 'scheduled') {
-    $templates = spa_get_event_notification_templates();
+    $templates = $reminder_type === '24h' ? array('email' => null, 'sms' => null) : spa_get_event_notification_templates();
     if ( is_wp_error($templates) ) {
         return $templates;
     }
@@ -165,7 +174,7 @@ function spa_send_event_reminders($event, $reminder_type = 'scheduled') {
     $sent = array('email' => 0, 'sms' => 0);
 
     foreach ( $volunteers as $volunteer ) {
-        $result = spa_send_event_notification_to_volunteer($event, $volunteer, $templates);
+        $result = spa_send_event_notification_to_volunteer($event, $volunteer, $templates, $reminder_type);
         if ( ! is_wp_error($result) ) {
             $sent['email'] += $result['email'];
             $sent['sms'] += $result['sms'];
@@ -259,12 +268,21 @@ function spa_run_notification_cron() {
         return;
     }
 
-    spa_send_event_reminders($event, 'scheduled');
+    if ( spa_notification_should_run_now() ) {
+        spa_send_event_reminders($event, 'scheduled');
+    }
 
     if ( intval(get_option('spa_notification_reminder_24h', 0)) === 1 ) {
-        $event_time = strtotime($event->event_date . ' ' . $event->start_time);
-        if ( $event_time && abs(($event_time - DAY_IN_SECONDS) - current_time('timestamp')) < HOUR_IN_SECONDS ) {
-            spa_send_event_reminders($event, '24h');
+        $event_datetime = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $event->event_date . ' ' . $event->start_time, wp_timezone());
+        $now = current_datetime();
+        $hours_until_event = $event_datetime ? ($event_datetime->getTimestamp() - $now->getTimestamp()) / HOUR_IN_SECONDS : 0;
+        $sent_marker = 'spa_24h_reminder_sent_' . intval($event->id);
+        $event_marker = $event_datetime ? $event_datetime->format('Y-m-d H:i:s') : '';
+        if ( $event_datetime && $hours_until_event > 23 && $hours_until_event <= 24 && get_option($sent_marker, '') !== $event_marker ) {
+            $reminder_result = spa_send_event_reminders($event, '24h');
+            if ( ! is_wp_error($reminder_result) && ( $reminder_result['email'] > 0 || $reminder_result['sms'] > 0 ) ) {
+                update_option($sent_marker, $event_marker, false);
+            }
         }
     }
 }
