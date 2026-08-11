@@ -55,7 +55,7 @@
 
                 <p>
                     <strong>Volunteers in rotation order</strong><br>
-                    <span style="color:#666;font-size:12px;">Add volunteers to the ordered list, then move them up or down to control the exact rotation.</span>
+                    <span style="color:#666;font-size:12px;">Add volunteers to the list, then drag them into the exact rotation order.</span>
                 </p>
 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px;">
@@ -242,9 +242,8 @@ jQuery(function($) {
             $item.attr('data-volunteer-id', volunteer.id);
             $item.append('<span><strong>' + (index + 1) + '.</strong> ' + volunteer.last_name + ', ' + volunteer.first_name + ' (#' + volunteer.id + ')</span>');
             $item.append(
-                '<span>' +
-                '<button type="button" class="button-link spa-rotation-move-up">Up</button> | ' +
-                '<button type="button" class="button-link spa-rotation-move-down">Down</button> | ' +
+                '<span class="spa-rotation-controls">' +
+                '<span class="spa-rotation-drag-handle" style="cursor:move;font-size:16px;" title="Drag to reorder" aria-label="Drag to reorder">&#9776;</span> ' +
                 '<button type="button" class="button-link-delete spa-rotation-remove">Remove</button>' +
                 '</span>'
             );
@@ -332,38 +331,16 @@ jQuery(function($) {
         spaRenderRotationList(selectedIds, teamId);
     });
 
-    $(document).on('click', '.spa-rotation-move-up', function() {
-        var $item = $(this).closest('.spa-rotation-item');
-        var $prev = $item.prev('.spa-rotation-item');
-        var teamId = $('#rotation_team_id').val();
-
-        if ($prev.length) {
-            $item.insertBefore($prev);
+    $('#spa-rotation-selected-list').sortable({
+        handle: '.spa-rotation-drag-handle',
+        placeholder: 'spa-rotation-sortable-placeholder',
+        update: function() {
+            var selectedIds = [];
+            $('#spa-rotation-selected-list .spa-rotation-item').each(function() {
+                selectedIds.push(String($(this).data('volunteer-id')));
+            });
+            spaRenderRotationList(selectedIds, $('#rotation_team_id').val());
         }
-
-        var selectedIds = [];
-        $('#spa-rotation-selected-list .spa-rotation-item').each(function() {
-            selectedIds.push(String($(this).data('volunteer-id')));
-        });
-
-        spaRenderRotationList(selectedIds, teamId);
-    });
-
-    $(document).on('click', '.spa-rotation-move-down', function() {
-        var $item = $(this).closest('.spa-rotation-item');
-        var $next = $item.next('.spa-rotation-item');
-        var teamId = $('#rotation_team_id').val();
-
-        if ($next.length) {
-            $item.insertAfter($next);
-        }
-
-        var selectedIds = [];
-        $('#spa-rotation-selected-list .spa-rotation-item').each(function() {
-            selectedIds.push(String($(this).data('volunteer-id')));
-        });
-
-        spaRenderRotationList(selectedIds, teamId);
     });
 
     $('#rotation_team_id, #rotation_service_type_id').on('change', spaLoadRotationEditor);
