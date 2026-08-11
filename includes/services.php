@@ -285,10 +285,13 @@ function spa_services_sermon_details_shortcode($atts) {
                             <ul>
                                 <?php foreach ( $hymns as $hymn ) : ?>
                                     <li>
-                                        <a href="<?php echo esc_url($hymn->external_url); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html($hymn->reference); ?></a>
-                                        <?php if ( $hymn->title ) : ?> &mdash; <?php echo esc_html($hymn->title); ?><?php endif; ?>
-                                        <?php if ( $hymn->author ) : ?><span>Author: <?php echo esc_html($hymn->author); ?></span><?php endif; ?>
-                                        <?php if ( $hymn->tune ) : ?><span>Tune: <?php echo esc_html($hymn->tune); ?></span><?php endif; ?>
+                                        <span class="spa-sermon-item-icon" aria-hidden="true">&#9835;</span>
+                                        <span class="spa-sermon-item-content">
+                                            <a href="<?php echo esc_url($hymn->external_url); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html($hymn->reference); ?></a>
+                                            <?php if ( $hymn->title ) : ?> &mdash; <?php echo esc_html($hymn->title); ?><?php endif; ?>
+                                            <?php if ( $hymn->author ) : ?><span>Author: <?php echo esc_html($hymn->author); ?></span><?php endif; ?>
+                                            <?php if ( $hymn->tune ) : ?><span>Tune: <?php echo esc_html($hymn->tune); ?></span><?php endif; ?>
+                                        </span>
                                     </li>
                                 <?php endforeach; ?>
                             </ul>
@@ -304,7 +307,10 @@ function spa_services_sermon_details_shortcode($atts) {
                     <h3>Scripture lessons</h3>
                     <ul>
                         <?php foreach ( $lessons as $lesson ) : ?>
-                            <li><?php echo spa_services_render_lesson_reference($lesson->reference, $service->bible_translation); ?></li>
+                        <li>
+                            <span class="spa-sermon-item-icon" aria-hidden="true">&#128214;</span>
+                            <span class="spa-sermon-item-content"><?php echo spa_services_render_lesson_reference($lesson->reference, $service->bible_translation); ?></span>
+                        </li>
                         <?php endforeach; ?>
                     </ul>
                 </section>

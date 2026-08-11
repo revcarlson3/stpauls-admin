@@ -102,7 +102,20 @@
     padding: 0;
 }
 .spa-sermon-lessons li {
+    align-items: flex-start;
+    display: flex;
+    gap: .45rem;
     margin: .35rem 0;
+}
+.spa-sermon-item-icon {
+    color: #5b6878;
+    flex: 0 0 1.15rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    text-align: center;
+}
+.spa-sermon-item-content {
+    min-width: 0;
 }
 .spa-sermon-hymns {
     border-top: 1px solid #e1e5ea;
@@ -134,6 +147,9 @@
     padding: 0;
 }
 .spa-sermon-hymns li {
+    align-items: flex-start;
+    display: flex;
+    gap: .45rem;
     margin: .65rem 0;
 }
 .spa-sermon-hymns li span {
@@ -141,6 +157,13 @@
     display: block;
     font-size: .9rem;
     margin-left: 1rem;
+}
+.spa-sermon-hymns li > .spa-sermon-item-icon {
+    display: inline-block;
+    margin-left: 0;
+}
+.spa-sermon-hymns li > .spa-sermon-item-content > span {
+    margin-left: 0;
 }
 .spa-sermon-actions {
     align-items: center;
