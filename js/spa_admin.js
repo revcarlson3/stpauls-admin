@@ -15,8 +15,8 @@ jQuery(function($) {
                     e.preventDefault();
                     return false;
                 }
-                if (parts.length === 1 && !/^(LSB|CH4|ELW|LBW|CW|HS98)\s+/i.test(reference)) {
-                    var title = window.prompt('This hymnal abbreviation is not recognized. Enter the hymn title (optional):', '');
+                if (parts.length === 1) {
+                    var title = window.prompt('Enter the hymn title if it is not available from the external lookup (optional):', '');
                     if (title === null) {
                         e.preventDefault();
                         return false;
