@@ -22,16 +22,15 @@ function spa_get_team_volunteers_ajax() {
         wp_send_json_error(array('message' => 'Select a team first.'));
     }
 
-    $volunteers = $wpdb->get_results(
-        $wpdb->prepare(
-            "SELECT v.id, v.first_name, v.last_name
-             FROM {$wpdb->prefix}spa_volunteer_teams vt
-             INNER JOIN {$wpdb->prefix}spa_volunteers v ON v.id = vt.volunteer_id
-             WHERE vt.team_id = %d AND v.active = 1
-             ORDER BY v.last_name, v.first_name",
-            $team_id
-        ),
-        ARRAY_A
+    $volunteers = array_map(
+        function($volunteer) {
+            return array(
+                'id' => intval($volunteer->id),
+                'first_name' => $volunteer->first_name,
+                'last_name' => $volunteer->last_name,
+            );
+        },
+        spa_get_active_team_volunteers($team_id)
     );
 
     wp_send_json_success(array('volunteers' => $volunteers));
@@ -1063,18 +1062,7 @@ function spa_handle_scheduling_forms() {
             && strlen($date_parts[2]) === 2
             && checkdate(intval($date_parts[1]), intval($date_parts[2]), intval($date_parts[0]));
         if ( $scheduled_volunteer_id > 0 && $replacement_volunteer_id > 0 && $scheduled_volunteer_id !== $replacement_volunteer_id && $team_id > 0 && $date_valid ) {
-            $valid_volunteers = $wpdb->get_col(
-                $wpdb->prepare(
-                    "SELECT v.id
-                     FROM {$wpdb->prefix}spa_volunteers v
-                     INNER JOIN {$wpdb->prefix}spa_volunteer_teams vt ON vt.volunteer_id = v.id
-                     WHERE vt.team_id = %d AND v.id IN (%d, %d) AND v.active = 1",
-                    $team_id,
-                    $scheduled_volunteer_id,
-                    $replacement_volunteer_id
-                )
-            );
-            if ( count($valid_volunteers) === 2 ) {
+            if ( spa_are_active_team_volunteers($team_id, array($scheduled_volunteer_id, $replacement_volunteer_id)) ) {
                 $inserted = $wpdb->insert(
                     $wpdb->prefix . 'spa_swap_reminders',
                     array(
@@ -1186,21 +1174,7 @@ function spa_scheduling_page() {
 
     $volunteers_by_team = array();
     foreach ( $teams as $team ) {
-        $volunteers_by_team[$team->id] = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT
-                    v.id,
-                    v.first_name,
-                    v.last_name
-                 FROM {$wpdb->prefix}spa_volunteer_teams vt
-                 INNER JOIN {$wpdb->prefix}spa_volunteers v
-                    ON v.id = vt.volunteer_id
-                 WHERE vt.team_id = %d
-                 AND v.active = 1
-                 ORDER BY v.last_name, v.first_name",
-                $team->id
-            )
-        );
+        $volunteers_by_team[$team->id] = spa_get_active_team_volunteers($team->id);
     }
 
     $rotation_map = array();
