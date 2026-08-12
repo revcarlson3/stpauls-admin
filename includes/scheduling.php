@@ -4,6 +4,7 @@ add_action('admin_init', 'spa_handle_scheduling_forms');
 add_action('wp_ajax_spa_preview_event_rotation', 'spa_preview_event_rotation_ajax');
 add_action('wp_ajax_spa_apply_event_rotation', 'spa_apply_event_rotation_ajax');
 add_action('wp_ajax_spa_undo_event_rotation', 'spa_undo_event_rotation_ajax');
+add_action('wp_ajax_spa_apply_swap_reminder', 'spa_apply_swap_reminder_ajax');
 
 function spa_get_rotation_undo_option_key() {
     return 'spa_rotation_last_apply_undo';
@@ -662,6 +663,105 @@ function spa_undo_event_rotation_ajax() {
     wp_send_json_success(array('message' => 'The last rotation application was undone.'));
 }
 
+function spa_apply_swap_reminder_ajax() {
+    global $wpdb;
+
+    if ( ! check_ajax_referer('spa_admin_nonce', 'nonce', false) ) {
+        wp_send_json_error(array('message' => 'Invalid nonce'), 403);
+    }
+    if ( ! current_user_can('manage_options') ) {
+        wp_send_json_error(array('message' => 'Unauthorized'), 403);
+    }
+
+    $swap_id = isset($_POST['swap_id']) ? intval($_POST['swap_id']) : 0;
+    $event_id = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
+    if ( ! $swap_id || ! $event_id ) {
+        wp_send_json_error(array('message' => 'Invalid swap or event ID.'));
+    }
+
+    $swap = $wpdb->get_row(
+        $wpdb->prepare(
+            "SELECT sr.*, e.event_date
+             FROM {$wpdb->prefix}spa_swap_reminders sr
+             INNER JOIN {$wpdb->prefix}spa_events e ON e.id = %d
+            INNER JOIN {$wpdb->prefix}spa_events_teams et ON et.event_id = e.id AND et.team_id = sr.team_id
+            WHERE sr.id = %d AND sr.status = 'pending'",
+            $event_id,
+            $swap_id
+        )
+    );
+    if ( ! $swap || $swap->event_date !== $swap->swap_date ) {
+        wp_send_json_error(array('message' => 'This swap reminder does not match the event date.'));
+    }
+
+    $assignment = $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT volunteer_id
+             FROM {$wpdb->prefix}spa_event_volunteers
+             WHERE event_id = %d AND team_id = %d AND volunteer_id = %d",
+            $event_id,
+            $swap->team_id,
+            $swap->scheduled_volunteer_id
+        )
+    );
+    if ( ! $assignment ) {
+        wp_send_json_error(array('message' => 'The scheduled volunteer is not currently assigned to this event team.'));
+    }
+
+    if ( $wpdb->query('START TRANSACTION') === false ) {
+        wp_send_json_error(array('message' => 'Unable to begin applying the volunteer swap.'));
+    }
+
+    $existing_replacement = $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT volunteer_id
+             FROM {$wpdb->prefix}spa_event_volunteers
+             WHERE event_id = %d AND team_id = %d AND volunteer_id = %d",
+            $event_id,
+            $swap->team_id,
+            $swap->replacement_volunteer_id
+        )
+    );
+    if ( $existing_replacement ) {
+        $deleted = $wpdb->delete(
+            $wpdb->prefix . 'spa_event_volunteers',
+            array('event_id' => $event_id, 'team_id' => $swap->team_id, 'volunteer_id' => $swap->scheduled_volunteer_id),
+            array('%d', '%d', '%d')
+        );
+    } else {
+        $deleted = $wpdb->update(
+            $wpdb->prefix . 'spa_event_volunteers',
+            array('volunteer_id' => $swap->replacement_volunteer_id, 'is_override' => 1),
+            array('event_id' => $event_id, 'team_id' => $swap->team_id, 'volunteer_id' => $swap->scheduled_volunteer_id),
+            array('%d', '%d'),
+            array('%d', '%d', '%d')
+        );
+    }
+    if ( $deleted === false ) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(array('message' => 'Unable to apply the volunteer swap.'));
+    }
+
+    $updated = $wpdb->update(
+        $wpdb->prefix . 'spa_swap_reminders',
+        array('status' => 'applied', 'applied_event_id' => $event_id, 'applied_at' => current_time('mysql')),
+        array('id' => $swap_id, 'status' => 'pending'),
+        array('%s', '%d', '%s'),
+        array('%d', '%s')
+    );
+    if ( $updated !== 1 ) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(array('message' => 'The swap was changed, but its reminder could not be marked applied.'));
+    }
+
+    if ( $wpdb->query('COMMIT') === false ) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(array('message' => 'Unable to apply the volunteer swap.'));
+    }
+
+    wp_send_json_success(array('message' => 'Volunteer swap applied.'));
+}
+
 function spa_handle_scheduling_forms() {
     if ( ! is_admin() || ! current_user_can('manage_options') ) {
         return;
@@ -747,6 +847,47 @@ function spa_handle_scheduling_forms() {
                         'advance_rule'    => $advance_rule,
                     ),
                     array('%d', '%d', '%d', '%d', '%d', '%s')
+                );
+            }
+
+        }
+    }
+
+    if ( $action === 'add_swap_reminder' ) {
+        $scheduled_volunteer_id = isset($_POST['swap_scheduled_volunteer_id']) ? intval($_POST['swap_scheduled_volunteer_id']) : 0;
+        $replacement_volunteer_id = isset($_POST['swap_replacement_volunteer_id']) ? intval($_POST['swap_replacement_volunteer_id']) : 0;
+        $team_id = isset($_POST['swap_team_id']) ? intval($_POST['swap_team_id']) : 0;
+        $swap_date = isset($_POST['swap_date']) ? sanitize_text_field(wp_unslash($_POST['swap_date'])) : '';
+
+        $date_parts = explode('-', $swap_date);
+        $date_valid = count($date_parts) === 3
+            && strlen($date_parts[0]) === 4
+            && strlen($date_parts[1]) === 2
+            && strlen($date_parts[2]) === 2
+            && checkdate(intval($date_parts[1]), intval($date_parts[2]), intval($date_parts[0]));
+        if ( $scheduled_volunteer_id > 0 && $replacement_volunteer_id > 0 && $scheduled_volunteer_id !== $replacement_volunteer_id && $team_id > 0 && $date_valid ) {
+            $valid_volunteers = $wpdb->get_col(
+                $wpdb->prepare(
+                    "SELECT v.id
+                     FROM {$wpdb->prefix}spa_volunteers v
+                     INNER JOIN {$wpdb->prefix}spa_volunteer_teams vt ON vt.volunteer_id = v.id
+                     WHERE vt.team_id = %d AND v.id IN (%d, %d) AND v.active = 1",
+                    $team_id,
+                    $scheduled_volunteer_id,
+                    $replacement_volunteer_id
+                )
+            );
+            if ( count($valid_volunteers) === 2 ) {
+                $wpdb->insert(
+                    $wpdb->prefix . 'spa_swap_reminders',
+                    array(
+                        'scheduled_volunteer_id' => $scheduled_volunteer_id,
+                        'replacement_volunteer_id' => $replacement_volunteer_id,
+                        'team_id' => $team_id,
+                        'swap_date' => $swap_date,
+                        'status' => 'pending',
+                    ),
+                    array('%d', '%d', '%d', '%s', '%s')
                 );
             }
         }
@@ -838,6 +979,20 @@ function spa_scheduling_page() {
             $rotation_map[$rotation->service_type_id][$rotation->team_id]['advance_rule'] = $rotation->advance_rule;
         }
     }
+
+    $swap_reminders = $wpdb->get_results(
+        "SELECT
+            sr.*,
+            t.name AS team_name,
+            CONCAT(sv.first_name, ' ', sv.last_name) AS scheduled_volunteer_name,
+            CONCAT(rv.first_name, ' ', rv.last_name) AS replacement_volunteer_name
+         FROM {$wpdb->prefix}spa_swap_reminders sr
+         INNER JOIN {$wpdb->prefix}spa_teams t ON t.id = sr.team_id
+         INNER JOIN {$wpdb->prefix}spa_volunteers sv ON sv.id = sr.scheduled_volunteer_id
+         INNER JOIN {$wpdb->prefix}spa_volunteers rv ON rv.id = sr.replacement_volunteer_id
+         WHERE sr.status = 'pending'
+         ORDER BY sr.swap_date, t.name, sv.last_name, sv.first_name"
+    );
 
     $page_title = 'Scheduling';
     include SPA_TEMPLATE_DIR . 'scheduling-page.php';

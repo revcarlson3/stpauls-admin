@@ -118,6 +118,68 @@
 
     <div style="margin-top:24px;">
         <div class="postbox" style="padding:16px;">
+            <h3 style="margin-top:0;">Pending Volunteer Swap Reminders</h3>
+            <p>Record a future date now, even before the event is scheduled. The reminder will appear on a matching event later.</p>
+            <form method="post">
+                <?php wp_nonce_field('spa_scheduling_action', 'spa_scheduling_nonce'); ?>
+                <input type="hidden" name="spa_scheduling_action" value="add_swap_reminder">
+                <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:end;">
+                    <p style="margin:0;">
+                        <label for="swap_scheduled_volunteer_id"><strong>Scheduled volunteer</strong></label><br>
+                        <select id="swap_scheduled_volunteer_id" name="swap_scheduled_volunteer_id" required>
+                            <option value="">Select</option>
+                            <?php foreach ( $volunteers as $volunteer ) : ?>
+                                <option value="<?php echo intval($volunteer->id); ?>"><?php echo esc_html($volunteer->last_name . ', ' . $volunteer->first_name); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </p>
+                    <p style="margin:0;">
+                        <label for="swap_replacement_volunteer_id"><strong>Replacement volunteer</strong></label><br>
+                        <select id="swap_replacement_volunteer_id" name="swap_replacement_volunteer_id" required>
+                            <option value="">Select</option>
+                            <?php foreach ( $volunteers as $volunteer ) : ?>
+                                <option value="<?php echo intval($volunteer->id); ?>"><?php echo esc_html($volunteer->last_name . ', ' . $volunteer->first_name); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </p>
+                    <p style="margin:0;">
+                        <label for="swap_team_id"><strong>Team</strong></label><br>
+                        <select id="swap_team_id" name="swap_team_id" required>
+                            <option value="">Select</option>
+                            <?php foreach ( $teams as $team ) : ?>
+                                <option value="<?php echo intval($team->id); ?>"><?php echo esc_html($team->name); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </p>
+                    <p style="margin:0;">
+                        <label for="swap_date"><strong>Date</strong></label><br>
+                        <input type="date" id="swap_date" name="swap_date" required>
+                    </p>
+                    <p style="margin:0;"><button type="submit" class="button button-primary">Save Swap Reminder</button></p>
+                </div>
+            </form>
+            <?php if ( ! empty($swap_reminders) ) : ?>
+                <table class="widefat striped" style="margin-top:16px;">
+                    <thead><tr><th>Date</th><th>Team</th><th>Scheduled Volunteer</th><th>Replacement Volunteer</th></tr></thead>
+                    <tbody>
+                    <?php foreach ( $swap_reminders as $swap ) : ?>
+                        <tr>
+                            <td><?php echo esc_html(mysql2date(get_option('date_format'), $swap->swap_date)); ?></td>
+                            <td><?php echo esc_html($swap->team_name); ?></td>
+                            <td><?php echo esc_html($swap->scheduled_volunteer_name); ?></td>
+                            <td><?php echo esc_html($swap->replacement_volunteer_name); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php else : ?>
+                <p>No pending swap reminders.</p>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <div style="margin-top:24px;">
+        <div class="postbox" style="padding:16px;">
             <h3 style="margin-top:0;">Rotation Preview</h3>
             <?php if ( ! empty($rotations) ) : ?>
                 <table class="widefat striped">

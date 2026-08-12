@@ -15,6 +15,34 @@
 
 <div id="spa-event-rotation-preview"></div>
 
+<?php if ( ! empty($pending_swaps) ) : ?>
+    <h3>Pending Volunteer Swaps</h3>
+    <table class="widefat striped">
+        <thead>
+            <tr>
+                <th>Team</th>
+                <th>Scheduled Volunteer</th>
+                <th>Replacement Volunteer</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+        <?php foreach ( $pending_swaps as $swap ) : ?>
+            <tr>
+                <td><?php echo esc_html($swap->team_name); ?></td>
+                <td><?php echo esc_html($swap->scheduled_volunteer_name); ?></td>
+                <td><?php echo esc_html($swap->replacement_volunteer_name); ?></td>
+                <td>
+                    <button type="button" class="button button-small spa-apply-swap-reminder"
+                        data-swap-id="<?php echo intval($swap->id); ?>"
+                        data-event-id="<?php echo intval($event->id); ?>">Apply Swap</button>
+                </td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+<?php endif; ?>
+
 <h3>Current Assignments</h3>
 
 <?php if ( empty($final_assignments) ) : ?>

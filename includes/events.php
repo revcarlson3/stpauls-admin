@@ -707,6 +707,9 @@ function spa_load_event_ajax() {
             $event_id
         )
     );
+    if ( ! $event ) {
+        wp_send_json_error(array('message' => 'Event not found.'));
+    }
 
     $event_teams = $wpdb->get_results(
         $wpdb->prepare(
@@ -759,6 +762,28 @@ function spa_load_event_ajax() {
         $assigned_volunteer_ids_by_team[$assignment->team_id][] = intval($assignment->volunteer_id);
     }
 
+    $pending_swaps = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT
+                sr.id,
+                sr.team_id,
+                sr.scheduled_volunteer_id,
+                sr.replacement_volunteer_id,
+                t.name AS team_name,
+                CONCAT(sv.first_name, ' ', sv.last_name) AS scheduled_volunteer_name,
+                CONCAT(rv.first_name, ' ', rv.last_name) AS replacement_volunteer_name
+             FROM {$wpdb->prefix}spa_swap_reminders sr
+             INNER JOIN {$wpdb->prefix}spa_events_teams et ON et.event_id = %d AND et.team_id = sr.team_id
+             INNER JOIN {$wpdb->prefix}spa_teams t ON t.id = sr.team_id
+             INNER JOIN {$wpdb->prefix}spa_volunteers sv ON sv.id = sr.scheduled_volunteer_id
+             INNER JOIN {$wpdb->prefix}spa_volunteers rv ON rv.id = sr.replacement_volunteer_id
+             WHERE sr.status = 'pending' AND sr.swap_date = %s
+             ORDER BY t.name, sv.last_name, sv.first_name",
+            $event_id,
+            $event->event_date
+        )
+    );
+
     // All teams for checkboxes in the event details form
     $all_teams = $wpdb->get_results(
         "SELECT id, name FROM {$wpdb->prefix}spa_teams WHERE active = 1 ORDER BY name"
@@ -789,14 +814,6 @@ function spa_load_event_ajax() {
             )
         );
 
-    }
-
-    if (!$event) {
-        wp_send_json_error(
-            array(
-                'message' => 'Event not found.'
-            )
-        );
     }
 
     $is_series_parent = is_null($event->parent_event_id) && intval($wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$wpdb->prefix}spa_events WHERE parent_event_id = %d", $event_id))) > 0;

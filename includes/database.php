@@ -20,6 +20,24 @@ function spa_activate_plugin() {
 
     dbDelta($sql);
 
+    // Volunteer swap reminders table
+    $swap_reminders_table = $wpdb->prefix . 'spa_swap_reminders';
+    dbDelta("CREATE TABLE $swap_reminders_table (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        scheduled_volunteer_id mediumint(9) NOT NULL,
+        replacement_volunteer_id mediumint(9) NOT NULL,
+        team_id mediumint(9) NOT NULL,
+        swap_date date NOT NULL,
+        status varchar(20) NOT NULL DEFAULT 'pending',
+        applied_event_id mediumint(9) NULL,
+        created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        applied_at datetime NULL,
+        PRIMARY KEY (id),
+        KEY pending_date_team (status, swap_date, team_id),
+        KEY scheduled_volunteer (scheduled_volunteer_id),
+        KEY replacement_volunteer (replacement_volunteer_id)
+    ) $charset_collate;");
+
     // Volunteers table
     $volunteers_table = $wpdb->prefix .'spa_volunteers';
 

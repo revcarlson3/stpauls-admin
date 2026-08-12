@@ -861,6 +861,30 @@ $('#spa-sms-example').text(ex);
        });
     });
 
+    $(document).on('click', '.spa-apply-swap-reminder', function() {
+        var $btn = $(this);
+        var eventId = $btn.data('event-id');
+        var $status = $('#spa-event-rotation-preview');
+        $btn.prop('disabled', true).text('Applying...');
+
+        $.post(spaAdmin.ajaxUrl, {
+            action: 'spa_apply_swap_reminder',
+            nonce: spaAdmin.nonce,
+            swap_id: $btn.data('swap-id'),
+            event_id: eventId
+        }, function(response) {
+            if (response && response.success) {
+                spaRenderStatus($status, 'success', spaResponseMessage(response, 'Volunteer swap applied.'), true);
+                spaLoadEvent(eventId);
+            } else {
+                spaRenderStatus($status, 'error', spaResponseMessage(response, 'Unable to apply the volunteer swap.'), true);
+            }
+        }).fail(function() {
+            spaRenderStatus($status, 'error', 'AJAX error. Please try again.', true);
+        }).always(function() {
+            $btn.prop('disabled', false).text('Apply Swap');
+        });
+    });
     /* ── Notification Templates ── */
 
     function spaTemplateGetBody(type) {

@@ -62,6 +62,12 @@ function spa_get_complete_backup_table_definitions() {
             'formats' => array('%d', '%d', '%d', '%d'),
             'order_by' => 'event_id, team_id, volunteer_id',
         ),
+        'swap_reminders' => array(
+            'suffix' => 'spa_swap_reminders',
+            'columns' => array('id', 'scheduled_volunteer_id', 'replacement_volunteer_id', 'team_id', 'swap_date', 'status', 'applied_event_id', 'created_at', 'applied_at'),
+            'formats' => array('%d', '%d', '%d', '%d', '%s', '%s', '%d', '%s', '%s'),
+            'order_by' => 'id',
+        ),
         'team_rotations' => array(
             'suffix' => 'spa_team_rotations',
             'columns' => array('id', 'service_type_id', 'team_id', 'volunteer_id', 'rotation_order', 'is_next', 'advance_rule', 'created_at'),

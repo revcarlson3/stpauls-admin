@@ -16,7 +16,7 @@ define('SPA_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SPA_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SPA_TEMPLATE_DIR', plugin_dir_path(__FILE__) . 'templates/');
 define('SPA_VERSION', '0.1.27-beta1');
-define('SPA_DB_VERSION', '12');
+define('SPA_DB_VERSION', '13');
 
 // Optional Composer autoloader for libraries (libphonenumber)
 if ( file_exists(plugin_dir_path(__FILE__) . 'vendor/autoload.php') ) {
