@@ -1061,11 +1061,9 @@ function spa_ajax_send_test_email() {
 
     // Save basic email settings from POST
     $notification_email = isset($_POST['spa_notification_email']) ? sanitize_email(wp_unslash($_POST['spa_notification_email'])) : '';
-    $enable_email = isset($_POST['spa_enable_email']) ? 1 : 0;
     $email_provider = isset($_POST['spa_email_provider']) ? sanitize_text_field(wp_unslash($_POST['spa_email_provider'])) : 'wp_mail';
 
     update_option('spa_notification_email', $notification_email);
-    update_option('spa_enable_email', $enable_email);
     update_option('spa_email_provider', $email_provider);
 
     // Provider-specific saves (same rules as admin_post handler)
@@ -1201,9 +1199,7 @@ function spa_ajax_send_test_sms() {
     }
 
     // Test the values currently shown in the form without requiring a separate save.
-    $enable_sms = isset($_POST['spa_enable_sms']) ? 1 : 0;
     update_option('spa_sms_provider', $sms_provider);
-    update_option('spa_enable_sms', $enable_sms);
     if ( isset($_POST['spa_sms_default_country']) ) {
         update_option('spa_sms_default_country', sanitize_text_field(wp_unslash($_POST['spa_sms_default_country'])));
     }
