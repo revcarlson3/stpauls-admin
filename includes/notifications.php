@@ -10,10 +10,20 @@ function spa_notification_should_run_now() {
 
     $day = intval(get_option('spa_notification_day_of_week', 0));
     $time = get_option('spa_notification_time', '09:00');
-    $current_day = intval(wp_date('w'));
-    $current_hour_minute = wp_date('H:i');
+    $timezone = wp_timezone();
+    $now = current_datetime();
+    $scheduled_time = DateTimeImmutable::createFromFormat('!H:i', $time, $timezone);
+    if ( ! $scheduled_time ) {
+        return false;
+    }
 
-    return ($current_day === $day && $current_hour_minute === $time);
+    $scheduled_time = $scheduled_time->setDate(
+        intval($now->format('Y')),
+        intval($now->format('m')),
+        intval($now->format('d'))
+    );
+
+    return (intval($now->format('w')) === $day && $now >= $scheduled_time);
 }
 
 function spa_get_next_notified_event() {
@@ -213,17 +223,26 @@ function spa_notify_event_volunteer_ajax() {
 }
 
 function spa_run_notification_cron() {
-    if ( ! spa_notification_should_run_now() ) {
-        return;
-    }
-
     $event = spa_get_next_notified_event();
     if ( ! $event ) {
         return;
     }
 
     if ( spa_notification_should_run_now() ) {
-        spa_send_event_reminders($event, 'scheduled');
+        $run_marker = wp_date('Y-m-d', time(), wp_timezone()) . ':' . intval($event->id);
+        if ( get_option('spa_notification_last_run', '') !== $run_marker ) {
+            $scheduled_result = spa_send_event_reminders($event, 'scheduled');
+            if (
+                ! is_wp_error($scheduled_result)
+                && (
+                    $scheduled_result['email'] > 0
+                    || $scheduled_result['sms'] > 0
+                    || $scheduled_result['push'] > 0
+                )
+            ) {
+                update_option('spa_notification_last_run', $run_marker, false);
+            }
+        }
     }
 
     if ( intval(get_option('spa_notification_reminder_24h', 0)) === 1 ) {
