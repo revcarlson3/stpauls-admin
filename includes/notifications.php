@@ -222,15 +222,21 @@ function spa_notify_event_volunteer_ajax() {
     wp_send_json_success(array('message' => $message));
 }
 
-function spa_run_notification_cron() {
+function spa_run_notification_cron($force = false) {
     $event = spa_get_next_notified_event();
     if ( ! $event ) {
-        return;
+        return new WP_Error('no_notifiable_event', 'No upcoming event is configured for volunteer notifications.');
     }
 
-    if ( spa_notification_should_run_now() ) {
+    $result = array(
+        'event'          => $event,
+        'scheduled'      => array('email' => 0, 'sms' => 0, 'push' => 0),
+        'reminder_24h'   => array('email' => 0, 'sms' => 0, 'push' => 0),
+    );
+
+    if ( $force || spa_notification_should_run_now() ) {
         $run_marker = wp_date('Y-m-d', time(), wp_timezone()) . ':' . intval($event->id);
-        if ( get_option('spa_notification_last_run', '') !== $run_marker ) {
+        if ( $force || get_option('spa_notification_last_run', '') !== $run_marker ) {
             $scheduled_result = spa_send_event_reminders($event, 'scheduled');
             if (
                 ! is_wp_error($scheduled_result)
@@ -241,6 +247,9 @@ function spa_run_notification_cron() {
                 )
             ) {
                 update_option('spa_notification_last_run', $run_marker, false);
+            }
+            if ( ! is_wp_error($scheduled_result) ) {
+                $result['scheduled'] = $scheduled_result;
             }
         }
     }
@@ -256,8 +265,13 @@ function spa_run_notification_cron() {
             if ( ! is_wp_error($reminder_result) && ( $reminder_result['email'] > 0 || $reminder_result['sms'] > 0 ) ) {
                 update_option($sent_marker, $event_marker, false);
             }
+            if ( ! is_wp_error($reminder_result) ) {
+                $result['reminder_24h'] = $reminder_result;
+            }
         }
     }
+
+    return $result;
 }
 
 function spa_schedule_hourly_notifications() {

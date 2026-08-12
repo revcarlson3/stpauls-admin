@@ -43,6 +43,24 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
             <div class="notice notice-success is-dismissible"><p>Settings saved.</p></div>
         <?php endif; ?>
 
+        <?php if ( isset($_GET['notification_run']) ) : ?>
+            <?php if ( sanitize_key(wp_unslash($_GET['notification_run'])) === 'sent' ) : ?>
+                <div class="notice notice-success is-dismissible">
+                    <p>
+                        <strong>Notification run completed.</strong>
+                        <?php echo esc_html(wp_unslash($_GET['notification_event'] ?? '')); ?>:
+                        <?php echo intval($_GET['notification_email'] ?? 0); ?> email(s),
+                        <?php echo intval($_GET['notification_sms'] ?? 0); ?> SMS message(s), and
+                        <?php echo intval($_GET['notification_push'] ?? 0); ?> push notification(s) sent.
+                    </p>
+                </div>
+            <?php else : ?>
+                <div class="notice notice-error is-dismissible">
+                    <p><strong>Notification run failed.</strong> <?php echo esc_html(wp_unslash($_GET['notification_message'] ?? 'The notification run could not be completed.')); ?></p>
+                </div>
+            <?php endif; ?>
+        <?php endif; ?>
+
         <?php if ( isset($_GET['backup_restored']) ) : ?>
             <?php
             $backup_result = get_transient('spa_complete_backup_restore_result');
@@ -990,6 +1008,11 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                     <p>
                         <button type="button" class="button" id="spa-send-test-notification-btn">Send Test Notification</button>
                         <span id="spa-test-notification-result" style="margin-left:12px;"></span>
+                    </p>
+                    <h3>Manual Reminder Run</h3>
+                    <p>Use this if WordPress cron missed the scheduled time. It sends the configured reminders for the next upcoming event immediately.</p>
+                    <p>
+                        <button type="submit" name="spa_force_notification_run" value="1" class="button" onclick="return confirm('Send the configured volunteer reminders now?');">Run Notification Reminders Now</button>
                     </p>
                     <?php
                     break;

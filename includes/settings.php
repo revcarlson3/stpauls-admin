@@ -11,6 +11,30 @@ function spa_handle_settings_post() {
 
     $posted_tab = isset($_POST['active_tab']) ? sanitize_text_field(wp_unslash($_POST['active_tab'])) : 'general';
 
+    if ( $posted_tab === 'general' && isset($_POST['spa_force_notification_run']) ) {
+        $run_result = spa_run_notification_cron(true);
+        if ( is_wp_error($run_result) ) {
+            $redirect_args = array(
+                'page' => 'spa-settings',
+                'tab' => 'general',
+                'notification_run' => 'error',
+                'notification_message' => $run_result->get_error_message(),
+            );
+        } else {
+            $redirect_args = array(
+                'page' => 'spa-settings',
+                'tab' => 'general',
+                'notification_run' => 'sent',
+                'notification_event' => $run_result['event']->name,
+                'notification_email' => intval($run_result['scheduled']['email']),
+                'notification_sms' => intval($run_result['scheduled']['sms']),
+                'notification_push' => intval($run_result['scheduled']['push']),
+            );
+        }
+        wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+        exit;
+    }
+
 
     if ( $posted_tab === 'general' ) {
         update_option('spa_active_email_template', intval($_POST['spa_active_email_template'] ?? 0));

@@ -18,7 +18,7 @@ Testing
 
 Versioning
 - Releases use monotonically increasing SemVer-style versions: `MAJOR.MINOR.PATCH`, with `-alpha`, `-beta`, or `-rc` prerelease labels when applicable.
-- Never reuse or lower a released version. The current release candidate is `0.1.33-rc1`, following the `0.1.32` release.
+- Never reuse or lower a released version. The current release candidate is `0.1.34-rc1`, following the `0.1.33` release.
 - Database schema revisions are tracked separately from the plugin version in `SPA_DB_VERSION`.
 
 License: GPL2
