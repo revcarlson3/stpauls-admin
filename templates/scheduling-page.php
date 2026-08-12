@@ -180,8 +180,8 @@
     </div>
 
     <div style="margin-top:24px;">
-        <div class="postbox" style="padding:16px;">
-            <h3 style="margin-top:0;">Rotation Preview</h3>
+        <details class="postbox" style="padding:16px;" open>
+            <summary style="cursor:pointer;font-size:1.1em;font-weight:600;">Rotation View</summary>
             <?php if ( ! empty($rotations) ) : ?>
                 <table class="widefat striped">
                     <thead>
@@ -208,7 +208,7 @@
             <?php else : ?>
                 <p>No rotations created yet.</p>
             <?php endif; ?>
-        </div>
+        </details>
     </div>
 
 </div>
