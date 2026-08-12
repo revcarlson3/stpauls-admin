@@ -3,7 +3,7 @@
   * Plugin Name: St. Paul's Admin
   * Plugin URI: https://stpaulsmilaca.org
   * Description: A plugin written specifically for St. Paul's Lutheran Church to handle scheduling
-  * Version: 0.1.28-beta17
+  * Version: 0.1.28-beta18
   * Update URI: https://github.com/revcarlson3/stpauls-admin/
   * Author: Rev. Daniel Carlson
   * License: GPL2
@@ -15,7 +15,7 @@ if(!defined('ABSPATH')) {
 define('SPA_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SPA_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SPA_TEMPLATE_DIR', plugin_dir_path(__FILE__) . 'templates/');
-define('SPA_VERSION', '0.1.28-beta17');
+define('SPA_VERSION', '0.1.28-beta18');
 define('SPA_DB_VERSION', '15');
 
 // Optional Composer autoloader for libraries (libphonenumber)
@@ -46,19 +46,38 @@ $spa_ajax_action = $spa_is_ajax && isset($_REQUEST['action'])
 $spa_is_public_ajax = $spa_ajax_action === 'spa_calendar_event_details';
 
 if ( is_admin() && ! $spa_is_public_ajax ) {
-    foreach ( array(
-        'admin-menu.php',
-        'admin-assets.php',
-        'dashboard.php',
-        'teams.php',
-        'volunteers.php',
-        'events.php',
-        'services.php',
-        'scheduling.php',
-        'import.php',
-        'templates.php',
-        'settings.php',
-    ) as $admin_file ) {
+    require_once SPA_PLUGIN_DIR . 'includes/admin-menu.php';
+    require_once SPA_PLUGIN_DIR . 'includes/admin-assets.php';
+
+    $spa_admin_page = isset($_GET['page']) ? sanitize_key(wp_unslash($_GET['page'])) : '';
+    $spa_admin_page_files = array(
+        'spa-dashboard'  => array('dashboard.php'),
+        'spa-events'     => array('events.php'),
+        'spa-services'   => array('services.php'),
+        'spa-teams'      => array('teams.php'),
+        'spa-volunteers' => array('volunteers.php'),
+        'spa-scheduling' => array('scheduling.php'),
+        'spa-reports'    => array('settings.php'),
+        'spa-settings'   => array('settings.php'),
+    );
+
+    // Requests without a page are admin-post or admin-AJAX requests; retain
+    // the broad load there so registered handlers remain available.
+    $spa_admin_files = isset($spa_admin_page_files[$spa_admin_page])
+        ? $spa_admin_page_files[$spa_admin_page]
+        : array(
+            'dashboard.php',
+            'teams.php',
+            'volunteers.php',
+            'events.php',
+            'services.php',
+            'scheduling.php',
+            'import.php',
+            'templates.php',
+            'settings.php',
+        );
+
+    foreach ( $spa_admin_files as $admin_file ) {
         require_once SPA_PLUGIN_DIR . 'includes/' . $admin_file;
     }
 }
