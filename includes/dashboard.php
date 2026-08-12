@@ -102,6 +102,7 @@ function spa_dashboard_page() {
         $wpdb->prepare(
             "SELECT
                 sr.swap_date,
+                t.name AS team_name,
                 CONCAT(sv.first_name, ' ', sv.last_name) AS original_volunteer,
                 CONCAT(rv.first_name, ' ', rv.last_name) AS swapped_volunteer,
                 (
@@ -113,6 +114,8 @@ function spa_dashboard_page() {
                     LIMIT 1
                 ) AS event_name
              FROM {$wpdb->prefix}spa_swap_reminders sr
+             INNER JOIN {$wpdb->prefix}spa_teams t
+                 ON t.id = sr.team_id
              INNER JOIN {$wpdb->prefix}spa_volunteers sv
                  ON sv.id = sr.scheduled_volunteer_id
              INNER JOIN {$wpdb->prefix}spa_volunteers rv

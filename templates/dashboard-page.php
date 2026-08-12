@@ -264,6 +264,7 @@
                                 <thead>
                                     <tr>
                                         <th>Date</th>
+                                        <th>Team</th>
                                         <th>Original volunteer</th>
                                         <th>Swapped volunteer</th>
                                         <th>Event</th>
@@ -273,6 +274,7 @@
                                     <?php foreach ( $upcoming_swaps as $swap ) : ?>
                                         <tr>
                                             <td><?php echo esc_html(mysql2date('M j, Y', $swap->swap_date)); ?></td>
+                                            <td><?php echo esc_html($swap->team_name); ?></td>
                                             <td><?php echo esc_html($swap->original_volunteer); ?></td>
                                             <td><?php echo esc_html($swap->swapped_volunteer); ?></td>
                                             <td><?php echo esc_html($swap->event_name ?: 'Not scheduled'); ?></td>
