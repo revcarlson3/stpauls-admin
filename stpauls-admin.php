@@ -3,7 +3,7 @@
   * Plugin Name: St. Paul's Admin
   * Plugin URI: https://stpaulsmilaca.org
   * Description: A plugin written specifically for St. Paul's Lutheran Church to handle scheduling
-  * Version: 0.1.28-beta16
+  * Version: 0.1.28-beta17
   * Update URI: https://github.com/revcarlson3/stpauls-admin/
   * Author: Rev. Daniel Carlson
   * License: GPL2
@@ -15,7 +15,7 @@ if(!defined('ABSPATH')) {
 define('SPA_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SPA_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SPA_TEMPLATE_DIR', plugin_dir_path(__FILE__) . 'templates/');
-define('SPA_VERSION', '0.1.28-beta16');
+define('SPA_VERSION', '0.1.28-beta17');
 define('SPA_DB_VERSION', '15');
 
 // Optional Composer autoloader for libraries (libphonenumber)
@@ -39,7 +39,13 @@ require_once plugin_dir_path(__FILE__) . 'includes/notifications.php';
 require_once plugin_dir_path(__FILE__) . 'includes/public-calendar.php';
 require_once plugin_dir_path(__FILE__) . 'includes/updater.php';
 
-if ( is_admin() ) {
+$spa_is_ajax = function_exists('wp_doing_ajax') && wp_doing_ajax();
+$spa_ajax_action = $spa_is_ajax && isset($_REQUEST['action'])
+    ? sanitize_key(wp_unslash($_REQUEST['action']))
+    : '';
+$spa_is_public_ajax = $spa_ajax_action === 'spa_calendar_event_details';
+
+if ( is_admin() && ! $spa_is_public_ajax ) {
     foreach ( array(
         'admin-menu.php',
         'admin-assets.php',
