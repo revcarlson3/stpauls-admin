@@ -660,7 +660,8 @@ function spa_events_page() {
                 'location' => sanitize_text_field($_POST['spa_event_location']),
                 'is_recurring' => isset($_POST['spa_event_is_recurring']) ? 1 : 0,
                 'recurrence_type' => sanitize_text_field(wp_unslash($_POST['spa_event_recurrence_type'])),
-                'recurrence_end_date' => sanitize_text_field(wp_unslash($_POST['spa_event_recurrence_end_date']))                
+                'recurrence_end_date' => sanitize_text_field(wp_unslash($_POST['spa_event_recurrence_end_date'])),
+                'notify_volunteers' => isset($_POST['notify_volunteers']) ? 1 : 0
             ));
             $parent_event_id = $wpdb->insert_id;
 
