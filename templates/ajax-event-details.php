@@ -168,6 +168,7 @@ $recurrence_end_date = (!empty($event->recurrence_end_date) && $event->recurrenc
         <label>
             <input
                 type="checkbox"
+                name="notify_volunteers"
                 id="spa-event-notify-volunteers"
                 class="spa-event-field"
                 <?php checked(!empty($event->notify_volunteers), 1); ?>>
