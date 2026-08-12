@@ -32,10 +32,19 @@ function spa_handle_settings_post() {
                 wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
                 exit;
             }
+            $disabled_channels = array();
+            if ( intval(get_option('spa_enable_email', 0)) !== 1 ) {
+                $disabled_channels[] = 'email';
+            }
+            if ( intval(get_option('spa_enable_sms', 0)) !== 1 ) {
+                $disabled_channels[] = 'SMS';
+            }
             $scheduled_total = intval($scheduled_result['email']) + intval($scheduled_result['sms']) + intval($scheduled_result['push']);
             if ( $scheduled_total === 0 ) {
                 $notification_message = ! empty($scheduled_result['errors'])
                     ? implode(' ', array_unique($scheduled_result['errors']))
+                    : ( ! empty($disabled_channels)
+                        ? implode(' and ', $disabled_channels) . ' notifications are disabled.'
                     : (
                         intval($scheduled_result['recipients']) === 0
                             ? sprintf(
@@ -49,7 +58,7 @@ function spa_handle_settings_post() {
                                 $scheduled_result['diagnostic']->table_prefix ?? 'unknown'
                             )
                             : 'No assigned volunteers have an enabled notification method with contact information.'
-                    );
+                    ) );
                 $redirect_args = array(
                     'page' => 'spa-settings',
                     'tab' => 'general',
