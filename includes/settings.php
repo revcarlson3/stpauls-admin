@@ -29,12 +29,14 @@ function spa_handle_settings_post() {
                     : (
                         intval($scheduled_result['recipients']) === 0
                             ? sprintf(
-                                'No deliverable assignments were found for "%s" (event ID %d). Database rows: %d; active volunteers: %d; deliverable assignments: %d.',
+                                'No deliverable assignments were found for "%s" (event ID %d). Database rows: %d; active volunteers: %d; deliverable assignments: %d. Runtime database: %s; table prefix: %s.',
                                 $run_result['event']->name,
                                 intval($run_result['event']->id),
                                 intval($scheduled_result['diagnostic']->assignment_rows ?? 0),
                                 intval($scheduled_result['diagnostic']->active_volunteers ?? 0),
-                                intval($scheduled_result['diagnostic']->deliverable_assignments ?? 0)
+                                intval($scheduled_result['diagnostic']->deliverable_assignments ?? 0),
+                                $scheduled_result['diagnostic']->database_name ?? 'unknown',
+                                $scheduled_result['diagnostic']->table_prefix ?? 'unknown'
                             )
                             : 'No assigned volunteers have an enabled notification method with contact information.'
                     );

@@ -54,7 +54,7 @@ function spa_get_event_volunteers_for_notification($event_id) {
 function spa_get_notification_assignment_diagnostic($event_id) {
     global $wpdb;
 
-    return $wpdb->get_row(
+    $diagnostic = $wpdb->get_row(
         $wpdb->prepare(
             "SELECT
                 COUNT(ev.volunteer_id) AS assignment_rows,
@@ -67,6 +67,13 @@ function spa_get_notification_assignment_diagnostic($event_id) {
             intval($event_id)
         )
     );
+    if ( ! $diagnostic ) {
+        $diagnostic = (object) array();
+    }
+    $diagnostic->database_name = $wpdb->get_var('SELECT DATABASE()');
+    $diagnostic->table_prefix = $wpdb->prefix;
+
+    return $diagnostic;
 }
 
 function spa_get_event_notification_templates() {
