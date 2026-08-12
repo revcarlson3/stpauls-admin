@@ -838,20 +838,14 @@ function spa_apply_swap_reminder_ajax() {
         wp_send_json_error(array('message' => 'Invalid swap or event ID.'));
     }
 
-    $swap = $wpdb->get_row(
-        $wpdb->prepare(
-            "SELECT sr.*, e.event_date,
-                    rv.first_name AS replacement_first_name,
-                    rv.last_name AS replacement_last_name
-             FROM {$wpdb->prefix}spa_swap_reminders sr
-            INNER JOIN {$wpdb->prefix}spa_events e ON e.id = %d
-            INNER JOIN {$wpdb->prefix}spa_events_teams et ON et.event_id = e.id AND et.team_id = sr.team_id
-            INNER JOIN {$wpdb->prefix}spa_volunteers rv ON rv.id = sr.replacement_volunteer_id
-            WHERE sr.id = %d AND sr.status = 'pending'",
-            $event_id,
-            $swap_id
-        )
-    );
+    $event = spa_get_event_by_id($event_id);
+    $swap = null;
+    foreach ( spa_get_pending_swap_reminders_for_event($event_id, $event ? $event->event_date : '') as $pending_swap ) {
+        if ( intval($pending_swap->id) === $swap_id ) {
+            $swap = $pending_swap;
+            break;
+        }
+    }
     if ( ! $swap || $swap->event_date !== $swap->swap_date ) {
         wp_send_json_error(array('message' => 'This swap reminder does not match the event date.'));
     }

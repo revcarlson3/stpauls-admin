@@ -240,7 +240,7 @@ function spa_save_event_details_ajax() {
     }
 
     $update_scope = isset($_POST['update_scope']) ? sanitize_text_field($_POST['update_scope']) : 'parent';
-    $event = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}spa_events WHERE id = %d", $event_id));
+    $event = spa_get_event_by_id($event_id);
     if ( ! $event ) {
         wp_send_json_error(array('message' => 'Event not found.'));
     }
@@ -463,7 +463,7 @@ function spa_delete_event_ajax() {
         wp_send_json_error(array('message' => 'Invalid event ID'));
     }
 
-    $event = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}spa_events WHERE id = %d", $event_id));
+    $event = spa_get_event_by_id($event_id);
     if ( ! $event ) {
         wp_send_json_error(array('message' => 'Event not found.'));
     }
@@ -736,53 +736,14 @@ function spa_load_event_ajax() {
         $team_volunteers_needed[$et->id] = intval($et->volunteers_needed);
     }
 
-    $final_assignments = $wpdb->get_results(
-        $wpdb->prepare(
-            "SELECT
-                ev.team_id,
-                ev.volunteer_id,
-                ev.is_override,
-                t.name AS team_name,
-                t.active AS team_active,
-                CONCAT(v.first_name, ' ', v.last_name) AS volunteer_name,
-                v.active AS volunteer_active
-             FROM {$wpdb->prefix}spa_event_volunteers ev
-             INNER JOIN {$wpdb->prefix}spa_teams t
-                ON t.id = ev.team_id
-             INNER JOIN {$wpdb->prefix}spa_volunteers v
-                ON v.id = ev.volunteer_id
-             WHERE ev.event_id = %d
-             ORDER BY t.name, v.last_name, v.first_name",
-            $event_id
-        )
-    );
+    $final_assignments = spa_get_event_assignments($event_id);
 
     $assigned_volunteer_ids_by_team = array();
     foreach ( $final_assignments as $assignment ) {
         $assigned_volunteer_ids_by_team[$assignment->team_id][] = intval($assignment->volunteer_id);
     }
 
-    $pending_swaps = $wpdb->get_results(
-        $wpdb->prepare(
-            "SELECT
-                sr.id,
-                sr.team_id,
-                sr.scheduled_volunteer_id,
-                sr.replacement_volunteer_id,
-                t.name AS team_name,
-                CONCAT(sv.first_name, ' ', sv.last_name) AS scheduled_volunteer_name,
-                CONCAT(rv.first_name, ' ', rv.last_name) AS replacement_volunteer_name
-             FROM {$wpdb->prefix}spa_swap_reminders sr
-             INNER JOIN {$wpdb->prefix}spa_events_teams et ON et.event_id = %d AND et.team_id = sr.team_id
-             INNER JOIN {$wpdb->prefix}spa_teams t ON t.id = sr.team_id
-             INNER JOIN {$wpdb->prefix}spa_volunteers sv ON sv.id = sr.scheduled_volunteer_id
-             INNER JOIN {$wpdb->prefix}spa_volunteers rv ON rv.id = sr.replacement_volunteer_id
-             WHERE sr.status = 'pending' AND sr.swap_date = %s
-             ORDER BY t.name, sv.last_name, sv.first_name",
-            $event_id,
-            $event->event_date
-        )
-    );
+    $pending_swaps = spa_get_pending_swap_reminders_for_event($event_id, $event->event_date);
 
     $rotation_preview_swaps = spa_get_rotation_preview_swaps($event_id);
     $rotation_preview_data = spa_get_rotation_preview_data($event_id);
