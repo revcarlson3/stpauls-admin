@@ -323,26 +323,9 @@ function spa_get_rotation_preview_data($event_id) {
     $preview = array();
 
     foreach ( $event_teams as $event_team ) {
-        $rotation_rows = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT
-                    r.id,
-                    r.volunteer_id,
-                    r.rotation_order,
-                    r.is_next,
-                    r.advance_rule,
-                    v.first_name,
-                    v.last_name
-                 FROM {$wpdb->prefix}spa_team_rotations r
-                 INNER JOIN {$wpdb->prefix}spa_volunteers v
-                    ON v.id = r.volunteer_id
-                    AND v.active = 1
-                 WHERE r.service_type_id = %d
-                 AND r.team_id = %d
-                 ORDER BY r.rotation_order",
-                $event->service_type_id,
-                $event_team->team_id
-            )
+        $rotation_rows = spa_get_active_rotation_rows(
+            $event->service_type_id,
+            $event_team->team_id
         );
 
         $team_result = array(

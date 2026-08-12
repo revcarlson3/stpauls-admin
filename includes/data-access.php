@@ -114,3 +114,33 @@ function spa_get_pending_swap_reminders_for_event($event_id, $event_date) {
         )
     );
 }
+
+function spa_get_active_rotation_rows($service_type_id, $team_id) {
+    global $wpdb;
+
+    $service_type_id = intval($service_type_id);
+    $team_id = intval($team_id);
+    if ( ! $service_type_id || ! $team_id ) {
+        return array();
+    }
+
+    return $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT
+                r.id,
+                r.volunteer_id,
+                r.rotation_order,
+                r.is_next,
+                r.advance_rule,
+                v.first_name,
+                v.last_name
+             FROM {$wpdb->prefix}spa_team_rotations r
+             INNER JOIN {$wpdb->prefix}spa_volunteers v
+                 ON v.id = r.volunteer_id AND v.active = 1
+             WHERE r.service_type_id = %d AND r.team_id = %d
+             ORDER BY r.rotation_order",
+            $service_type_id,
+            $team_id
+        )
+    );
+}
