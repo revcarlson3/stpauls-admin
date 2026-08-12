@@ -303,22 +303,7 @@ function spa_get_rotation_preview_data($event_id) {
         return new WP_Error('spa_missing_service_type', 'Select a service type for this event before generating assignments.');
     }
 
-    $event_teams = $wpdb->get_results(
-        $wpdb->prepare(
-            "SELECT
-                et.team_id,
-                MAX(et.volunteers_needed) AS volunteers_needed,
-                t.name AS team_name
-             FROM {$wpdb->prefix}spa_events_teams et
-             INNER JOIN {$wpdb->prefix}spa_teams t
-                ON t.id = et.team_id
-                AND t.active = 1
-             WHERE et.event_id = %d
-             GROUP BY et.team_id, t.name
-             ORDER BY t.name",
-            $event_id
-        )
-    );
+    $event_teams = spa_get_event_teams($event_id);
 
     $preview = array();
 

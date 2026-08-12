@@ -296,43 +296,15 @@ function spa_save_event_details_ajax() {
             }
             $wpdb->delete($wpdb->prefix . 'spa_events_teams', array('event_id' => $series_event->id), array('%d'));
         }
-        $teams = isset($_POST['teams']) ? (array) $_POST['teams'] : array();
         foreach ($all_events as $series_event) {
-            foreach ($teams as $team_id => $needed) {
-                $team_id = intval($team_id);
-                $needed  = max(1, intval($needed));
-                if ($team_id > 0) {
-                    $wpdb->insert($wpdb->prefix . 'spa_events_teams', array(
-                        'event_id' => $series_event->id,
-                        'team_id' => $team_id,
-                        'volunteers_needed' => $needed,
-                    ), array('%d','%d','%d'));
-                }
-            }
+            spa_save_event_team_requirements($series_event->id, isset($_POST['teams']) ? (array) $_POST['teams'] : array());
         }
     } else {
         $result = $wpdb->update($wpdb->prefix . 'spa_events', $event_data, array('id' => $event_id), $event_formats, array('%d'));
         if ( $result === false ) {
             wp_send_json_error(array('message' => 'Database update failed: ' . $wpdb->last_error));
         }
-        $wpdb->delete($wpdb->prefix . 'spa_events_teams', array('event_id' => $event_id), array('%d'));
-
-        $teams = isset($_POST['teams']) ? (array) $_POST['teams'] : array();
-        foreach ( $teams as $team_id => $needed ) {
-            $team_id = intval($team_id);
-            $needed  = max(1, intval($needed));
-            if ( $team_id > 0 ) {
-                $wpdb->insert(
-                    $wpdb->prefix . 'spa_events_teams',
-                    array(
-                        'event_id'          => $event_id,
-                        'team_id'           => $team_id,
-                        'volunteers_needed' => $needed,
-                    ),
-                    array('%d','%d','%d')
-                );
-            }
-        }
+        spa_save_event_team_requirements($event_id, isset($_POST['teams']) ? (array) $_POST['teams'] : array());
     }
 
     wp_send_json_success(array(
@@ -359,40 +331,11 @@ function spa_override_event_volunteer_ajax() {
         wp_send_json_error(array('message' => 'Invalid request.'));
     }
 
-    $is_current_event_team = $wpdb->get_var(
-        $wpdb->prepare(
-            "SELECT COUNT(*)
-             FROM {$wpdb->prefix}spa_events e
-             INNER JOIN {$wpdb->prefix}spa_events_teams et
-                ON et.event_id = e.id
-             INNER JOIN {$wpdb->prefix}spa_teams t
-                ON t.id = et.team_id
-             WHERE e.id = %d
-             AND e.active = 1
-             AND et.team_id = %d
-             AND t.active = 1",
-            $event_id,
-            $team_id
-        )
-    );
-    if ( ! $is_current_event_team ) {
+    if ( ! spa_is_active_event_team($event_id, $team_id) ) {
         wp_send_json_error(array('message' => 'Overrides are only available for active teams on this event.'));
     }
 
-    $is_eligible = $wpdb->get_var(
-        $wpdb->prepare(
-            "SELECT COUNT(*)
-             FROM {$wpdb->prefix}spa_volunteer_teams vt
-             INNER JOIN {$wpdb->prefix}spa_volunteers v
-                ON v.id = vt.volunteer_id
-                AND v.active = 1
-             WHERE vt.team_id = %d
-             AND vt.volunteer_id = %d",
-            $team_id,
-            $new_volunteer_id
-        )
-    );
-    if ( ! $is_eligible ) {
+    if ( ! spa_is_active_team_volunteer($team_id, $new_volunteer_id) ) {
         wp_send_json_error(array('message' => 'Select an active volunteer from this team.'));
     }
 
@@ -711,22 +654,7 @@ function spa_load_event_ajax() {
         wp_send_json_error(array('message' => 'Event not found.'));
     }
 
-    $event_teams = $wpdb->get_results(
-        $wpdb->prepare(
-            "SELECT
-                 t.id,
-                 t.name,
-                 MAX(et.volunteers_needed) AS volunteers_needed
-             FROM {$wpdb->prefix}spa_events_teams et
-             INNER JOIN {$wpdb->prefix}spa_teams t
-                 ON et.team_id = t.id
-                 AND t.active = 1
-             WHERE et.event_id = %d
-             GROUP BY t.id, t.name
-             ORDER BY t.name",
-            $event_id
-        )
-    );
+    $event_teams = spa_get_event_teams($event_id);
 
     // Build lookup of assigned team IDs and their volunteers_needed values
     $assigned_team_ids = array();
@@ -783,21 +711,7 @@ function spa_load_event_ajax() {
 
     $override_candidates = array();
     foreach ($event_teams as $team) {
-        $override_candidates[$team->id] = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT
-                    v.id,
-                    v.first_name,
-                    v.last_name
-                 FROM {$wpdb->prefix}spa_volunteers v
-                 INNER JOIN {$wpdb->prefix}spa_volunteer_teams vt
-                    ON v.id = vt.volunteer_id
-                 WHERE vt.team_id = %d
-                 AND v.active = 1
-                 ORDER BY v.last_name, v.first_name",
-                $team->id
-            )
-        );
+        $override_candidates[$team->id] = spa_get_active_team_volunteers($team->id);
 
     }
 
@@ -887,21 +801,13 @@ function spa_events_page() {
                 ), array('id' => intval($_POST['event_id'])
                 ));
                 $event_id = intval($_POST['event_id']);
-                $event_teams_table = $wpdb->prefix .'spa_events_teams';
-                $wpdb->delete($event_teams_table, array(
-                    'event_id' => $event_id
-                ));
                 $event_volunteers_table = $wpdb->prefix . 'spa_event_volunteers';
                 $wpdb->delete($event_volunteers_table, array('event_id' => $event_id));
-                if(isset($_POST['event_teams'])) {
-                    foreach($_POST['event_teams'] AS $team_id) {
-                        $wpdb->insert($event_teams_table, array(
-                            'event_id' => $event_id,
-                            'team_id' => intval($team_id),
-                            'volunteers_needed' => intval($_POST['volunteers_needed'][$team_id])
-                        ));
-                    }
-                }
+                spa_save_event_team_requirements(
+                    $event_id,
+                    isset($_POST['event_teams']) ? (array) $_POST['event_teams'] : array(),
+                    isset($_POST['volunteers_needed']) ? (array) $_POST['volunteers_needed'] : array()
+                );
             }
 			wp_redirect(admin_url('admin.php?page=spa-events&updated=1'));
 			exit;
@@ -921,15 +827,11 @@ function spa_events_page() {
             ));
             $parent_event_id = $wpdb->insert_id;
 
-            if(isset($_POST['event_teams'])) {
-                foreach($_POST['event_teams'] AS $team_id) {
-                    $wpdb->insert($event_teams_table, array(
-                        'event_id' => $parent_event_id,
-                        'team_id' => intval($team_id),
-                        'volunteers_needed' => intval($_POST['volunteers_needed'][$team_id])
-                    ));
-                }
-            }
+            spa_save_event_team_requirements(
+                $parent_event_id,
+                isset($_POST['event_teams']) ? (array) $_POST['event_teams'] : array(),
+                isset($_POST['volunteers_needed']) ? (array) $_POST['volunteers_needed'] : array()
+            );
 
             $current_date = new DateTime(wp_unslash($_POST['spa_event_date']));
             $end_date = !empty($_POST['spa_event_recurrence_end_date'])
@@ -969,15 +871,11 @@ function spa_events_page() {
                         'parent_event_id' => $parent_event_id
                     ));
                     $recurring_event_id = $wpdb->insert_id;
-                    if(isset($_POST['event_teams'])) {
-                        foreach($_POST['event_teams'] AS $team_id) {
-                            $wpdb->insert($event_teams_table, array( 
-                                'event_id' => $recurring_event_id,
-                                'team_id' => intval($team_id),
-                                'volunteers_needed' => intval($_POST['volunteers_needed'][$team_id])
-                            ));
-                        }
-                    }
+                    spa_save_event_team_requirements(
+                        $recurring_event_id,
+                        isset($_POST['event_teams']) ? (array) $_POST['event_teams'] : array(),
+                        isset($_POST['volunteers_needed']) ? (array) $_POST['volunteers_needed'] : array()
+                    );
                     $current_date->modify($interval);
                 }
             }

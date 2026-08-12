@@ -54,6 +54,100 @@ function spa_get_event_by_id($event_id, $active_only = false) {
     );
 }
 
+function spa_get_event_teams($event_id, $active_only = true) {
+    global $wpdb;
+
+    $event_id = intval($event_id);
+    if ( ! $event_id ) {
+        return array();
+    }
+
+    $active_sql = $active_only ? ' AND t.active = 1' : '';
+    return $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT
+                t.id,
+                t.id AS team_id,
+                t.name,
+                t.name AS team_name,
+                MAX(et.volunteers_needed) AS volunteers_needed
+             FROM {$wpdb->prefix}spa_events_teams et
+             INNER JOIN {$wpdb->prefix}spa_teams t ON t.id = et.team_id
+             WHERE et.event_id = %d{$active_sql}
+             GROUP BY t.id, t.name
+             ORDER BY t.name",
+            $event_id
+        )
+    );
+}
+
+function spa_save_event_team_requirements($event_id, $teams, $volunteers_needed = array()) {
+    global $wpdb;
+
+    $event_id = intval($event_id);
+    if ( ! $event_id ) {
+        return false;
+    }
+
+    $table = $wpdb->prefix . 'spa_events_teams';
+    $wpdb->delete($table, array('event_id' => $event_id), array('%d'));
+
+    foreach ( (array) $teams as $team_key => $needed ) {
+        $team_id = intval($team_key);
+        if ( ! empty($volunteers_needed) ) {
+            $team_id = intval($needed);
+            $needed = isset($volunteers_needed[$team_id]) ? intval($volunteers_needed[$team_id]) : 0;
+        }
+        if ( $team_id <= 0 ) {
+            continue;
+        }
+
+        $wpdb->insert(
+            $table,
+            array(
+                'event_id'          => $event_id,
+                'team_id'           => $team_id,
+                'volunteers_needed' => max(1, intval($needed)),
+            ),
+            array('%d', '%d', '%d')
+        );
+    }
+
+    return true;
+}
+
+function spa_is_active_event_team($event_id, $team_id) {
+    global $wpdb;
+
+    return (bool) $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT COUNT(*)
+             FROM {$wpdb->prefix}spa_events e
+             INNER JOIN {$wpdb->prefix}spa_events_teams et ON et.event_id = e.id
+             INNER JOIN {$wpdb->prefix}spa_teams t ON t.id = et.team_id
+             WHERE e.id = %d AND e.active = 1 AND et.team_id = %d AND t.active = 1",
+            intval($event_id),
+            intval($team_id)
+        )
+    );
+}
+
+function spa_is_active_team_volunteer($team_id, $volunteer_id) {
+    global $wpdb;
+
+    return (bool) $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT COUNT(*)
+             FROM {$wpdb->prefix}spa_volunteer_teams vt
+             INNER JOIN {$wpdb->prefix}spa_volunteers v
+                ON v.id = vt.volunteer_id AND v.active = 1
+             WHERE vt.team_id = %d AND vt.volunteer_id = %d",
+            intval($team_id),
+            intval($volunteer_id)
+        )
+    );
+}
+
 function spa_get_event_assignments($event_id) {
     global $wpdb;
 
