@@ -784,6 +784,30 @@ function spa_load_event_ajax() {
         )
     );
 
+    $rotation_preview_swaps = spa_get_rotation_preview_swaps($event_id);
+    $rotation_preview_data = spa_get_rotation_preview_data($event_id);
+    $preview_swap_ids = array();
+    if ( ! spa_event_rotation_is_applied($event_id) && ! is_wp_error($rotation_preview_data) ) {
+        foreach ( $rotation_preview_data['teams'] as $team_result ) {
+            foreach ( $team_result['assignments'] as $preview_assignment ) {
+                foreach ( $pending_swaps as $pending_swap ) {
+                    if (
+                        intval($pending_swap->team_id) === intval($team_result['team_id'])
+                        && intval($pending_swap->scheduled_volunteer_id) === intval($preview_assignment['volunteer_id'])
+                    ) {
+                        $preview_swap_ids[intval($pending_swap->id)] = true;
+                    }
+                }
+            }
+        }
+    }
+    foreach ( $pending_swaps as $pending_swap ) {
+        $pending_swap->has_current_assignment = ! empty($assigned_volunteer_ids_by_team[$pending_swap->team_id])
+            && in_array(intval($pending_swap->scheduled_volunteer_id), $assigned_volunteer_ids_by_team[$pending_swap->team_id], true);
+        $pending_swap->is_in_rotation_preview = isset($preview_swap_ids[intval($pending_swap->id)]);
+        $pending_swap->is_saved_to_rotation_preview = isset($rotation_preview_swaps[intval($pending_swap->id)]);
+    }
+
     // All teams for checkboxes in the event details form
     $all_teams = $wpdb->get_results(
         "SELECT id, name FROM {$wpdb->prefix}spa_teams WHERE active = 1 ORDER BY name"

@@ -14,6 +14,15 @@ function spa_get_rotation_applied_option_key($event_id) {
     return 'spa_rotation_applied_' . intval($event_id);
 }
 
+function spa_get_rotation_preview_swaps_option_key($event_id) {
+    return 'spa_rotation_preview_swaps_' . intval($event_id);
+}
+
+function spa_get_rotation_preview_swaps($event_id) {
+    $swaps = get_option(spa_get_rotation_preview_swaps_option_key($event_id), array());
+    return is_array($swaps) ? $swaps : array();
+}
+
 function spa_event_rotation_is_applied($event_id) {
     global $wpdb;
 
@@ -173,7 +182,27 @@ function spa_capture_rotation_undo_state($preview_data) {
         ),
         'teams'             => array(),
         'period_options'    => array(),
+        'preview_swaps'     => spa_get_rotation_preview_swaps($event_id),
+        'swap_reminders'   => array(),
     );
+
+    foreach ( $state['preview_swaps'] as $preview_swap ) {
+        if ( empty($preview_swap['swap_id']) ) {
+            continue;
+        }
+        $reminder = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT id, status, applied_event_id, applied_at
+                 FROM {$wpdb->prefix}spa_swap_reminders
+                 WHERE id = %d",
+                intval($preview_swap['swap_id'])
+            ),
+            ARRAY_A
+        );
+        if ( $reminder ) {
+            $state['swap_reminders'][] = $reminder;
+        }
+    }
 
     foreach ( $preview_data['teams'] as $team_result ) {
         if ( empty($team_result['assignments']) ) {
@@ -430,6 +459,8 @@ function spa_apply_event_rotation_ajax() {
     }
 
     $undo_state = spa_capture_rotation_undo_state($preview_data);
+    $preview_swaps = spa_get_rotation_preview_swaps($event_id);
+    $applied_preview_swap_ids = array();
     $period_updates = array();
 
     foreach ( $preview_data['teams'] as $team_result ) {
@@ -452,7 +483,45 @@ function spa_apply_event_rotation_ajax() {
             wp_send_json_error(array('message' => 'Unable to replace the existing event assignments.'));
         }
 
-        foreach ( $team_result['assignments'] as $assignment ) {
+        $team_assignments = $team_result['assignments'];
+        foreach ( $preview_swaps as $preview_swap ) {
+            if (
+                empty($preview_swap['swap_id'])
+                || intval($preview_swap['team_id']) !== $team_id
+                || empty($preview_swap['scheduled_volunteer_id'])
+            ) {
+                continue;
+            }
+
+            $scheduled_index = false;
+            foreach ( $team_assignments as $index => $assignment ) {
+                if ( intval($assignment['volunteer_id']) === intval($preview_swap['scheduled_volunteer_id']) ) {
+                    $scheduled_index = $index;
+                    break;
+                }
+            }
+            if ( $scheduled_index === false ) {
+                continue;
+            }
+
+            $replacement_exists = false;
+            foreach ( $team_assignments as $assignment ) {
+                if ( intval($assignment['volunteer_id']) === intval($preview_swap['replacement_volunteer_id']) ) {
+                    $replacement_exists = true;
+                    break;
+                }
+            }
+            if ( $replacement_exists ) {
+                unset($team_assignments[$scheduled_index]);
+                $team_assignments = array_values($team_assignments);
+            } else {
+                $team_assignments[$scheduled_index]['volunteer_id'] = intval($preview_swap['replacement_volunteer_id']);
+                $team_assignments[$scheduled_index]['volunteer_name'] = $preview_swap['replacement_volunteer_name'];
+            }
+            $applied_preview_swap_ids[] = intval($preview_swap['swap_id']);
+        }
+
+        foreach ( $team_assignments as $assignment ) {
             $inserted = $wpdb->insert(
                 $wpdb->prefix . 'spa_event_volunteers',
                 array(
@@ -466,6 +535,7 @@ function spa_apply_event_rotation_ajax() {
                 $wpdb->query('ROLLBACK');
                 wp_send_json_error(array('message' => 'Unable to save the new event assignments.'));
             }
+
         }
 
         if ( ! empty($team_result['period_option_key']) && $team_result['period_value'] !== '' ) {
@@ -506,6 +576,24 @@ function spa_apply_event_rotation_ajax() {
         }
     }
 
+    if ( count(array_unique($applied_preview_swap_ids)) !== count($preview_swaps) ) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(array('message' => 'A saved preview swap no longer matches the rotation preview. Refresh the event and verify the swap before applying assignments.'));
+    }
+    foreach ( array_unique($applied_preview_swap_ids) as $swap_id ) {
+        $updated = $wpdb->update(
+            $wpdb->prefix . 'spa_swap_reminders',
+            array('status' => 'applied', 'applied_event_id' => $event_id, 'applied_at' => current_time('mysql')),
+            array('id' => $swap_id, 'status' => 'pending'),
+            array('%s', '%d', '%s'),
+            array('%d', '%s')
+        );
+        if ( $updated !== 1 ) {
+            $wpdb->query('ROLLBACK');
+            wp_send_json_error(array('message' => 'A preview swap changed before it could be applied. Refresh the event and try again.'));
+        }
+    }
+
     $changed_option_keys = array();
     foreach ( $period_updates as $option_key => $option_value ) {
         if ( ! spa_write_rotation_option($option_key, $option_value) ) {
@@ -528,6 +616,14 @@ function spa_apply_event_rotation_ajax() {
         wp_send_json_error(array('message' => 'Unable to save the rotation undo state.'));
     }
     $changed_option_keys[] = $undo_option_key;
+
+    if ( ! empty($preview_swaps) ) {
+        if ( ! spa_delete_rotation_option(spa_get_rotation_preview_swaps_option_key($event_id)) ) {
+            $wpdb->query('ROLLBACK');
+            wp_send_json_error(array('message' => 'Unable to clear the applied preview swaps.'));
+        }
+        $changed_option_keys[] = spa_get_rotation_preview_swaps_option_key($event_id);
+    }
 
     if ( $wpdb->query('COMMIT') === false ) {
         $wpdb->query('ROLLBACK');
@@ -590,6 +686,38 @@ function spa_undo_event_rotation_ajax() {
             $wpdb->query('ROLLBACK');
             wp_send_json_error(array('message' => 'Unable to restore the previous assignments.'));
         }
+
+    }
+
+    if ( ! empty($undo_state['swap_reminders']) ) {
+        foreach ( $undo_state['swap_reminders'] as $reminder ) {
+            $restored = $wpdb->update(
+                $wpdb->prefix . 'spa_swap_reminders',
+                array(
+                    'status'           => $reminder['status'],
+                    'applied_event_id' => $reminder['applied_event_id'],
+                    'applied_at'       => $reminder['applied_at'],
+                ),
+                array('id' => intval($reminder['id'])),
+                array('%s', '%d', '%s'),
+                array('%d')
+            );
+            if ( $restored === false ) {
+                $wpdb->query('ROLLBACK');
+                wp_send_json_error(array('message' => 'Unable to restore the volunteer swap reminders.'));
+            }
+        }
+    }
+
+    $preview_swaps_key = spa_get_rotation_preview_swaps_option_key($event_id);
+    if ( ! empty($undo_state['preview_swaps']) ) {
+        $preview_swaps_restored = spa_write_rotation_option($preview_swaps_key, $undo_state['preview_swaps']);
+    } else {
+        $preview_swaps_restored = spa_delete_rotation_option($preview_swaps_key);
+    }
+    if ( ! $preview_swaps_restored ) {
+        $wpdb->query('ROLLBACK');
+        wp_send_json_error(array('message' => 'Unable to restore the rotation preview swaps.'));
     }
 
     foreach ( $undo_state['teams'] as $team_id => $team_state ) {
@@ -646,6 +774,7 @@ function spa_undo_event_rotation_ajax() {
         wp_send_json_error(array('message' => 'Unable to clear the rotation undo state.'));
     }
     $changed_option_keys[] = $option_key;
+    $changed_option_keys[] = $preview_swaps_key;
 
     $applied_option_key = spa_get_rotation_applied_option_key($event_id);
     if ( ! spa_write_rotation_option($applied_option_key, 0) ) {
@@ -681,10 +810,13 @@ function spa_apply_swap_reminder_ajax() {
 
     $swap = $wpdb->get_row(
         $wpdb->prepare(
-            "SELECT sr.*, e.event_date
+            "SELECT sr.*, e.event_date,
+                    rv.first_name AS replacement_first_name,
+                    rv.last_name AS replacement_last_name
              FROM {$wpdb->prefix}spa_swap_reminders sr
-             INNER JOIN {$wpdb->prefix}spa_events e ON e.id = %d
+            INNER JOIN {$wpdb->prefix}spa_events e ON e.id = %d
             INNER JOIN {$wpdb->prefix}spa_events_teams et ON et.event_id = e.id AND et.team_id = sr.team_id
+            INNER JOIN {$wpdb->prefix}spa_volunteers rv ON rv.id = sr.replacement_volunteer_id
             WHERE sr.id = %d AND sr.status = 'pending'",
             $event_id,
             $swap_id
@@ -705,7 +837,40 @@ function spa_apply_swap_reminder_ajax() {
         )
     );
     if ( ! $assignment ) {
-        wp_send_json_error(array('message' => 'The scheduled volunteer is not currently assigned to this event team.'));
+        if ( spa_event_rotation_is_applied($event_id) ) {
+            wp_send_json_error(array('message' => 'The rotation assignments have already been applied, but the scheduled volunteer is not assigned to this event team. Undo and reapply the rotation, or verify the scheduled volunteer before applying this swap.'));
+        }
+        $preview_data = spa_get_rotation_preview_data($event_id);
+        if ( is_wp_error($preview_data) ) {
+            wp_send_json_error(array('message' => $preview_data->get_error_message()));
+        }
+
+        $preview_assignment = false;
+        foreach ( $preview_data['teams'] as $team_result ) {
+            if ( intval($team_result['team_id']) !== intval($swap->team_id) ) {
+                continue;
+            }
+            foreach ( $team_result['assignments'] as $preview_row ) {
+                if ( intval($preview_row['volunteer_id']) === intval($swap->scheduled_volunteer_id) ) {
+                    $preview_assignment = true;
+                    break 2;
+                }
+            }
+        }
+        if ( ! $preview_assignment ) {
+            wp_send_json_error(array('message' => 'Rotation assignments are not applied yet, and the scheduled volunteer is not in this event’s rotation preview. Preview the rotation and verify the team before applying this swap.'));
+        }
+
+        $preview_swaps = spa_get_rotation_preview_swaps($event_id);
+        $preview_swaps[$swap_id] = array(
+            'swap_id'                   => intval($swap_id),
+            'team_id'                   => intval($swap->team_id),
+            'scheduled_volunteer_id'    => intval($swap->scheduled_volunteer_id),
+            'replacement_volunteer_id'  => intval($swap->replacement_volunteer_id),
+            'replacement_volunteer_name' => trim($swap->replacement_first_name . ' ' . $swap->replacement_last_name),
+        );
+        update_option(spa_get_rotation_preview_swaps_option_key($event_id), $preview_swaps, false);
+        wp_send_json_success(array('message' => 'Swap saved to the rotation preview. Apply Rotation Assignments to finalize it.'));
     }
 
     if ( $wpdb->query('START TRANSACTION') === false ) {
