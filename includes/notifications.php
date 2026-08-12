@@ -37,6 +37,8 @@ function spa_get_next_notified_event() {
            AND EXISTS (
                SELECT 1
                FROM {$wpdb->prefix}spa_event_volunteers ev
+               INNER JOIN {$wpdb->prefix}spa_teams t
+                   ON t.id = ev.team_id
                INNER JOIN {$wpdb->prefix}spa_volunteers v
                    ON v.id = ev.volunteer_id
                   AND v.active = 1
