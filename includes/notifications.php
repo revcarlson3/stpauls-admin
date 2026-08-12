@@ -130,14 +130,25 @@ function spa_send_event_reminders($event, $reminder_type = 'scheduled') {
     }
 
     $volunteers = spa_get_event_volunteers_for_notification($event->id);
-    $sent = array('email' => 0, 'sms' => 0, 'push' => 0);
+    $sent = array(
+        'email'      => 0,
+        'sms'        => 0,
+        'push'       => 0,
+        'recipients' => count($volunteers),
+        'errors'     => array(),
+    );
 
     foreach ( $volunteers as $volunteer ) {
         $result = spa_send_event_notification_to_volunteer($event, $volunteer, $templates, $reminder_type);
-        if ( ! is_wp_error($result) ) {
-            $sent['email'] += $result['email'];
-            $sent['sms'] += $result['sms'];
-            $sent['push'] += $result['push'];
+        if ( is_wp_error($result) ) {
+            $sent['errors'][] = trim($volunteer->first_name . ' ' . $volunteer->last_name) . ': ' . $result->get_error_message();
+            continue;
+        }
+        $sent['email'] += $result['email'];
+        $sent['sms'] += $result['sms'];
+        $sent['push'] += $result['push'];
+        if ( ! empty($result['errors']) ) {
+            $sent['errors'] = array_merge($sent['errors'], $result['errors']);
         }
     }
 

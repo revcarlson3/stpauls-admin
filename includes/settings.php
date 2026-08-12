@@ -21,14 +21,33 @@ function spa_handle_settings_post() {
                 'notification_message' => $run_result->get_error_message(),
             );
         } else {
+            $scheduled_result = $run_result['scheduled'];
+            $scheduled_total = intval($scheduled_result['email']) + intval($scheduled_result['sms']) + intval($scheduled_result['push']);
+            if ( $scheduled_total === 0 ) {
+                $notification_message = ! empty($scheduled_result['errors'])
+                    ? implode(' ', array_unique($scheduled_result['errors']))
+                    : (
+                        intval($scheduled_result['recipients']) === 0
+                            ? 'The event has no active volunteer assignments.'
+                            : 'No assigned volunteers have an enabled notification method with contact information.'
+                    );
+                $redirect_args = array(
+                    'page' => 'spa-settings',
+                    'tab' => 'general',
+                    'notification_run' => 'error',
+                    'notification_message' => $notification_message,
+                );
+                wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+                exit;
+            }
             $redirect_args = array(
                 'page' => 'spa-settings',
                 'tab' => 'general',
                 'notification_run' => 'sent',
                 'notification_event' => $run_result['event']->name,
-                'notification_email' => intval($run_result['scheduled']['email']),
-                'notification_sms' => intval($run_result['scheduled']['sms']),
-                'notification_push' => intval($run_result['scheduled']['push']),
+                'notification_email' => intval($scheduled_result['email']),
+                'notification_sms' => intval($scheduled_result['sms']),
+                'notification_push' => intval($scheduled_result['push']),
             );
         }
         wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
