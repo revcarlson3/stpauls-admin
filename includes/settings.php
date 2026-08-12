@@ -22,6 +22,16 @@ function spa_handle_settings_post() {
             );
         } else {
             $scheduled_result = $run_result['scheduled'];
+            if ( ! empty($run_result['scheduled_error']) ) {
+                $redirect_args = array(
+                    'page' => 'spa-settings',
+                    'tab' => 'general',
+                    'notification_run' => 'error',
+                    'notification_message' => $run_result['scheduled_error'],
+                );
+                wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+                exit;
+            }
             $scheduled_total = intval($scheduled_result['email']) + intval($scheduled_result['sms']) + intval($scheduled_result['push']);
             if ( $scheduled_total === 0 ) {
                 $notification_message = ! empty($scheduled_result['errors'])

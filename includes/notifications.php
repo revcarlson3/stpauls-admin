@@ -276,6 +276,7 @@ function spa_run_notification_cron($force = false) {
     $result = array(
         'event'          => $event,
         'scheduled'      => array('email' => 0, 'sms' => 0, 'push' => 0),
+        'scheduled_error' => '',
         'reminder_24h'   => array('email' => 0, 'sms' => 0, 'push' => 0),
     );
 
@@ -293,7 +294,9 @@ function spa_run_notification_cron($force = false) {
             ) {
                 update_option('spa_notification_last_run', $run_marker, false);
             }
-            if ( ! is_wp_error($scheduled_result) ) {
+            if ( is_wp_error($scheduled_result) ) {
+                $result['scheduled_error'] = $scheduled_result->get_error_message();
+            } else {
                 $result['scheduled'] = $scheduled_result;
             }
         }
