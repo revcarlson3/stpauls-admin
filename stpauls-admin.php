@@ -3,7 +3,7 @@
   * Plugin Name: St. Paul's Admin
   * Plugin URI: https://stpaulsmilaca.org
   * Description: A plugin written specifically for St. Paul's Lutheran Church to handle scheduling
-  * Version: 0.1.28-beta20
+  * Version: 0.1.28-beta21
   * Update URI: https://github.com/revcarlson3/stpauls-admin/
   * Author: Rev. Daniel Carlson
   * License: GPL2
@@ -15,7 +15,7 @@ if(!defined('ABSPATH')) {
 define('SPA_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SPA_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SPA_TEMPLATE_DIR', plugin_dir_path(__FILE__) . 'templates/');
-define('SPA_VERSION', '0.1.28-beta20');
+define('SPA_VERSION', '0.1.28-beta21');
 define('SPA_DB_VERSION', '15');
 
 // Optional Composer autoloader for libraries (libphonenumber)
@@ -25,6 +25,8 @@ if ( file_exists(plugin_dir_path(__FILE__) . 'vendor/autoload.php') ) {
 
 require_once plugin_dir_path(__FILE__) . 'includes/helpers.php';
 require_once plugin_dir_path(__FILE__) . 'includes/church-year.php';
+require_once plugin_dir_path(__FILE__) . 'includes/template-functions.php';
+require_once plugin_dir_path(__FILE__) . 'includes/service-links.php';
 require_once plugin_dir_path(__FILE__) . 'includes/database.php';
 require_once plugin_dir_path(__FILE__) . 'includes/data-access.php';
 require_once plugin_dir_path(__FILE__) . 'includes/rotation-service.php';
@@ -53,7 +55,7 @@ if ( is_admin() && ! $spa_is_public_ajax ) {
     $spa_admin_page = isset($_GET['page']) ? sanitize_key(wp_unslash($_GET['page'])) : '';
     $spa_admin_page_files = array(
         'spa-dashboard'  => array('dashboard.php'),
-        'spa-events'     => array('events.php'),
+        'spa-events'     => array('events.php', 'scheduling.php'),
         'spa-services'   => array('services.php'),
         'spa-teams'      => array('teams.php'),
         'spa-volunteers' => array('volunteers.php'),
