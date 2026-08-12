@@ -29,7 +29,7 @@ function spa_handle_settings_post() {
                     : (
                         intval($scheduled_result['recipients']) === 0
                             ? sprintf(
-                                'No deliverable assignments were found for "%s" (event #%d). Database rows: %d; active volunteers: %d; deliverable assignments: %d.',
+                                'No deliverable assignments were found for "%s" (event ID %d). Database rows: %d; active volunteers: %d; deliverable assignments: %d.',
                                 $run_result['event']->name,
                                 intval($run_result['event']->id),
                                 intval($scheduled_result['diagnostic']->assignment_rows ?? 0),
