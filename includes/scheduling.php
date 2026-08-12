@@ -346,14 +346,6 @@ function spa_get_rotation_preview_data($event_id) {
             continue;
         }
 
-        $current_index = 0;
-        foreach ( $rotation_rows as $index => $rotation_row ) {
-            if ( intval($rotation_row->is_next) === 1 ) {
-                $current_index = $index;
-                break;
-            }
-        }
-
         $rotation_count = count($rotation_rows);
         $needed = intval($event_team->volunteers_needed);
 
@@ -369,42 +361,17 @@ function spa_get_rotation_preview_data($event_id) {
             );
         }
 
-        $assignment_index = $current_index;
-        $period_option_key = spa_get_rotation_period_option_key(
-            $team_result['advance_rule'],
+        $calculated = spa_calculate_rotation_team_assignments(
+            $rotation_rows,
+            $needed,
             intval($event->service_type_id),
-            intval($event_team->team_id)
-        );
-        $period_value = spa_get_rotation_period_value(
-            $team_result['advance_rule'],
+            intval($event_team->team_id),
             ! empty($event->event_date) ? $event->event_date : ''
         );
-
-        if ( $period_option_key !== '' && $period_value !== '' ) {
-            $previous_period = get_option($period_option_key, '');
-            if ( $previous_period !== $period_value ) {
-                $team_result['period_option_key'] = $period_option_key;
-                $team_result['period_value'] = $period_value;
-
-                if ( $previous_period !== '' ) {
-                    $assignment_index = ($current_index + $needed) % $rotation_count;
-                    $team_result['pointer_rotation_id'] = intval($rotation_rows[$assignment_index]->id);
-                }
-            }
-        } elseif ( $team_result['advance_rule'] === 'every_event' ) {
-            $team_result['pointer_rotation_id'] = intval(
-                $rotation_rows[($current_index + $needed) % $rotation_count]->id
-            );
-        }
-
-        for ( $offset = 0; $offset < $needed; $offset++ ) {
-            $row = $rotation_rows[($assignment_index + $offset) % $rotation_count];
-            $team_result['assignments'][] = array(
-                'volunteer_id'   => intval($row->volunteer_id),
-                'volunteer_name' => trim($row->first_name . ' ' . $row->last_name),
-                'rotation_id'    => intval($row->id),
-            );
-        }
+        $team_result['assignments'] = $calculated['assignments'];
+        $team_result['pointer_rotation_id'] = $calculated['pointer_rotation_id'];
+        $team_result['period_option_key'] = $calculated['period_option_key'];
+        $team_result['period_value'] = $calculated['period_value'];
 
         $preview[] = $team_result;
     }
