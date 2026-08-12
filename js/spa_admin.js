@@ -75,6 +75,46 @@ jQuery(function($) {
         $status.empty().append($notice);
     }
 
+    function spaPopulateSwapVolunteers($selects, volunteers) {
+        $selects.each(function() {
+            var $select = $(this);
+            $select.empty().append($('<option>').val('').text('Select'));
+            $.each(volunteers, function(index, volunteer) {
+                $('<option>')
+                    .val(volunteer.id)
+                    .text(volunteer.last_name + ', ' + volunteer.first_name)
+                    .appendTo($select);
+            });
+            $select.prop('disabled', false);
+        });
+    }
+
+    $('#swap_team_id').on('change', function() {
+        var teamId = $(this).val();
+        var $selects = $('#swap_scheduled_volunteer_id, #swap_replacement_volunteer_id');
+
+        $selects.prop('disabled', true).empty().append(
+            $('<option>').val('').text(teamId ? 'Loading volunteers...' : 'Select a team first')
+        );
+        if (!teamId) {
+            return;
+        }
+
+        $.post(spaAdmin.ajaxUrl, {
+            action: 'spa_get_team_volunteers',
+            nonce: spaAdmin.nonce,
+            team_id: teamId
+        }, function(response) {
+            if (response && response.success && response.data && response.data.volunteers) {
+                spaPopulateSwapVolunteers($selects, response.data.volunteers);
+                return;
+            }
+            $selects.empty().append($('<option>').val('').text('No volunteers found'));
+        }).fail(function() {
+            $selects.empty().append($('<option>').val('').text('Unable to load volunteers'));
+        });
+    });
+
     function spaRenderEvent(response) {
         if (!response || !response.success) {
             return false;

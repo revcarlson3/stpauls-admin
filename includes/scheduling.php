@@ -5,6 +5,37 @@ add_action('wp_ajax_spa_preview_event_rotation', 'spa_preview_event_rotation_aja
 add_action('wp_ajax_spa_apply_event_rotation', 'spa_apply_event_rotation_ajax');
 add_action('wp_ajax_spa_undo_event_rotation', 'spa_undo_event_rotation_ajax');
 add_action('wp_ajax_spa_apply_swap_reminder', 'spa_apply_swap_reminder_ajax');
+add_action('wp_ajax_spa_get_team_volunteers', 'spa_get_team_volunteers_ajax');
+
+function spa_get_team_volunteers_ajax() {
+    global $wpdb;
+
+    if ( ! check_ajax_referer('spa_admin_nonce', 'nonce', false) ) {
+        wp_send_json_error(array('message' => 'Invalid nonce'), 403);
+    }
+    if ( ! current_user_can('manage_options') ) {
+        wp_send_json_error(array('message' => 'Unauthorized'), 403);
+    }
+
+    $team_id = isset($_POST['team_id']) ? intval($_POST['team_id']) : 0;
+    if ( ! $team_id ) {
+        wp_send_json_error(array('message' => 'Select a team first.'));
+    }
+
+    $volunteers = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT v.id, v.first_name, v.last_name
+             FROM {$wpdb->prefix}spa_volunteer_teams vt
+             INNER JOIN {$wpdb->prefix}spa_volunteers v ON v.id = vt.volunteer_id
+             WHERE vt.team_id = %d AND v.active = 1
+             ORDER BY v.last_name, v.first_name",
+            $team_id
+        ),
+        ARRAY_A
+    );
+
+    wp_send_json_success(array('volunteers' => $volunteers));
+}
 
 function spa_get_rotation_undo_option_key() {
     return 'spa_rotation_last_apply_undo';

@@ -125,30 +125,24 @@
                 <input type="hidden" name="spa_scheduling_action" value="add_swap_reminder">
                 <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:end;">
                     <p style="margin:0;">
-                        <label for="swap_scheduled_volunteer_id"><strong>Scheduled volunteer</strong></label><br>
-                        <select id="swap_scheduled_volunteer_id" name="swap_scheduled_volunteer_id" required>
-                            <option value="">Select</option>
-                            <?php foreach ( $volunteers as $volunteer ) : ?>
-                                <option value="<?php echo intval($volunteer->id); ?>"><?php echo esc_html($volunteer->last_name . ', ' . $volunteer->first_name); ?></option>
+                        <label for="swap_team_id"><strong>Team</strong></label><br>
+                        <select id="swap_team_id" name="swap_team_id" required>
+                            <option value="">Select a team</option>
+                            <?php foreach ( $teams as $team ) : ?>
+                                <option value="<?php echo intval($team->id); ?>"><?php echo esc_html($team->name); ?></option>
                             <?php endforeach; ?>
+                        </select>
+                    </p>
+                    <p style="margin:0;">
+                        <label for="swap_scheduled_volunteer_id"><strong>Scheduled volunteer</strong></label><br>
+                        <select id="swap_scheduled_volunteer_id" name="swap_scheduled_volunteer_id" required disabled>
+                            <option value="">Select a team first</option>
                         </select>
                     </p>
                     <p style="margin:0;">
                         <label for="swap_replacement_volunteer_id"><strong>Replacement volunteer</strong></label><br>
-                        <select id="swap_replacement_volunteer_id" name="swap_replacement_volunteer_id" required>
-                            <option value="">Select</option>
-                            <?php foreach ( $volunteers as $volunteer ) : ?>
-                                <option value="<?php echo intval($volunteer->id); ?>"><?php echo esc_html($volunteer->last_name . ', ' . $volunteer->first_name); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </p>
-                    <p style="margin:0;">
-                        <label for="swap_team_id"><strong>Team</strong></label><br>
-                        <select id="swap_team_id" name="swap_team_id" required>
-                            <option value="">Select</option>
-                            <?php foreach ( $teams as $team ) : ?>
-                                <option value="<?php echo intval($team->id); ?>"><?php echo esc_html($team->name); ?></option>
-                            <?php endforeach; ?>
+                        <select id="swap_replacement_volunteer_id" name="swap_replacement_volunteer_id" required disabled>
+                            <option value="">Select a team first</option>
                         </select>
                     </p>
                     <p style="margin:0;">
