@@ -29,24 +29,22 @@ function spa_notification_should_run_now() {
 function spa_get_next_notified_event() {
     global $wpdb;
 
-    return $wpdb->get_row(
-        "SELECT e.* FROM {$wpdb->prefix}spa_events e
-         WHERE e.active = 1
-           AND e.notify_volunteers = 1
-           AND e.event_date >= CURDATE()
-           AND EXISTS (
-               SELECT 1
-               FROM {$wpdb->prefix}spa_event_volunteers ev
-               INNER JOIN {$wpdb->prefix}spa_teams t
-                   ON t.id = ev.team_id
-               INNER JOIN {$wpdb->prefix}spa_volunteers v
-                   ON v.id = ev.volunteer_id
-                  AND v.active = 1
-               WHERE ev.event_id = e.id
-           )
-         ORDER BY e.event_date ASC, e.start_time ASC
-         LIMIT 1"
+    $events = $wpdb->get_results(
+        "SELECT *
+         FROM {$wpdb->prefix}spa_events
+         WHERE active = 1
+           AND notify_volunteers = 1
+           AND event_date >= CURDATE()
+         ORDER BY event_date ASC, start_time ASC"
     );
+
+    foreach ( $events as $event ) {
+        if ( ! empty(spa_get_notification_recipients_for_event($event->id)) ) {
+            return $event;
+        }
+    }
+
+    return null;
 }
 
 function spa_get_event_volunteers_for_notification($event_id) {
