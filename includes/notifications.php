@@ -30,19 +30,7 @@ function spa_get_next_notified_event() {
 }
 
 function spa_get_event_volunteers_for_notification($event_id) {
-    global $wpdb;
-
-    return $wpdb->get_results(
-        $wpdb->prepare(
-            "SELECT DISTINCT v.id, v.first_name, v.last_name, v.email, v.phone, v.push_external_id, v.email_enabled, v.phone_enabled, t.name AS team_name
-             FROM {$wpdb->prefix}spa_event_volunteers ev
-             INNER JOIN {$wpdb->prefix}spa_teams t ON t.id = ev.team_id
-             INNER JOIN {$wpdb->prefix}spa_volunteers v ON v.id = ev.volunteer_id
-             WHERE ev.event_id = %d
-               AND v.active = 1",
-            $event_id
-        )
-    );
+    return spa_get_notification_recipients_for_event($event_id);
 }
 
 function spa_get_event_notification_templates() {
@@ -81,96 +69,35 @@ function spa_send_event_notification_to_volunteer($event, $volunteer, $templates
 
     $sent = array('email' => 0, 'sms' => 0, 'push' => 0);
     $errors = array();
-    $data = array(
-        'first_name'     => $volunteer->first_name,
-        'last_name'      => $volunteer->last_name,
-        'full_name'      => trim($volunteer->first_name . ' ' . $volunteer->last_name),
-        'event_name'     => $event->name,
-        'event_date'     => $event->event_date,
-        'event_time'     => $event->start_time,
-        'event_location' => $event->location,
-        'team_name'      => $volunteer->team_name,
-    );
-    $team_name = trim((string) $volunteer->team_name);
-    $article = $team_name !== '' && in_array(strtolower($team_name[0]), array('a', 'e', 'i', 'o', 'u'), true) ? 'an' : 'a';
-    $fixed_reminder = sprintf('Reminder: you are serving as %s %s on Sunday. See you there!', $article, $team_name);
-
     if ( $templates['email'] && ! empty($volunteer->email) && intval($volunteer->email_enabled) === 1 ) {
         $email_provider = get_option('spa_email_provider', 'wp_mail');
-        $email_log_id = spa_create_delivery_log($event, $volunteer, 'email', $email_provider);
-        $email_data = $data;
-        $email_data['readings'] = spa_get_readings_tag_value(
-            $volunteer->team_name,
-            $event->service_builder_url ?? '',
-            true
-        );
-        if ( $is_24h_reminder ) {
-            $subject = 'Volunteer Reminder';
-            $body = '<p>' . esc_html($fixed_reminder) . '</p>';
-        } else {
-            $subject_data = $email_data;
-            $subject_data['readings'] = '';
-            $subject = spa_process_template($templates['email']->subject ?: 'Volunteer Reminder', $subject_data);
-            $body = spa_process_template($templates['email']->body, $email_data);
-        }
-        $result = spa_send_email(
-            $volunteer->email,
-            $subject,
-            $body,
-            array(),
-            array(),
-            array('delivery_log_id' => $email_log_id)
-        );
+        $message = spa_build_event_notification_message($event, $volunteer, $templates, 'email', $reminder_type);
+        $result = spa_dispatch_notification('email', $event, $volunteer, $message, $email_provider);
         if ( is_wp_error($result) ) {
-            spa_mark_delivery_failed($email_log_id, $result->get_error_message());
             $errors[] = 'Email: ' . $result->get_error_message();
         } else {
-            spa_mark_delivery_sent($email_log_id, $result, $email_provider === 'sendgrid');
             $sent['email']++;
         }
     }
 
     if ( ( $is_24h_reminder || $templates['sms'] ) && ! empty($volunteer->phone) && intval($volunteer->phone_enabled) === 1 ) {
         $sms_provider = get_option('spa_sms_provider', 'twilio');
-        $sms_log_id = spa_create_delivery_log($event, $volunteer, 'sms', $sms_provider);
-        $sms_data = $data;
-        $sms_data['readings'] = spa_get_readings_tag_value(
-            $volunteer->team_name,
-            $event->service_builder_url ?? '',
-            false
-        );
-        $body = $is_24h_reminder ? $fixed_reminder : spa_process_template($templates['sms']->body, $sms_data);
-        $result = spa_send_sms(
-            $volunteer->phone,
-            $body,
-            $sms_provider,
-            array('delivery_log_id' => $sms_log_id)
-        );
+        $message = spa_build_event_notification_message($event, $volunteer, $templates, 'sms', $reminder_type);
+        $result = spa_dispatch_notification('sms', $event, $volunteer, $message, $sms_provider);
         if ( is_wp_error($result) ) {
-            spa_mark_delivery_failed($sms_log_id, $result->get_error_message());
             $errors[] = 'SMS: ' . $result->get_error_message();
         } else {
-            spa_mark_delivery_sent($sms_log_id, $result, $sms_provider === 'twilio');
             $sent['sms']++;
         }
     }
 
     if ( intval(get_option('spa_enable_push', 0)) === 1 && ! empty($volunteer->push_external_id) ) {
         $push_provider = get_option('spa_push_provider', 'onesignal');
-        $push_data = $data;
-        $push_subject = $is_24h_reminder
-            ? 'Volunteer Reminder'
-            : ( $templates['email'] ? spa_process_template($templates['email']->subject ?: 'Volunteer Reminder', $push_data) : 'Volunteer Reminder' );
-        $push_body = $is_24h_reminder
-            ? $fixed_reminder
-            : ( $templates['email'] ? spa_process_template($templates['email']->body ?: 'You are scheduled to serve.', $push_data) : 'You are scheduled to serve.' );
-        $push_log_id = spa_create_delivery_log($event, $volunteer, 'push', $push_provider);
-        $result = spa_send_push_notification(array($volunteer->push_external_id), $push_subject, wp_strip_all_tags($push_body), $push_provider);
+        $message = spa_build_event_notification_message($event, $volunteer, $templates, 'push', $reminder_type);
+        $result = spa_dispatch_notification('push', $event, $volunteer, $message, $push_provider);
         if ( is_wp_error($result) ) {
-            spa_mark_delivery_failed($push_log_id, $result->get_error_message());
             $errors[] = 'Push: ' . $result->get_error_message();
         } else {
-            spa_mark_delivery_sent($push_log_id, '', false);
             $sent['push']++;
         }
     }
