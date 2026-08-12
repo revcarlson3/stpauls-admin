@@ -53,6 +53,24 @@ function spa_get_event_volunteers_for_notification($event_id) {
     return spa_get_notification_recipients_for_event($event_id);
 }
 
+function spa_get_notification_assignment_diagnostic($event_id) {
+    global $wpdb;
+
+    return $wpdb->get_row(
+        $wpdb->prepare(
+            "SELECT
+                COUNT(ev.volunteer_id) AS assignment_rows,
+                SUM(CASE WHEN v.id IS NOT NULL AND v.active = 1 THEN 1 ELSE 0 END) AS active_volunteers,
+                SUM(CASE WHEN v.id IS NOT NULL AND v.active = 1 AND t.id IS NOT NULL THEN 1 ELSE 0 END) AS deliverable_assignments
+             FROM {$wpdb->prefix}spa_event_volunteers ev
+             LEFT JOIN {$wpdb->prefix}spa_volunteers v ON v.id = ev.volunteer_id
+             LEFT JOIN {$wpdb->prefix}spa_teams t ON t.id = ev.team_id
+             WHERE ev.event_id = %d",
+            intval($event_id)
+        )
+    );
+}
+
 function spa_get_event_notification_templates() {
     global $wpdb;
 
@@ -146,6 +164,7 @@ function spa_send_event_reminders($event, $reminder_type = 'scheduled') {
         'push'       => 0,
         'recipients' => count($volunteers),
         'errors'     => array(),
+        'diagnostic' => spa_get_notification_assignment_diagnostic($event->id),
     );
 
     foreach ( $volunteers as $volunteer ) {

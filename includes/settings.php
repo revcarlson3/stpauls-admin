@@ -28,7 +28,14 @@ function spa_handle_settings_post() {
                     ? implode(' ', array_unique($scheduled_result['errors']))
                     : (
                         intval($scheduled_result['recipients']) === 0
-                            ? 'The event has no active volunteer assignments.'
+                            ? sprintf(
+                                'No deliverable assignments were found for "%s" (event #%d). Database rows: %d; active volunteers: %d; deliverable assignments: %d.',
+                                $run_result['event']->name,
+                                intval($run_result['event']->id),
+                                intval($scheduled_result['diagnostic']->assignment_rows ?? 0),
+                                intval($scheduled_result['diagnostic']->active_volunteers ?? 0),
+                                intval($scheduled_result['diagnostic']->deliverable_assignments ?? 0)
+                            )
                             : 'No assigned volunteers have an enabled notification method with contact information.'
                     );
                 $redirect_args = array(
