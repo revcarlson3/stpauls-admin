@@ -1054,6 +1054,7 @@ function spa_handle_scheduling_forms() {
         $replacement_volunteer_id = isset($_POST['swap_replacement_volunteer_id']) ? intval($_POST['swap_replacement_volunteer_id']) : 0;
         $team_id = isset($_POST['swap_team_id']) ? intval($_POST['swap_team_id']) : 0;
         $swap_date = isset($_POST['swap_date']) ? sanitize_text_field(wp_unslash($_POST['swap_date'])) : '';
+        $permanent = ! empty($_POST['swap_permanent']) ? 1 : 0;
 
         $date_parts = explode('-', $swap_date);
         $date_valid = count($date_parts) === 3
@@ -1074,17 +1075,67 @@ function spa_handle_scheduling_forms() {
                 )
             );
             if ( count($valid_volunteers) === 2 ) {
-                $wpdb->insert(
+                $inserted = $wpdb->insert(
                     $wpdb->prefix . 'spa_swap_reminders',
                     array(
                         'scheduled_volunteer_id' => $scheduled_volunteer_id,
                         'replacement_volunteer_id' => $replacement_volunteer_id,
                         'team_id' => $team_id,
                         'swap_date' => $swap_date,
+                        'permanent' => $permanent,
                         'status' => 'pending',
                     ),
-                    array('%d', '%d', '%d', '%s', '%s')
+                    array('%d', '%d', '%d', '%s', '%d', '%s')
                 );
+                if ( $inserted && $permanent ) {
+                    $rotation_rows = $wpdb->get_results(
+                        $wpdb->prepare(
+                            "SELECT id, service_type_id, is_next
+                             FROM {$wpdb->prefix}spa_team_rotations
+                             WHERE team_id = %d AND volunteer_id = %d
+                             ORDER BY service_type_id, id",
+                            $team_id,
+                            $scheduled_volunteer_id
+                        )
+                    );
+                    foreach ( $rotation_rows as $rotation_row ) {
+                        $replacement_exists = $wpdb->get_var(
+                            $wpdb->prepare(
+                                "SELECT id
+                                 FROM {$wpdb->prefix}spa_team_rotations
+                                 WHERE service_type_id = %d AND team_id = %d AND volunteer_id = %d
+                                 LIMIT 1",
+                                $rotation_row->service_type_id,
+                                $team_id,
+                                $replacement_volunteer_id
+                            )
+                        );
+                        if ( $replacement_exists ) {
+                            if ( intval($rotation_row->is_next) === 1 ) {
+                                $wpdb->update(
+                                    $wpdb->prefix . 'spa_team_rotations',
+                                    array('is_next' => 1),
+                                    array('id' => intval($replacement_exists)),
+                                    array('%d'),
+                                    array('%d')
+                                );
+                            }
+                            $wpdb->delete(
+                                $wpdb->prefix . 'spa_team_rotations',
+                                array('id' => intval($rotation_row->id)),
+                                array('%d')
+                            );
+                        } else {
+                            $wpdb->update(
+                                $wpdb->prefix . 'spa_team_rotations',
+                                array('volunteer_id' => $replacement_volunteer_id),
+                                array('id' => intval($rotation_row->id)),
+                                array('%d'),
+                                array('%d')
+                            );
+                        }
+                    }
+                }
             }
         }
     }

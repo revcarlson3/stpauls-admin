@@ -149,12 +149,18 @@
                         <label for="swap_date"><strong>Date</strong></label><br>
                         <input type="date" id="swap_date" name="swap_date" required>
                     </p>
+                    <p style="margin:0 0 8px;">
+                        <label>
+                            <input type="checkbox" name="swap_permanent" value="1">
+                            Permanent swap?
+                        </label>
+                    </p>
                     <p style="margin:0;"><button type="submit" class="button button-primary">Save Swap Reminder</button></p>
                 </div>
             </form>
             <?php if ( ! empty($swap_reminders) ) : ?>
                 <table class="widefat striped" style="margin-top:16px;">
-                    <thead><tr><th>Date</th><th>Team</th><th>Scheduled Volunteer</th><th>Replacement Volunteer</th></tr></thead>
+                    <thead><tr><th>Date</th><th>Team</th><th>Scheduled Volunteer</th><th>Replacement Volunteer</th><th>Permanent</th></tr></thead>
                     <tbody>
                     <?php foreach ( $swap_reminders as $swap ) : ?>
                         <tr>
@@ -162,6 +168,7 @@
                             <td><?php echo esc_html($swap->team_name); ?></td>
                             <td><?php echo esc_html($swap->scheduled_volunteer_name); ?></td>
                             <td><?php echo esc_html($swap->replacement_volunteer_name); ?></td>
+                            <td><?php echo ! empty($swap->permanent) ? 'Yes' : 'No'; ?></td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>

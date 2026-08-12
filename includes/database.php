@@ -28,6 +28,7 @@ function spa_activate_plugin() {
         replacement_volunteer_id mediumint(9) NOT NULL,
         team_id mediumint(9) NOT NULL,
         swap_date date NOT NULL,
+        permanent tinyint(1) NOT NULL DEFAULT 0,
         status varchar(20) NOT NULL DEFAULT 'pending',
         applied_event_id mediumint(9) NULL,
         created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
