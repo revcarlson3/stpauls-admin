@@ -15,10 +15,30 @@ function spa_activate_plugin() {
          description text NULL,
          active tinyint(1) NOT NULL DEFAULT 1,
          created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-         PRIMARY KEY (id)
+         PRIMARY KEY (id),
+         KEY active_name (active, name)
     ) $charset_collate;";
 
     dbDelta($sql);
+
+    // Volunteer swap reminders table
+    $swap_reminders_table = $wpdb->prefix . 'spa_swap_reminders';
+    dbDelta("CREATE TABLE $swap_reminders_table (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        scheduled_volunteer_id mediumint(9) NOT NULL,
+        replacement_volunteer_id mediumint(9) NOT NULL,
+        team_id mediumint(9) NOT NULL,
+        swap_date date NOT NULL,
+        permanent tinyint(1) NOT NULL DEFAULT 0,
+        status varchar(20) NOT NULL DEFAULT 'pending',
+        applied_event_id mediumint(9) NULL,
+        created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        applied_at datetime NULL,
+        PRIMARY KEY (id),
+        KEY pending_date_team (status, swap_date, team_id),
+        KEY scheduled_volunteer (scheduled_volunteer_id),
+        KEY replacement_volunteer (replacement_volunteer_id)
+    ) $charset_collate;");
 
     // Volunteers table
     $volunteers_table = $wpdb->prefix .'spa_volunteers';
@@ -29,11 +49,13 @@ function spa_activate_plugin() {
         last_name varchar(100) NOT NULL,
         email varchar(255) NULL,
         phone varchar(50) NULL,
+        push_external_id varchar(191) NULL,
         email_enabled tinyint(1) NOT NULL DEFAULT 1,
         phone_enabled tinyint(1) NOT NULL DEFAULT 1,
         active tinyint(1) NOT NULL DEFAULT 1,
         created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (id)
+        PRIMARY KEY (id),
+        KEY active_name (active, last_name, first_name)
     ) $charset_collate;";
     
     dbDelta($sql);
@@ -44,7 +66,8 @@ function spa_activate_plugin() {
     $sql = "CREATE TABLE $volunteer_teams_table (
         volunteer_id mediumint(9) NOT NULL,
         team_id mediumint(9) NOT NULL,
-        PRIMARY KEY (volunteer_id, team_id)
+        PRIMARY KEY (volunteer_id, team_id),
+        KEY team_volunteer (team_id, volunteer_id)
     ) $charset_collate;";
 
     dbDelta($sql);
@@ -71,7 +94,10 @@ function spa_activate_plugin() {
         notify_volunteers tinyint(1) NOT NULL DEFAULT 0,
         active tinyint(1) NOT NULL DEFAULT 1,
         created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (id)
+        PRIMARY KEY (id),
+        KEY active_date_time (active, event_date, start_time),
+        KEY parent_event (parent_event_id),
+        KEY service_type (service_type_id)
     ) $charset_collate;";
 
     dbDelta($sql);
@@ -83,7 +109,9 @@ function spa_activate_plugin() {
         event_id mediumint(9) NOT NULL,
         team_id mediumint(9) NOT NULL,
         volunteers_needed mediumint(3) NOT NULL,
-        PRIMARY KEY (id)
+        PRIMARY KEY (id),
+        UNIQUE KEY event_team (event_id, team_id),
+        KEY team_event (team_id, event_id)
     ) $charset_collate;";
 
     dbDelta($sql);
@@ -95,7 +123,9 @@ function spa_activate_plugin() {
         team_id mediumint(9) NOT NULL,
         volunteer_id mediumint(9) NOT NULL,
         is_override tinyint(1) NOT NULL DEFAULT 0,
-        PRIMARY KEY (event_id, team_id, volunteer_id)
+        PRIMARY KEY (event_id, team_id, volunteer_id),
+        KEY team_event (team_id, event_id),
+        KEY volunteer_event (volunteer_id, event_id)
         ) $charset_collate;";
     
     dbDelta($sql);
@@ -124,7 +154,9 @@ function spa_activate_plugin() {
         is_next tinyint(1) NOT NULL DEFAULT 0,
         advance_rule varchar(20) NOT NULL DEFAULT 'every_event',
         created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (id)
+        PRIMARY KEY (id),
+        KEY service_team_order (service_type_id, team_id, rotation_order),
+        KEY team_volunteer (team_id, volunteer_id)
     ) $charset_collate;";
 
     dbDelta($sql);

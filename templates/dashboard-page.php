@@ -258,6 +258,33 @@
                         <?php else : ?>
                             <p>No upcoming events found.</p>
                         <?php endif; ?>
+                    <?php elseif ( $card_id === 'upcoming-swaps' ) : ?>
+                        <?php if ( ! empty($upcoming_swaps) ) : ?>
+                            <table class="spa-upcoming-events-table spa-upcoming-swaps-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Team</th>
+                                        <th>Original volunteer</th>
+                                        <th>Swapped volunteer</th>
+                                        <th>Event</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ( $upcoming_swaps as $swap ) : ?>
+                                        <tr>
+                                            <td><?php echo esc_html(mysql2date('M j, Y', $swap->swap_date)); ?></td>
+                                            <td><?php echo esc_html($swap->team_name); ?></td>
+                                            <td><?php echo esc_html($swap->original_volunteer); ?></td>
+                                            <td><?php echo esc_html($swap->swapped_volunteer); ?></td>
+                                            <td><?php echo esc_html($swap->event_name ?: 'Not scheduled'); ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        <?php else : ?>
+                            <p>No upcoming swaps found.</p>
+                        <?php endif; ?>
                     <?php elseif ( $card_id === 'communications' ) : ?>
                         <?php if ( ! empty($communication_deliveries) ) : ?>
                             <table class="spa-upcoming-events-table spa-communications-table">

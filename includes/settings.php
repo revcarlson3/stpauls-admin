@@ -258,7 +258,19 @@ function spa_get_report_definitions() {
             'label' => 'Schedule Report',
             'columns' => array(),
         ),
+        'weekly_assignments' => array(
+            'label' => 'Weekly Assignments',
+            'columns' => array(),
+        ),
     );
+}
+
+function spa_reports_page() {
+    if ( ! current_user_can('manage_options') ) {
+        wp_die('Unauthorized', 'Error', array('response' => 403));
+    }
+
+    include SPA_TEMPLATE_DIR . 'reports-page.php';
 }
 
 function spa_get_schedule_report_date_range($start_date = '', $end_date = '') {
@@ -396,6 +408,76 @@ function spa_get_report_rows($report_key, $filters = array()) {
             }
 
             return $formatted_rows;
+
+        case 'weekly_assignments':
+            $today = current_time('Y-m-d');
+            $now = current_time('H:i:s');
+            $event = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT e.id, e.name, e.event_date, e.start_time
+                     FROM {$wpdb->prefix}spa_events e
+                     WHERE e.active = 1
+                     AND (e.event_date > %s OR (e.event_date = %s AND e.start_time >= %s))
+                     AND EXISTS (
+                         SELECT 1
+                         FROM {$wpdb->prefix}spa_event_volunteers ev_check
+                         WHERE ev_check.event_id = e.id
+                     )
+                     ORDER BY e.event_date ASC, e.start_time ASC, e.id ASC
+                     LIMIT 1",
+                    $today,
+                    $today,
+                    $now
+                ),
+                ARRAY_A
+            );
+
+            if ( empty($event) ) {
+                return array();
+            }
+
+            $assignments = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT
+                        t.name AS team_name,
+                        CONCAT(v.first_name, ' ', v.last_name) AS volunteer_name
+                     FROM {$wpdb->prefix}spa_event_volunteers ev
+                     INNER JOIN {$wpdb->prefix}spa_teams t ON t.id = ev.team_id AND t.active = 1
+                     INNER JOIN {$wpdb->prefix}spa_volunteers v ON v.id = ev.volunteer_id AND v.active = 1
+                     WHERE ev.event_id = %d
+                     ORDER BY t.name, v.last_name, v.first_name",
+                    $event['id']
+                ),
+                ARRAY_A
+            );
+
+            $grouped_assignments = array();
+            foreach ( $assignments as $assignment ) {
+                if ( ! isset($grouped_assignments[$assignment['team_name']]) ) {
+                    $grouped_assignments[$assignment['team_name']] = array();
+                }
+                $grouped_assignments[$assignment['team_name']][] = $assignment['volunteer_name'];
+            }
+
+            $event_date = DateTimeImmutable::createFromFormat('!Y-m-d', $event['event_date'], wp_timezone());
+            $start_time = DateTimeImmutable::createFromFormat('!H:i:s', $event['start_time'], wp_timezone());
+            $formatted_rows = array();
+            foreach ( $grouped_assignments as $team_name => $volunteers ) {
+                $formatted_rows[] = array(
+                    'team' => $team_name,
+                    'volunteers' => implode("\n", $volunteers),
+                );
+            }
+
+            return array(
+                'headers' => array('Team', 'Volunteers'),
+                'rows' => $formatted_rows,
+                'event' => array(
+                    'name' => $event['name'],
+                    'date' => $event_date ? $event_date->format('F j Y') : $event['event_date'],
+                    'start_time' => $start_time ? $start_time->format(get_option('time_format')) : $event['start_time'],
+                ),
+            );
 
         case 'rotation_report':
             $service_types = $wpdb->get_results(
@@ -622,10 +704,14 @@ function spa_get_report_ajax() {
         wp_send_json_error(array('message' => $rows->get_error_message()));
     }
     $custom_headers = array();
-    if ( in_array($report_key, array('rotation_report', 'schedule_report'), true) && isset($rows['headers'], $rows['rows']) ) {
+    $report_meta = array();
+    if ( in_array($report_key, array('rotation_report', 'schedule_report', 'weekly_assignments'), true) && isset($rows['headers'], $rows['rows']) ) {
         $custom_headers = $rows['headers'];
         if ( isset($rows['filters']) ) {
             $report_filters = $rows['filters'];
+        }
+        if ( isset($rows['event']) ) {
+            $report_meta = $rows['event'];
         }
         $rows = $rows['rows'];
     }
@@ -650,6 +736,12 @@ function spa_get_report_ajax() {
     ?>
     <div class="spa-report-modal-content">
         <h2><?php echo esc_html($definitions[$report_key]['label']); ?></h2>
+        <?php if ( ! empty($report_meta) ) : ?>
+            <div class="spa-report-summary" style="margin:0 0 16px;padding:14px 18px;border-left:4px solid #2271b1;background:#f0f6fc;">
+                <h3 style="margin:0 0 6px;"><?php echo esc_html($report_meta['name']); ?></h3>
+                <div><?php echo esc_html($report_meta['date']); ?> &middot; <?php echo esc_html($report_meta['start_time']); ?></div>
+            </div>
+        <?php endif; ?>
         <?php if ( $report_key === 'schedule_report' ) : ?>
             <div class="spa-schedule-report-filters" style="margin:0 0 12px;display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
                 <label>
@@ -673,7 +765,7 @@ function spa_get_report_ajax() {
             <table class="widefat striped" style="border-collapse:collapse;">
                 <thead>
                     <tr>
-                        <?php if ( in_array($report_key, array('rotation_report', 'schedule_report'), true) ) : ?>
+                        <?php if ( in_array($report_key, array('rotation_report', 'schedule_report', 'weekly_assignments'), true) ) : ?>
                             <?php foreach ( $custom_headers as $column ) : ?>
                                 <th style="break-inside:avoid;page-break-inside:avoid;"><?php echo esc_html($column); ?></th>
                             <?php endforeach; ?>
@@ -686,7 +778,7 @@ function spa_get_report_ajax() {
                 </thead>
                 <tbody>
                     <?php if ( empty($rows) ) : ?>
-                        <tr><td colspan="<?php echo intval(in_array($report_key, array('rotation_report', 'schedule_report'), true) ? count($custom_headers) : count($definitions[$report_key]['columns'])); ?>" style="break-inside:avoid;page-break-inside:avoid;">No data found.</td></tr>
+                        <tr><td colspan="<?php echo intval(in_array($report_key, array('rotation_report', 'schedule_report', 'weekly_assignments'), true) ? count($custom_headers) : count($definitions[$report_key]['columns'])); ?>" style="break-inside:avoid;page-break-inside:avoid;">No data found.</td></tr>
                     <?php else : ?>
                         <?php foreach ( $rows as $row ) : ?>
                             <tr style="break-inside:avoid;page-break-inside:avoid;">
@@ -736,8 +828,12 @@ function spa_export_report() {
         wp_die(esc_html($rows->get_error_message()));
     }
     $headers = $definitions[$report_key]['columns'];
-    if ( in_array($report_key, array('rotation_report', 'schedule_report'), true) && isset($rows['headers'], $rows['rows']) ) {
+    $report_meta = array();
+    if ( in_array($report_key, array('rotation_report', 'schedule_report', 'weekly_assignments'), true) && isset($rows['headers'], $rows['rows']) ) {
         $headers = $rows['headers'];
+        if ( isset($rows['event']) ) {
+            $report_meta = $rows['event'];
+        }
         $rows = $rows['rows'];
     }
     $filename_base = 'spa-report-' . $report_key . '-' . date('Y-m-d');
@@ -812,6 +908,12 @@ function spa_export_report() {
         </head>
         <body onload="window.print();">
             <h1><?php echo esc_html($definitions[$report_key]['label']); ?></h1>
+            <?php if ( ! empty($report_meta) ) : ?>
+                <div style="margin:0 0 16px;padding:14px 18px;border-left:4px solid #2271b1;background:#f0f6fc;">
+                    <h2 style="margin:0 0 6px;"><?php echo esc_html($report_meta['name']); ?></h2>
+                    <div><?php echo esc_html($report_meta['date']); ?> &middot; <?php echo esc_html($report_meta['start_time']); ?></div>
+                </div>
+            <?php endif; ?>
             <table>
                 <thead>
                     <tr>

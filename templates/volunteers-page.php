@@ -67,6 +67,13 @@
                     </label>
                     </td>
                 </tr>
+                <tr>
+                    <th><label for="spa_volunteer_push_external_id">Push External ID</label></th>
+                    <td colspan="2">
+                        <input type="text" id="spa_volunteer_push_external_id" name="spa_volunteer_push_external_id" class="regular-text" value="<?php echo $editing ? esc_attr(wp_unslash($current_volunteer->push_external_id ?? '')) : ''; ?>" />
+                        <p class="description">Enter the volunteer's stable OneSignal External ID or Firebase device token. OneSignal manages device subscriptions.</p>
+                    </td>
+                </tr>
             </table>
 
             <h2>Teams</h2>

@@ -49,6 +49,7 @@ function spa_dashboard_page() {
     if ( empty($dashboard_order) ) {
         $dashboard_order = array(
             'upcoming-events',
+            'upcoming-swaps',
             'communications',
             'recent-activity',
         );
@@ -56,9 +57,13 @@ function spa_dashboard_page() {
 
     $dashboard_cards = array(
         'upcoming-events'  => array('title' => 'Upcoming Events'),
+        'upcoming-swaps'   => array('title' => 'Upcoming Swaps'),
         'communications'   => array('title' => 'Communications'),
         'recent-activity'  => array('title' => 'Recent Activity'),
     );
+    if ( ! in_array('upcoming-swaps', $dashboard_order, true) ) {
+        $dashboard_order[] = 'upcoming-swaps';
+    }
 
     $upcoming_events = $wpdb->get_results(
         $wpdb->prepare(
@@ -89,6 +94,36 @@ function spa_dashboard_page() {
          AND e.event_date >= %s
          ORDER BY e.event_date, e.start_time, e.id
          LIMIT 8",
+            current_time('Y-m-d')
+        )
+    );
+
+    $upcoming_swaps = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT
+                sr.swap_date,
+                t.name AS team_name,
+                CONCAT(sv.first_name, ' ', sv.last_name) AS original_volunteer,
+                CONCAT(rv.first_name, ' ', rv.last_name) AS swapped_volunteer,
+                (
+                    SELECT e.name
+                    FROM {$wpdb->prefix}spa_events e
+                    WHERE e.active = 1
+                    AND e.event_date = sr.swap_date
+                    ORDER BY e.start_time, e.id
+                    LIMIT 1
+                ) AS event_name
+             FROM {$wpdb->prefix}spa_swap_reminders sr
+             INNER JOIN {$wpdb->prefix}spa_teams t
+                 ON t.id = sr.team_id
+             INNER JOIN {$wpdb->prefix}spa_volunteers sv
+                 ON sv.id = sr.scheduled_volunteer_id
+             INNER JOIN {$wpdb->prefix}spa_volunteers rv
+                 ON rv.id = sr.replacement_volunteer_id
+             WHERE sr.status = 'pending'
+             AND sr.swap_date >= %s
+             ORDER BY sr.swap_date, sv.last_name, sv.first_name
+             LIMIT 12",
             current_time('Y-m-d')
         )
     );

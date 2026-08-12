@@ -10,8 +10,8 @@ function spa_get_complete_backup_table_definitions() {
         ),
         'volunteers' => array(
             'suffix' => 'spa_volunteers',
-            'columns' => array('id', 'first_name', 'last_name', 'email', 'phone', 'email_enabled', 'phone_enabled', 'active', 'created_at'),
-            'formats' => array('%d', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s'),
+            'columns' => array('id', 'first_name', 'last_name', 'email', 'phone', 'push_external_id', 'email_enabled', 'phone_enabled', 'active', 'created_at'),
+            'formats' => array('%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s'),
             'order_by' => 'id',
         ),
         'service_types' => array(
@@ -61,6 +61,12 @@ function spa_get_complete_backup_table_definitions() {
             'columns' => array('event_id', 'team_id', 'volunteer_id', 'is_override'),
             'formats' => array('%d', '%d', '%d', '%d'),
             'order_by' => 'event_id, team_id, volunteer_id',
+        ),
+        'swap_reminders' => array(
+            'suffix' => 'spa_swap_reminders',
+            'columns' => array('id', 'scheduled_volunteer_id', 'replacement_volunteer_id', 'team_id', 'swap_date', 'status', 'applied_event_id', 'created_at', 'applied_at'),
+            'formats' => array('%d', '%d', '%d', '%d', '%s', '%s', '%d', '%s', '%s'),
+            'order_by' => 'id',
         ),
         'team_rotations' => array(
             'suffix' => 'spa_team_rotations',
@@ -1173,11 +1179,12 @@ function spa_import_volunteers_data($rows) {
                 'last_name' => $last_name,
                 'email' => $email,
                 'phone' => $phone,
+                'push_external_id' => '',
                 'email_enabled' => 1,
                 'phone_enabled' => empty($phone) ? 0 : 1,
                 'active' => 1,
             ),
-            array('%s', '%s', '%s', '%s', '%d', '%d', '%d')
+            array('%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d')
         );
 
         if ( $inserted ) {
@@ -1247,13 +1254,13 @@ function spa_handle_export_volunteers() {
     if ( ! check_admin_referer('spa_export_volunteers') ) wp_die('Nonce failed');
 
     $rows = $wpdb->get_results(
-        "SELECT first_name, last_name, email, phone, email_enabled, phone_enabled, active
+        "SELECT first_name, last_name, email, phone, push_external_id, email_enabled, phone_enabled, active
          FROM {$wpdb->prefix}spa_volunteers ORDER BY last_name, first_name",
         ARRAY_A
     );
 
     spa_export_csv('spa-volunteers-' . date('Y-m-d') . '.csv',
-        array('first_name','last_name','email','phone','email_enabled','phone_enabled','active'),
+        array('first_name','last_name','email','phone','push_external_id','email_enabled','phone_enabled','active'),
         $rows
     );
 }
