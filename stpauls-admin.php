@@ -30,6 +30,8 @@ require_once plugin_dir_path(__FILE__) . 'includes/service-links.php';
 require_once plugin_dir_path(__FILE__) . 'includes/database.php';
 require_once plugin_dir_path(__FILE__) . 'includes/data-access.php';
 require_once plugin_dir_path(__FILE__) . 'includes/rotation-service.php';
+require_once plugin_dir_path(__FILE__) . 'includes/public-data.php';
+require_once plugin_dir_path(__FILE__) . 'includes/public-services.php';
 
 // Notification delivery, webhooks, and update checks must remain available to
 // cron, REST, AJAX, and normal WordPress requests.

@@ -4,25 +4,8 @@ add_shortcode('spa_events_calendar', 'spa_events_calendar_shortcode');
 add_action('wp_ajax_spa_calendar_event_details', 'spa_calendar_event_details_ajax');
 
 function spa_events_calendar_shortcode($atts) {
-    global $wpdb;
-
     $atts = shortcode_atts(array('view' => 'month'), $atts, 'spa_events_calendar');
-    $events = $wpdb->get_results(
-        $wpdb->prepare(
-            "SELECT e.id, e.name, e.season, e.special_day, e.event_date, e.start_time, e.end_time, e.description, e.location,
-                    s.id AS service_id
-             FROM {$wpdb->prefix}spa_events e
-             LEFT JOIN {$wpdb->prefix}spa_services s ON s.event_id = e.id AND s.active = 1
-             WHERE e.active = 1
-               AND e.event_date >= %s
-             ORDER BY e.event_date, e.start_time, e.id",
-            current_time('Y-m-d')
-        )
-    );
-    foreach ( $events as $event ) {
-        $event->church_day = spa_get_church_year_day($event->event_date, $event->special_day, $event->season);
-        $event->service_url = $event->service_id ? add_query_arg('service_id', intval($event->service_id), spa_services_get_details_url()) : '';
-    }
+    $events = spa_public_get_calendar_events();
 
     wp_enqueue_style('spa-public-calendar', SPA_PLUGIN_URL . 'css/spa_calendar.css', array(), SPA_VERSION);
     wp_enqueue_script('spa-public-calendar', SPA_PLUGIN_URL . 'js/spa_calendar.js', array(), SPA_VERSION, true);
