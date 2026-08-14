@@ -997,6 +997,10 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                                 <label for="spa_weekly_report_time" style="margin-left:12px;">Time</label>
                                 <input type="time" name="spa_weekly_report_time" id="spa_weekly_report_time" value="<?php echo $weekly_report_time; ?>">
                                 <p class="description">The report is included directly in the email and uses the WordPress site timezone.</p>
+                                <p>
+                                    <button type="submit" name="spa_send_weekly_report_now" value="1" class="button">Send Report Now</button>
+                                    <span class="description">Saves these settings and immediately sends the report, even when the weekly schedule is disabled.</span>
+                                </p>
                             </td>
                         </tr>
                     </table>

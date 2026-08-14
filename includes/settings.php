@@ -250,10 +250,21 @@ function spa_handle_settings_post() {
         }
     }
 
+    $weekly_report_result = '';
+    if ( isset($_POST['spa_send_weekly_report_now']) ) {
+        $sent = spa_send_weekly_assignment_report(true);
+        $weekly_report_result = is_wp_error($sent)
+            ? 'error:' . rawurlencode($sent->get_error_message())
+            : 'sent';
+    }
+
     // Redirect back to avoid re-post on refresh
     $redirect_args = array('page' => 'spa-settings', 'tab' => $posted_tab, 'saved' => '1');
     if ( $test_result !== '' ) {
         $redirect_args['test'] = $test_result;
+    }
+    if ( $weekly_report_result !== '' ) {
+        $redirect_args['weekly_report'] = $weekly_report_result;
     }
     $redirect_url = add_query_arg($redirect_args, admin_url('admin.php'));
     wp_safe_redirect($redirect_url);
@@ -957,6 +968,15 @@ function spa_settings_admin_notices() {
             echo '<div class="notice notice-success is-dismissible"><p>Test email sent successfully.</p></div>';
         } else {
             echo '<div class="notice notice-info"><p>Test result: ' . esc_html($test) . '</p></div>';
+        }
+    }
+    if ( isset($_GET['weekly_report']) ) {
+        $weekly_report = wp_unslash($_GET['weekly_report']);
+        if ( strpos($weekly_report, 'error:') === 0 ) {
+            $msg = rawurldecode(substr($weekly_report, 6));
+            echo '<div class="notice notice-error"><p>Weekly assignment report failed: ' . esc_html($msg) . '</p></div>';
+        } elseif ( $weekly_report === 'sent' ) {
+            echo '<div class="notice notice-success is-dismissible"><p>Weekly assignment report sent successfully.</p></div>';
         }
     }
     if (
