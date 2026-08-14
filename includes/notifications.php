@@ -1,7 +1,169 @@
 <?php
 
 add_action('spa_hourly_notification_check', 'spa_run_notification_cron');
+add_action('spa_weekly_assignment_report', 'spa_send_weekly_assignment_report');
 add_action('wp_ajax_spa_notify_event_volunteer', 'spa_notify_event_volunteer_ajax');
+
+function spa_get_upcoming_assignment_events($limit = 2) {
+    global $wpdb;
+
+    $limit = max(1, intval($limit));
+    $today = current_time('Y-m-d');
+    $now = current_time('H:i:s');
+    $events = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT e.id, e.name, e.event_date, e.start_time
+             FROM {$wpdb->prefix}spa_events e
+             WHERE e.active = 1
+             AND (e.event_date > %s OR (e.event_date = %s AND e.start_time >= %s))
+             AND EXISTS (
+                 SELECT 1
+                 FROM {$wpdb->prefix}spa_event_volunteers ev_check
+                 WHERE ev_check.event_id = e.id
+             )
+             ORDER BY e.event_date ASC, e.start_time ASC, e.id ASC
+             LIMIT %d",
+            $today,
+            $today,
+            $now,
+            $limit
+        ),
+        ARRAY_A
+    );
+
+    foreach ( $events as &$event ) {
+        $assignments = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT
+                    t.name AS team_name,
+                    CONCAT(v.first_name, ' ', v.last_name) AS volunteer_name
+                 FROM {$wpdb->prefix}spa_event_volunteers ev
+                 INNER JOIN {$wpdb->prefix}spa_teams t ON t.id = ev.team_id AND t.active = 1
+                 INNER JOIN {$wpdb->prefix}spa_volunteers v ON v.id = ev.volunteer_id AND v.active = 1
+                 WHERE ev.event_id = %d
+                 ORDER BY t.name, v.last_name, v.first_name",
+                $event['id']
+            ),
+            ARRAY_A
+        );
+
+        $event['assignments'] = array();
+        foreach ( $assignments as $assignment ) {
+            if ( ! isset($event['assignments'][$assignment['team_name']]) ) {
+                $event['assignments'][$assignment['team_name']] = array();
+            }
+            $event['assignments'][$assignment['team_name']][] = $assignment['volunteer_name'];
+        }
+    }
+    unset($event);
+
+    return $events;
+}
+
+function spa_build_weekly_assignment_report_email($events) {
+    $body = '<div style="font-family:Arial,sans-serif;color:#222;line-height:1.5;">';
+    $body .= '<h1 style="font-size:22px;margin:0 0 16px;">Weekly Assignments</h1>';
+
+    if ( empty($events) ) {
+        $body .= '<p>There are no upcoming events with volunteer assignments.</p></div>';
+        return $body;
+    }
+
+    foreach ( $events as $index => $event ) {
+        $event_date = DateTimeImmutable::createFromFormat('!Y-m-d', $event['event_date'], wp_timezone());
+        $start_time = DateTimeImmutable::createFromFormat('!H:i:s', $event['start_time'], wp_timezone());
+        $label = $index === 0 ? 'Current Event' : 'Next Event';
+        $date = $event_date ? $event_date->format('F j, Y') : $event['event_date'];
+        $time = $start_time ? $start_time->format(get_option('time_format')) : $event['start_time'];
+
+        $body .= '<section style="margin:0 0 24px;">';
+        $body .= '<h2 style="font-size:18px;margin:0 0 4px;">' . esc_html($label . ': ' . $event['name']) . '</h2>';
+        $body .= '<p style="margin:0 0 10px;color:#555;">' . esc_html($date . ' at ' . $time) . '</p>';
+        $body .= '<table role="presentation" style="width:100%;border-collapse:collapse;">';
+        $body .= '<thead><tr><th style="border:1px solid #ccc;padding:8px;text-align:left;background:#f3f3f3;">Team</th>';
+        $body .= '<th style="border:1px solid #ccc;padding:8px;text-align:left;background:#f3f3f3;">Volunteers</th></tr></thead><tbody>';
+
+        foreach ( $event['assignments'] as $team_name => $volunteers ) {
+            $body .= '<tr><td style="border:1px solid #ccc;padding:8px;vertical-align:top;">' . esc_html($team_name) . '</td>';
+            $body .= '<td style="border:1px solid #ccc;padding:8px;vertical-align:top;">' . implode('<br>', array_map('esc_html', $volunteers)) . '</td></tr>';
+        }
+
+        $body .= '</tbody></table></section>';
+    }
+
+    if ( count($events) === 1 ) {
+        $body .= '<section style="margin:0 0 24px;"><h2 style="font-size:18px;margin:0 0 4px;">Next Event</h2>';
+        $body .= '<p style="margin:0;">There is no additional upcoming event with volunteer assignments.</p></section>';
+    }
+
+    return $body . '</div>';
+}
+
+function spa_send_weekly_assignment_report() {
+    if ( intval(get_option('spa_weekly_report_enabled', 0)) !== 1 ) {
+        return;
+    }
+
+    // Queue the following run before sending so a transient mail failure cannot stop future reports.
+    spa_reschedule_weekly_assignment_report();
+
+    $recipient = sanitize_email(get_option('spa_weekly_report_recipient', ''));
+    if ( ! is_email($recipient) ) {
+        error_log('St. Paul\'s Admin weekly assignment report has no valid recipient.');
+        return;
+    }
+
+    $events = spa_get_upcoming_assignment_events(2);
+    $subject = get_bloginfo('name') . ' - Weekly Assignments';
+    $result = spa_send_email($recipient, $subject, spa_build_weekly_assignment_report_email($events));
+    if ( is_wp_error($result) ) {
+        error_log('St. Paul\'s Admin weekly assignment report failed: ' . $result->get_error_message());
+    }
+}
+
+function spa_get_next_weekly_assignment_report_timestamp() {
+    $day = max(0, min(6, intval(get_option('spa_weekly_report_day_of_week', 0))));
+    $time = get_option('spa_weekly_report_time', '09:00');
+    if ( ! preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $time) ) {
+        $time = '09:00';
+    }
+
+    list($hour, $minute) = array_map('intval', explode(':', $time));
+    $now = current_datetime();
+    $days_ahead = ($day - intval($now->format('w')) + 7) % 7;
+    $next = $now->setTime($hour, $minute, 0)->modify('+' . $days_ahead . ' days');
+    if ( $next <= $now ) {
+        $next = $next->modify('+7 days');
+    }
+
+    return $next->getTimestamp();
+}
+
+function spa_reschedule_weekly_assignment_report() {
+    wp_clear_scheduled_hook('spa_weekly_assignment_report');
+
+    if ( intval(get_option('spa_weekly_report_enabled', 0)) === 1 ) {
+        $scheduled = wp_schedule_single_event(
+            spa_get_next_weekly_assignment_report_timestamp(),
+            'spa_weekly_assignment_report',
+            array(),
+            true
+        );
+        if ( is_wp_error($scheduled) ) {
+            error_log('St. Paul\'s Admin could not schedule the weekly assignment report: ' . $scheduled->get_error_message());
+        }
+    }
+}
+
+function spa_ensure_weekly_assignment_report_schedule() {
+    if ( intval(get_option('spa_weekly_report_enabled', 0)) === 1 ) {
+        if ( ! wp_next_scheduled('spa_weekly_assignment_report') ) {
+            spa_reschedule_weekly_assignment_report();
+        }
+    } elseif ( wp_next_scheduled('spa_weekly_assignment_report') ) {
+        wp_clear_scheduled_hook('spa_weekly_assignment_report');
+    }
+}
 
 function spa_notification_should_run_now() {
     if ( intval(get_option('spa_notifications_enabled', 1)) !== 1 ) {
@@ -247,3 +409,4 @@ function spa_schedule_hourly_notifications() {
     }
 }
 add_action('init', 'spa_schedule_hourly_notifications');
+add_action('init', 'spa_ensure_weekly_assignment_report_schedule');
