@@ -99,18 +99,20 @@ function spa_build_weekly_assignment_report_email($events) {
     return $body . '</div>';
 }
 
-function spa_send_weekly_assignment_report() {
-    if ( intval(get_option('spa_weekly_report_enabled', 0)) !== 1 ) {
-        return;
+function spa_send_weekly_assignment_report($force = false) {
+    if ( ! $force && intval(get_option('spa_weekly_report_enabled', 0)) !== 1 ) {
+        return false;
     }
 
-    // Queue the following run before sending so a transient mail failure cannot stop future reports.
-    spa_reschedule_weekly_assignment_report();
+    if ( intval(get_option('spa_weekly_report_enabled', 0)) === 1 ) {
+        // Queue the following run before sending so a transient mail failure cannot stop future reports.
+        spa_reschedule_weekly_assignment_report();
+    }
 
     $recipient = sanitize_email(get_option('spa_weekly_report_recipient', ''));
     if ( ! is_email($recipient) ) {
         error_log('St. Paul\'s Admin weekly assignment report has no valid recipient.');
-        return;
+        return new WP_Error('invalid_weekly_report_recipient', 'The weekly assignment report recipient is not a valid email address.');
     }
 
     $events = spa_get_upcoming_assignment_events(2);
@@ -119,6 +121,8 @@ function spa_send_weekly_assignment_report() {
     if ( is_wp_error($result) ) {
         error_log('St. Paul\'s Admin weekly assignment report failed: ' . $result->get_error_message());
     }
+
+    return $result;
 }
 
 function spa_get_next_weekly_assignment_report_timestamp() {
