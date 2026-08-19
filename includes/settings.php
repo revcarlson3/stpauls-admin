@@ -47,6 +47,7 @@ function spa_handle_settings_post() {
         update_option('spa_notification_day_of_week', intval($_POST['spa_notification_day_of_week'] ?? 0));
         update_option('spa_notification_time', sanitize_text_field(wp_unslash($_POST['spa_notification_time'] ?? '')));
         update_option('spa_notification_reminder_24h', isset($_POST['spa_notification_reminder_24h']) ? 1 : 0);
+        spa_reschedule_volunteer_notifications();
         update_option('spa_weekly_report_enabled', $weekly_report_enabled);
         update_option('spa_weekly_report_recipient', $weekly_report_recipient);
         update_option('spa_weekly_report_day_of_week', $weekly_report_day);

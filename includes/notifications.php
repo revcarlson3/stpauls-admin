@@ -1,6 +1,7 @@
 <?php
 
 add_action('spa_hourly_notification_check', 'spa_run_notification_cron');
+add_action('spa_scheduled_volunteer_notifications', 'spa_send_scheduled_volunteer_notifications');
 add_action('spa_weekly_assignment_report', 'spa_send_weekly_assignment_report');
 add_action('wp_ajax_spa_notify_event_volunteer', 'spa_notify_event_volunteer_ajax');
 
@@ -169,29 +170,65 @@ function spa_ensure_weekly_assignment_report_schedule() {
     }
 }
 
-function spa_notification_should_run_now() {
-    if ( intval(get_option('spa_notifications_enabled', 1)) !== 1 ) {
-        return false;
+function spa_get_next_volunteer_notification_timestamp() {
+    $day = max(0, min(6, intval(get_option('spa_notification_day_of_week', 0))));
+    $time = get_option('spa_notification_time', '09:00');
+    if ( ! preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $time) ) {
+        $time = '09:00';
     }
 
-    $day = intval(get_option('spa_notification_day_of_week', 0));
-    $time = get_option('spa_notification_time', '09:00');
-    $current_day = intval(wp_date('w'));
-    $current_hour_minute = wp_date('H:i');
+    list($hour, $minute) = array_map('intval', explode(':', $time));
+    $now = current_datetime();
+    $days_ahead = ($day - intval($now->format('w')) + 7) % 7;
+    $next = $now->setTime($hour, $minute, 0)->modify('+' . $days_ahead . ' days');
+    if ( $next <= $now ) {
+        $next = $next->modify('+7 days');
+    }
 
-    return ($current_day === $day && $current_hour_minute === $time);
+    return $next->getTimestamp();
+}
+
+function spa_reschedule_volunteer_notifications() {
+    wp_clear_scheduled_hook('spa_scheduled_volunteer_notifications');
+
+    if ( intval(get_option('spa_notifications_enabled', 1)) === 1 ) {
+        $scheduled = wp_schedule_single_event(
+            spa_get_next_volunteer_notification_timestamp(),
+            'spa_scheduled_volunteer_notifications',
+            array(),
+            true
+        );
+        if ( is_wp_error($scheduled) ) {
+            error_log('St. Paul\'s Admin could not schedule volunteer notifications: ' . $scheduled->get_error_message());
+        }
+    }
+}
+
+function spa_ensure_volunteer_notification_schedule() {
+    if ( intval(get_option('spa_notifications_enabled', 1)) === 1 ) {
+        if ( ! wp_next_scheduled('spa_scheduled_volunteer_notifications') ) {
+            spa_reschedule_volunteer_notifications();
+        }
+    } elseif ( wp_next_scheduled('spa_scheduled_volunteer_notifications') ) {
+        wp_clear_scheduled_hook('spa_scheduled_volunteer_notifications');
+    }
 }
 
 function spa_get_next_notified_event() {
     global $wpdb;
 
     return $wpdb->get_row(
-        "SELECT * FROM {$wpdb->prefix}spa_events
-         WHERE active = 1
-           AND notify_volunteers = 1
-           AND event_date >= CURDATE()
-         ORDER BY event_date ASC, start_time ASC
-         LIMIT 1"
+        $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}spa_events
+             WHERE active = 1
+               AND notify_volunteers = 1
+               AND (event_date > %s OR (event_date = %s AND start_time >= %s))
+             ORDER BY event_date ASC, start_time ASC
+             LIMIT 1",
+            current_time('Y-m-d'),
+            current_time('Y-m-d'),
+            current_time('H:i:s')
+        )
     );
 }
 
@@ -379,7 +416,10 @@ function spa_notify_event_volunteer_ajax() {
 }
 
 function spa_run_notification_cron() {
-    if ( ! spa_notification_should_run_now() ) {
+    if (
+        intval(get_option('spa_notifications_enabled', 1)) !== 1
+        || intval(get_option('spa_notification_reminder_24h', 0)) !== 1
+    ) {
         return;
     }
 
@@ -388,22 +428,35 @@ function spa_run_notification_cron() {
         return;
     }
 
-    if ( spa_notification_should_run_now() ) {
-        spa_send_event_reminders($event, 'scheduled');
+    $event_datetime = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $event->event_date . ' ' . $event->start_time, wp_timezone());
+    $now = current_datetime();
+    $hours_until_event = $event_datetime ? ($event_datetime->getTimestamp() - $now->getTimestamp()) / HOUR_IN_SECONDS : 0;
+    $sent_marker = 'spa_24h_reminder_sent_' . intval($event->id);
+    $event_marker = $event_datetime ? $event_datetime->format('Y-m-d H:i:s') : '';
+    if ( $event_datetime && $hours_until_event > 0 && $hours_until_event <= 24 && get_option($sent_marker, '') !== $event_marker ) {
+        $reminder_result = spa_send_event_reminders($event, '24h');
+        if ( ! is_wp_error($reminder_result) && ( $reminder_result['email'] > 0 || $reminder_result['sms'] > 0 ) ) {
+            update_option($sent_marker, $event_marker, false);
+        }
+    }
+}
+
+function spa_send_scheduled_volunteer_notifications() {
+    if ( intval(get_option('spa_notifications_enabled', 1)) !== 1 ) {
+        return;
     }
 
-    if ( intval(get_option('spa_notification_reminder_24h', 0)) === 1 ) {
-        $event_datetime = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $event->event_date . ' ' . $event->start_time, wp_timezone());
-        $now = current_datetime();
-        $hours_until_event = $event_datetime ? ($event_datetime->getTimestamp() - $now->getTimestamp()) / HOUR_IN_SECONDS : 0;
-        $sent_marker = 'spa_24h_reminder_sent_' . intval($event->id);
-        $event_marker = $event_datetime ? $event_datetime->format('Y-m-d H:i:s') : '';
-        if ( $event_datetime && $hours_until_event > 23 && $hours_until_event <= 24 && get_option($sent_marker, '') !== $event_marker ) {
-            $reminder_result = spa_send_event_reminders($event, '24h');
-            if ( ! is_wp_error($reminder_result) && ( $reminder_result['email'] > 0 || $reminder_result['sms'] > 0 ) ) {
-                update_option($sent_marker, $event_marker, false);
-            }
-        }
+    // Queue the next run first so a delivery failure cannot stop future notifications.
+    spa_reschedule_volunteer_notifications();
+
+    $event = spa_get_next_notified_event();
+    if ( ! $event ) {
+        return;
+    }
+
+    $result = spa_send_event_reminders($event, 'scheduled');
+    if ( is_wp_error($result) ) {
+        error_log('St. Paul\'s Admin scheduled volunteer notifications failed: ' . $result->get_error_message());
     }
 }
 
@@ -413,4 +466,5 @@ function spa_schedule_hourly_notifications() {
     }
 }
 add_action('init', 'spa_schedule_hourly_notifications');
+add_action('init', 'spa_ensure_volunteer_notification_schedule');
 add_action('init', 'spa_ensure_weekly_assignment_report_schedule');
