@@ -441,23 +441,32 @@ function spa_run_notification_cron() {
     }
 }
 
-function spa_send_scheduled_volunteer_notifications() {
-    if ( intval(get_option('spa_notifications_enabled', 1)) !== 1 ) {
-        return;
+function spa_send_scheduled_volunteer_notifications($force = false) {
+    $enabled = intval(get_option('spa_notifications_enabled', 1)) === 1;
+    if ( ! $force && ! $enabled ) {
+        return false;
     }
 
-    // Queue the next run first so a delivery failure cannot stop future notifications.
-    spa_reschedule_volunteer_notifications();
+    if ( $enabled ) {
+        // Queue the next run first so a delivery failure cannot stop future notifications.
+        spa_reschedule_volunteer_notifications();
+    }
 
     $event = spa_get_next_notified_event();
     if ( ! $event ) {
-        return;
+        return new WP_Error('no_notification_event', 'No upcoming notification-enabled event was found.');
     }
 
     $result = spa_send_event_reminders($event, 'scheduled');
     if ( is_wp_error($result) ) {
         error_log('St. Paul\'s Admin scheduled volunteer notifications failed: ' . $result->get_error_message());
+        return $result;
     }
+    if ( $result['email'] === 0 && $result['sms'] === 0 && $result['push'] === 0 ) {
+        return new WP_Error('notifications_not_sent', 'No notifications were sent. Check the active templates, enabled channels, and volunteer contact preferences.');
+    }
+
+    return $result;
 }
 
 function spa_schedule_hourly_notifications() {

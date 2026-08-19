@@ -259,6 +259,14 @@ function spa_handle_settings_post() {
             : 'sent';
     }
 
+    $volunteer_notification_result = '';
+    if ( isset($_POST['spa_send_volunteer_notifications_now']) ) {
+        $sent = spa_send_scheduled_volunteer_notifications(true);
+        $volunteer_notification_result = is_wp_error($sent)
+            ? 'error:' . rawurlencode($sent->get_error_message())
+            : sprintf('sent:%d:%d:%d', $sent['email'], $sent['sms'], $sent['push']);
+    }
+
     // Redirect back to avoid re-post on refresh
     $redirect_args = array('page' => 'spa-settings', 'tab' => $posted_tab, 'saved' => '1');
     if ( $test_result !== '' ) {
@@ -266,6 +274,9 @@ function spa_handle_settings_post() {
     }
     if ( $weekly_report_result !== '' ) {
         $redirect_args['weekly_report'] = $weekly_report_result;
+    }
+    if ( $volunteer_notification_result !== '' ) {
+        $redirect_args['volunteer_notifications'] = $volunteer_notification_result;
     }
     $redirect_url = add_query_arg($redirect_args, admin_url('admin.php'));
     wp_safe_redirect($redirect_url);
@@ -978,6 +989,23 @@ function spa_settings_admin_notices() {
             echo '<div class="notice notice-error"><p>Weekly assignment report failed: ' . esc_html($msg) . '</p></div>';
         } elseif ( $weekly_report === 'sent' ) {
             echo '<div class="notice notice-success is-dismissible"><p>Weekly assignment report sent successfully.</p></div>';
+        }
+    }
+    if ( isset($_GET['volunteer_notifications']) ) {
+        $notification_result = wp_unslash($_GET['volunteer_notifications']);
+        if ( strpos($notification_result, 'error:') === 0 ) {
+            $msg = rawurldecode(substr($notification_result, 6));
+            echo '<div class="notice notice-error"><p>Volunteer notifications failed: ' . esc_html($msg) . '</p></div>';
+        } elseif ( strpos($notification_result, 'sent:') === 0 ) {
+            $counts = array_map('intval', explode(':', substr($notification_result, 5)));
+            $counts = array_pad($counts, 3, 0);
+            $message = sprintf(
+                'Volunteer notifications sent: %d email, %d SMS, %d push.',
+                $counts[0],
+                $counts[1],
+                $counts[2]
+            );
+            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($message) . '</p></div>';
         }
     }
     if (

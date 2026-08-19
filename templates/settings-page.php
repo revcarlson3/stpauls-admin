@@ -975,6 +975,10 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                                     <input type="checkbox" name="spa_notification_reminder_24h" value="1" <?php checked($notification_reminder_24h, 1); ?>>
                                     Send an additional reminder 24 hours before the event
                                 </label>
+                                <p>
+                                    <button type="submit" name="spa_send_volunteer_notifications_now" value="1" class="button">Send Notifications Now</button>
+                                    <span class="description">Saves these settings and immediately notifies volunteers for the next notification-enabled event, even when automated alerts are disabled.</span>
+                                </p>
                             </td>
                         </tr>
                         <tr>
