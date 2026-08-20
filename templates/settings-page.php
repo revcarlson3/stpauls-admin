@@ -29,6 +29,8 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
 
     <nav class="nav-tab-wrapper">
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=general')); ?>" class="nav-tab <?php echo ($active_tab === 'general') ? 'nav-tab-active' : ''; ?>">General</a>
+        <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=notifications')); ?>" class="nav-tab <?php echo ($active_tab === 'notifications') ? 'nav-tab-active' : ''; ?>">Notifications</a>
+        <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=reports')); ?>" class="nav-tab <?php echo ($active_tab === 'reports') ? 'nav-tab-active' : ''; ?>">Reports</a>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=services')); ?>" class="nav-tab <?php echo ($active_tab === 'services') ? 'nav-tab-active' : ''; ?>">Services</a>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=email')); ?>" class="nav-tab <?php echo ($active_tab === 'email') ? 'nav-tab-active' : ''; ?>">Email</a>
         <a href="<?php echo esc_url(admin_url('admin.php?page=spa-settings&tab=sms')); ?>" class="nav-tab <?php echo ($active_tab === 'sms') ? 'nav-tab-active' : ''; ?>">SMS</a>
@@ -911,7 +913,23 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                     <?php
                     break;
 
-                default:
+                case 'general':
+                    $org_name = esc_attr(get_option('spa_org_name', ''));
+                    ?>
+                    <h2>General Settings</h2>
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row"><label for="spa_org_name">Organization Name</label></th>
+                            <td>
+                                <input name="spa_org_name" id="spa_org_name" type="text" value="<?php echo $org_name; ?>" class="regular-text">
+                                <p class="description">Used in notification templates and other organization-facing plugin content.</p>
+                            </td>
+                        </tr>
+                    </table>
+                    <?php
+                    break;
+
+                case 'notifications':
                     global $wpdb;
                     $org_name = esc_attr( get_option('spa_org_name', '') );
                     $active_email_tpl = get_option('spa_active_email_template', '');
@@ -944,7 +962,7 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                         "SELECT id, name FROM {$wpdb->prefix}spa_notification_templates WHERE type = 'sms' ORDER BY name"
                     );
                     ?>
-                    <h2>General Settings</h2>
+                    <h2>Notification Settings</h2>
                     <table class="form-table">
                         <tr>
                             <th scope="row"><label for="spa_active_email_template">Active Email Template</label></th>
@@ -1031,6 +1049,42 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                                 </p>
                             </td>
                         </tr>
+                    </table>
+                    <h3>Test Notification</h3>
+                    <p>Send a test email and SMS using the active templates, the Clergy team, and the most recent event.</p>
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row"><label for="spa_test_notification_email">Test Email</label></th>
+                            <td><input type="email" name="spa_test_notification_email" id="spa_test_notification_email" class="regular-text"></td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><label for="spa_test_notification_phone">Test Phone</label></th>
+                            <td><input type="text" name="spa_test_notification_phone" id="spa_test_notification_phone" class="regular-text"></td>
+                        </tr>
+                    </table>
+                    <p class="description">Fill in whichever destination you want to test. Leave one blank to send only the other.</p>
+                    <p>
+                        <button type="button" class="button" id="spa-send-test-notification-btn">Send Test Notification</button>
+                        <span id="spa-test-notification-result" style="margin-left:12px;"></span>
+                    </p>
+                    <h3>Manual Reminder Run</h3>
+                    <p>Use this if WordPress cron missed the scheduled time. It sends the configured reminders for the next upcoming event immediately.</p>
+                    <p>
+                        <button type="submit" name="spa_force_notification_run" value="1" class="button" onclick="return confirm('Send the configured volunteer reminders now?');">Run Notification Reminders Now</button>
+                    </p>
+                    <?php
+                    break;
+
+                case 'reports':
+                    global $wpdb;
+                    $weekly_report_enabled = intval(get_option('spa_weekly_report_enabled', 0));
+                    $weekly_report_recipient = esc_attr(get_option('spa_weekly_report_recipient', ''));
+                    $weekly_report_day = intval(get_option('spa_weekly_report_day_of_week', 0));
+                    $weekly_report_time = esc_attr(get_option('spa_weekly_report_time', '09:00'));
+                    $days = array('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday');
+                    ?>
+                    <h2>Reports</h2>
+                    <table class="form-table">
                         <tr>
                             <th scope="row">Weekly Assignment Report</th>
                             <td>
@@ -1058,28 +1112,6 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                             </td>
                         </tr>
                     </table>
-                    <h3>Test Notification</h3>
-                    <p>Send a test email and SMS using the active templates, the Clergy team, and the most recent event.</p>
-                    <table class="form-table">
-                        <tr>
-                            <th scope="row"><label for="spa_test_notification_email">Test Email</label></th>
-                            <td><input type="email" name="spa_test_notification_email" id="spa_test_notification_email" class="regular-text"></td>
-                        </tr>
-                        <tr>
-                            <th scope="row"><label for="spa_test_notification_phone">Test Phone</label></th>
-                            <td><input type="text" name="spa_test_notification_phone" id="spa_test_notification_phone" class="regular-text"></td>
-                        </tr>
-                    </table>
-                    <p class="description">Fill in whichever destination you want to test. Leave one blank to send only the other.</p>
-                    <p>
-                        <button type="button" class="button" id="spa-send-test-notification-btn">Send Test Notification</button>
-                        <span id="spa-test-notification-result" style="margin-left:12px;"></span>
-                    </p>
-                    <h3>Manual Reminder Run</h3>
-                    <p>Use this if WordPress cron missed the scheduled time. It sends the configured reminders for the next upcoming event immediately.</p>
-                    <p>
-                        <button type="submit" name="spa_force_notification_run" value="1" class="button" onclick="return confirm('Send the configured volunteer reminders now?');">Run Notification Reminders Now</button>
-                    </p>
                     <?php
                     break;
             }
