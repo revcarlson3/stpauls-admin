@@ -752,6 +752,7 @@ function spa_get_report_rows($report_key, $filters = array()) {
                 'rows' => $formatted_rows,
                 'filters' => $date_range,
             );
+
     }
 
     return array();

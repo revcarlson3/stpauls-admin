@@ -26,6 +26,62 @@ function spa_notification_should_run_now() {
     return (intval($now->format('w')) === $day && $now >= $scheduled_time);
 }
 
+function spa_get_upcoming_assignment_events($limit = 2) {
+    global $wpdb;
+
+    $limit = max(1, intval($limit));
+    $today = current_time('Y-m-d');
+    $now = current_time('H:i:s');
+    $events = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT e.id, e.name, e.event_date, e.start_time
+             FROM {$wpdb->prefix}spa_events e
+             WHERE e.active = 1
+             AND (e.event_date > %s OR (e.event_date = %s AND e.start_time >= %s))
+             AND EXISTS (
+                 SELECT 1
+                 FROM {$wpdb->prefix}spa_event_volunteers ev_check
+                 WHERE ev_check.event_id = e.id
+             )
+             ORDER BY e.event_date ASC, e.start_time ASC, e.id ASC
+             LIMIT %d",
+            $today,
+            $today,
+            $now,
+            $limit
+        ),
+        ARRAY_A
+    );
+
+    foreach ( $events as &$event ) {
+        $assignments = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT
+                    t.name AS team_name,
+                    CONCAT(v.first_name, ' ', v.last_name) AS volunteer_name
+                 FROM {$wpdb->prefix}spa_event_volunteers ev
+                 INNER JOIN {$wpdb->prefix}spa_teams t ON t.id = ev.team_id AND t.active = 1
+                 INNER JOIN {$wpdb->prefix}spa_volunteers v ON v.id = ev.volunteer_id AND v.active = 1
+                 WHERE ev.event_id = %d
+                 ORDER BY t.name, v.last_name, v.first_name",
+                $event['id']
+            ),
+            ARRAY_A
+        );
+
+        $event['assignments'] = array();
+        foreach ( $assignments as $assignment ) {
+            if ( ! isset($event['assignments'][$assignment['team_name']]) ) {
+                $event['assignments'][$assignment['team_name']] = array();
+            }
+            $event['assignments'][$assignment['team_name']][] = $assignment['volunteer_name'];
+        }
+    }
+    unset($event);
+
+    return $events;
+}
+
 function spa_get_next_notified_event() {
     global $wpdb;
 
