@@ -118,6 +118,10 @@ function spa_handle_settings_post() {
         update_option('spa_notification_day_of_week', intval($_POST['spa_notification_day_of_week'] ?? 0));
         update_option('spa_notification_time', sanitize_text_field(wp_unslash($_POST['spa_notification_time'] ?? '')));
         update_option('spa_notification_reminder_24h', isset($_POST['spa_notification_reminder_24h']) ? 1 : 0);
+        $readings_team_ids = isset($_POST['spa_readings_team_ids']) && is_array($_POST['spa_readings_team_ids'])
+            ? array_values(array_unique(array_filter(array_map('absint', wp_unslash($_POST['spa_readings_team_ids'])))))
+            : array();
+        update_option('spa_readings_team_ids', array_map('strval', $readings_team_ids));
         spa_reschedule_volunteer_notifications();
         update_option('spa_weekly_report_enabled', $weekly_report_enabled);
         update_option('spa_weekly_report_recipient', $weekly_report_recipient);
@@ -1375,8 +1379,8 @@ function spa_ajax_send_test_notification() {
     $sample_phone = $volunteer && ! empty($volunteer->phone) ? $volunteer->phone : $phone_to;
     $sample_email = $volunteer && ! empty($volunteer->email) ? $volunteer->email : $email_to;
     $team_name = $team ? $team->name : 'Clergy';
-    $email_readings = spa_get_readings_tag_value($team_name, $event->service_builder_url ?? '', true);
-    $sms_readings = spa_get_readings_tag_value($team_name, $event->service_builder_url ?? '', false);
+    $email_readings = spa_get_readings_tag_value($team_name, $event->service_builder_url ?? '', true, $team ? $team->id : 0);
+    $sms_readings = spa_get_readings_tag_value($team_name, $event->service_builder_url ?? '', false, $team ? $team->id : 0);
 
     $template_id = intval(get_option('spa_active_email_template', 0));
     $sms_template_id = intval(get_option('spa_active_sms_template', 0));

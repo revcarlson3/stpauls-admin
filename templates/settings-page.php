@@ -924,6 +924,19 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                     $weekly_report_recipient = esc_attr(get_option('spa_weekly_report_recipient', ''));
                     $weekly_report_day = intval(get_option('spa_weekly_report_day_of_week', 0));
                     $weekly_report_time = esc_attr(get_option('spa_weekly_report_time', '09:00'));
+                    $readings_team_ids = get_option('spa_readings_team_ids', null);
+                    $readings_team_ids = is_array($readings_team_ids) ? array_map('strval', $readings_team_ids) : null;
+                    $readings_teams = $wpdb->get_results(
+                        "SELECT id, name FROM {$wpdb->prefix}spa_teams WHERE active = 1 ORDER BY name"
+                    );
+                    if ( $readings_team_ids === null ) {
+                        $readings_team_ids = array();
+                        foreach ( $readings_teams as $readings_team ) {
+                            if ( strcasecmp(trim((string) $readings_team->name), 'Readers') === 0 ) {
+                                $readings_team_ids[] = (string) $readings_team->id;
+                            }
+                        }
+                    }
                     $email_templates_gen = $wpdb->get_results(
                         "SELECT id, name FROM {$wpdb->prefix}spa_notification_templates WHERE type = 'email' ORDER BY name"
                     );
@@ -971,6 +984,25 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                                 <p class="description">
                                     Turn this off to pause all scheduled volunteer notifications, including the 24-hour reminder.
                                     Test notifications and manually requested messages remain available.
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Service Builder Readings Link</th>
+                            <td>
+                                <?php foreach ( $readings_teams as $readings_team ) : ?>
+                                    <label style="display:block;">
+                                        <input
+                                            type="checkbox"
+                                            name="spa_readings_team_ids[]"
+                                            value="<?php echo intval($readings_team->id); ?>"
+                                            <?php checked(in_array((string) $readings_team->id, $readings_team_ids, true)); ?>>
+                                        <?php echo esc_html($readings_team->name); ?>
+                                    </label>
+                                <?php endforeach; ?>
+                                <p class="description">
+                                    Teams selected here receive the <code>{readings}</code> link when their notification template includes that tag.
+                                    Leave this unchanged on an existing site to retain the legacy <code>Readers</code> team behavior.
                                 </p>
                             </td>
                         </tr>

@@ -223,6 +223,7 @@ function spa_notify_event_volunteer_ajax() {
                v.push_external_id,
                v.email_enabled,
                v.phone_enabled,
+               ev.team_id,
                t.name AS team_name
              FROM {$wpdb->prefix}spa_event_volunteers ev
              INNER JOIN {$wpdb->prefix}spa_volunteers v
