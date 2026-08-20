@@ -920,6 +920,10 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                     $notification_day = intval(get_option('spa_notification_day_of_week', 0));
                     $notification_time = esc_attr(get_option('spa_notification_time', '09:00'));
                     $notification_reminder_24h = intval(get_option('spa_notification_reminder_24h', 0));
+                    $weekly_report_enabled = intval(get_option('spa_weekly_report_enabled', 0));
+                    $weekly_report_recipient = esc_attr(get_option('spa_weekly_report_recipient', ''));
+                    $weekly_report_day = intval(get_option('spa_weekly_report_day_of_week', 0));
+                    $weekly_report_time = esc_attr(get_option('spa_weekly_report_time', '09:00'));
                     $email_templates_gen = $wpdb->get_results(
                         "SELECT id, name FROM {$wpdb->prefix}spa_notification_templates WHERE type = 'email' ORDER BY name"
                     );
@@ -989,6 +993,36 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                                     <input type="checkbox" name="spa_notification_reminder_24h" value="1" <?php checked($notification_reminder_24h, 1); ?>>
                                     Send an additional reminder 24 hours before the event
                                 </label>
+                                <p>
+                                    <button type="submit" name="spa_send_volunteer_notifications_now" value="1" class="button">Send Notifications Now</button>
+                                    <span class="description">Saves these settings and immediately notifies volunteers for the next notification-enabled event, even when automated alerts are disabled.</span>
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Weekly Assignment Report</th>
+                            <td>
+                                <label>
+                                    <input type="checkbox" name="spa_weekly_report_enabled" value="1" <?php checked($weekly_report_enabled, 1); ?>>
+                                    Email the current and next event assignments each week
+                                </label>
+                                <p>
+                                    <label for="spa_weekly_report_recipient">Recipient</label><br>
+                                    <input type="email" name="spa_weekly_report_recipient" id="spa_weekly_report_recipient" value="<?php echo $weekly_report_recipient; ?>" class="regular-text">
+                                </p>
+                                <label for="spa_weekly_report_day_of_week">Day</label>
+                                <select name="spa_weekly_report_day_of_week" id="spa_weekly_report_day_of_week">
+                                    <?php foreach ( $days as $i => $day ) : ?>
+                                        <option value="<?php echo intval($i); ?>" <?php selected($weekly_report_day, $i); ?>><?php echo esc_html($day); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <label for="spa_weekly_report_time" style="margin-left:12px;">Time</label>
+                                <input type="time" name="spa_weekly_report_time" id="spa_weekly_report_time" value="<?php echo $weekly_report_time; ?>">
+                                <p class="description">The report is included directly in the email and uses the WordPress site timezone.</p>
+                                <p>
+                                    <button type="submit" name="spa_send_weekly_report_now" value="1" class="button">Send Report Now</button>
+                                    <span class="description">Saves these settings and immediately sends the report, even when the weekly schedule is disabled.</span>
+                                </p>
                             </td>
                         </tr>
                     </table>

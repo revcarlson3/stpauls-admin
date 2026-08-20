@@ -84,12 +84,46 @@ function spa_handle_settings_post() {
 
 
     if ( $posted_tab === 'general' ) {
+        $weekly_report_enabled = isset($_POST['spa_weekly_report_enabled']) ? 1 : 0;
+        $weekly_report_recipient = isset($_POST['spa_weekly_report_recipient'])
+            ? sanitize_email(wp_unslash($_POST['spa_weekly_report_recipient']))
+            : '';
+        $weekly_report_day = isset($_POST['spa_weekly_report_day_of_week'])
+            ? intval($_POST['spa_weekly_report_day_of_week'])
+            : 0;
+        $weekly_report_time = isset($_POST['spa_weekly_report_time'])
+            ? sanitize_text_field(wp_unslash($_POST['spa_weekly_report_time']))
+            : '09:00';
+
+        if ( $weekly_report_enabled ) {
+            if ( ! is_email($weekly_report_recipient) ) {
+                wp_die('Enter a valid recipient email address for the weekly assignment report.', 'Invalid settings', array('response' => 400));
+            }
+            if ( $weekly_report_day < 0 || $weekly_report_day > 6 ) {
+                wp_die('Select a valid day for the weekly assignment report.', 'Invalid settings', array('response' => 400));
+            }
+            if ( ! preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $weekly_report_time) ) {
+                wp_die('Enter a valid time for the weekly assignment report.', 'Invalid settings', array('response' => 400));
+            }
+        } else {
+            $weekly_report_day = max(0, min(6, $weekly_report_day));
+            if ( ! preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $weekly_report_time) ) {
+                $weekly_report_time = '09:00';
+            }
+        }
+
         update_option('spa_active_email_template', intval($_POST['spa_active_email_template'] ?? 0));
         update_option('spa_active_sms_template', intval($_POST['spa_active_sms_template'] ?? 0));
         update_option('spa_notifications_enabled', isset($_POST['spa_notifications_enabled']) ? 1 : 0);
         update_option('spa_notification_day_of_week', intval($_POST['spa_notification_day_of_week'] ?? 0));
         update_option('spa_notification_time', sanitize_text_field(wp_unslash($_POST['spa_notification_time'] ?? '')));
         update_option('spa_notification_reminder_24h', isset($_POST['spa_notification_reminder_24h']) ? 1 : 0);
+        spa_reschedule_volunteer_notifications();
+        update_option('spa_weekly_report_enabled', $weekly_report_enabled);
+        update_option('spa_weekly_report_recipient', $weekly_report_recipient);
+        update_option('spa_weekly_report_day_of_week', $weekly_report_day);
+        update_option('spa_weekly_report_time', $weekly_report_time);
+        spa_reschedule_weekly_assignment_report();
     }
 
     if ( $posted_tab === 'services' ) {
@@ -288,10 +322,32 @@ function spa_handle_settings_post() {
         }
     }
 
+    $weekly_report_result = '';
+    if ( isset($_POST['spa_send_weekly_report_now']) ) {
+        $sent = spa_send_weekly_assignment_report(true);
+        $weekly_report_result = is_wp_error($sent)
+            ? 'error:' . rawurlencode($sent->get_error_message())
+            : 'sent';
+    }
+
+    $volunteer_notification_result = '';
+    if ( isset($_POST['spa_send_volunteer_notifications_now']) ) {
+        $sent = spa_send_scheduled_volunteer_notifications(true);
+        $volunteer_notification_result = is_wp_error($sent)
+            ? 'error:' . rawurlencode($sent->get_error_message())
+            : sprintf('sent:%d:%d:%d', $sent['email'], $sent['sms'], $sent['push']);
+    }
+
     // Redirect back to avoid re-post on refresh
     $redirect_args = array('page' => 'spa-settings', 'tab' => $posted_tab, 'saved' => '1');
     if ( $test_result !== '' ) {
         $redirect_args['test'] = $test_result;
+    }
+    if ( $weekly_report_result !== '' ) {
+        $redirect_args['weekly_report'] = $weekly_report_result;
+    }
+    if ( $volunteer_notification_result !== '' ) {
+        $redirect_args['volunteer_notifications'] = $volunteer_notification_result;
     }
     $redirect_url = add_query_arg($redirect_args, admin_url('admin.php'));
     wp_safe_redirect($redirect_url);
@@ -481,59 +537,16 @@ function spa_get_report_rows($report_key, $filters = array()) {
             return $formatted_rows;
 
         case 'weekly_assignments':
-            $today = current_time('Y-m-d');
-            $now = current_time('H:i:s');
-            $event = $wpdb->get_row(
-                $wpdb->prepare(
-                    "SELECT e.id, e.name, e.event_date, e.start_time
-                     FROM {$wpdb->prefix}spa_events e
-                     WHERE e.active = 1
-                     AND (e.event_date > %s OR (e.event_date = %s AND e.start_time >= %s))
-                     AND EXISTS (
-                         SELECT 1
-                         FROM {$wpdb->prefix}spa_event_volunteers ev_check
-                         WHERE ev_check.event_id = e.id
-                     )
-                     ORDER BY e.event_date ASC, e.start_time ASC, e.id ASC
-                     LIMIT 1",
-                    $today,
-                    $today,
-                    $now
-                ),
-                ARRAY_A
-            );
-
-            if ( empty($event) ) {
+            $events = spa_get_upcoming_assignment_events(1);
+            if ( empty($events) ) {
                 return array();
             }
-
-            $assignments = $wpdb->get_results(
-                $wpdb->prepare(
-                    "SELECT
-                        t.name AS team_name,
-                        CONCAT(v.first_name, ' ', v.last_name) AS volunteer_name
-                     FROM {$wpdb->prefix}spa_event_volunteers ev
-                     INNER JOIN {$wpdb->prefix}spa_teams t ON t.id = ev.team_id AND t.active = 1
-                     INNER JOIN {$wpdb->prefix}spa_volunteers v ON v.id = ev.volunteer_id AND v.active = 1
-                     WHERE ev.event_id = %d
-                     ORDER BY t.name, v.last_name, v.first_name",
-                    $event['id']
-                ),
-                ARRAY_A
-            );
-
-            $grouped_assignments = array();
-            foreach ( $assignments as $assignment ) {
-                if ( ! isset($grouped_assignments[$assignment['team_name']]) ) {
-                    $grouped_assignments[$assignment['team_name']] = array();
-                }
-                $grouped_assignments[$assignment['team_name']][] = $assignment['volunteer_name'];
-            }
+            $event = $events[0];
 
             $event_date = DateTimeImmutable::createFromFormat('!Y-m-d', $event['event_date'], wp_timezone());
             $start_time = DateTimeImmutable::createFromFormat('!H:i:s', $event['start_time'], wp_timezone());
             $formatted_rows = array();
-            foreach ( $grouped_assignments as $team_name => $volunteers ) {
+            foreach ( $event['assignments'] as $team_name => $volunteers ) {
                 $formatted_rows[] = array(
                     'team' => $team_name,
                     'volunteers' => implode("\n", $volunteers),
@@ -1038,6 +1051,32 @@ function spa_settings_admin_notices() {
             echo '<div class="notice notice-success is-dismissible"><p>Test email sent successfully.</p></div>';
         } else {
             echo '<div class="notice notice-info"><p>Test result: ' . esc_html($test) . '</p></div>';
+        }
+    }
+    if ( isset($_GET['weekly_report']) ) {
+        $weekly_report = wp_unslash($_GET['weekly_report']);
+        if ( strpos($weekly_report, 'error:') === 0 ) {
+            $msg = rawurldecode(substr($weekly_report, 6));
+            echo '<div class="notice notice-error"><p>Weekly assignment report failed: ' . esc_html($msg) . '</p></div>';
+        } elseif ( $weekly_report === 'sent' ) {
+            echo '<div class="notice notice-success is-dismissible"><p>Weekly assignment report sent successfully.</p></div>';
+        }
+    }
+    if ( isset($_GET['volunteer_notifications']) ) {
+        $notification_result = wp_unslash($_GET['volunteer_notifications']);
+        if ( strpos($notification_result, 'error:') === 0 ) {
+            $msg = rawurldecode(substr($notification_result, 6));
+            echo '<div class="notice notice-error"><p>Volunteer notifications failed: ' . esc_html($msg) . '</p></div>';
+        } elseif ( strpos($notification_result, 'sent:') === 0 ) {
+            $counts = array_map('intval', explode(':', substr($notification_result, 5)));
+            $counts = array_pad($counts, 3, 0);
+            $message = sprintf(
+                'Volunteer notifications sent: %d email, %d SMS, %d push.',
+                $counts[0],
+                $counts[1],
+                $counts[2]
+            );
+            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($message) . '</p></div>';
         }
     }
     if (
