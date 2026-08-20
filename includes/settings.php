@@ -122,12 +122,10 @@ function spa_handle_settings_post() {
             ? array_values(array_unique(array_filter(array_map('absint', wp_unslash($_POST['spa_readings_team_ids'])))))
             : array();
         update_option('spa_readings_team_ids', array_map('strval', $readings_team_ids));
-        spa_reschedule_volunteer_notifications();
         update_option('spa_weekly_report_enabled', $weekly_report_enabled);
         update_option('spa_weekly_report_recipient', $weekly_report_recipient);
         update_option('spa_weekly_report_day_of_week', $weekly_report_day);
         update_option('spa_weekly_report_time', $weekly_report_time);
-        spa_reschedule_weekly_assignment_report();
     }
 
     if ( $posted_tab === 'services' ) {
