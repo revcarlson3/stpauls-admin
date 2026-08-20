@@ -37,8 +37,17 @@ function spa_process_template($body, $data = array()) {
     return $body;
 }
 
-function spa_get_readings_tag_value($team_name, $service_builder_url, $html = true) {
-    if ( strcasecmp(trim((string) $team_name), 'Readers') !== 0 ) {
+function spa_team_receives_readings_link($team_id, $team_name) {
+    $configured_team_ids = get_option('spa_readings_team_ids', null);
+    if ( is_array($configured_team_ids) ) {
+        return in_array((string) intval($team_id), array_map('strval', $configured_team_ids), true);
+    }
+
+    return strcasecmp(trim((string) $team_name), 'Readers') === 0;
+}
+
+function spa_get_readings_tag_value($team_name, $service_builder_url, $html = true, $team_id = 0) {
+    if ( ! spa_team_receives_readings_link($team_id, $team_name) ) {
         return '';
     }
 

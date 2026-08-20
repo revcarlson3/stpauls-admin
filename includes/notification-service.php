@@ -9,7 +9,7 @@ function spa_get_notification_recipients_for_event($event_id) {
 
     return $wpdb->get_results(
         $wpdb->prepare(
-            "SELECT DISTINCT v.id, v.first_name, v.last_name, v.email, v.phone, v.push_external_id, v.email_enabled, v.phone_enabled, t.name AS team_name
+            "            SELECT DISTINCT v.id, v.first_name, v.last_name, v.email, v.phone, v.push_external_id, v.email_enabled, v.phone_enabled, ev.team_id, t.name AS team_name
              FROM {$wpdb->prefix}spa_event_volunteers ev
              INNER JOIN {$wpdb->prefix}spa_teams t ON t.id = ev.team_id
              INNER JOIN {$wpdb->prefix}spa_volunteers v ON v.id = ev.volunteer_id
@@ -35,7 +35,8 @@ function spa_build_event_notification_data($event, $volunteer, $html_readings = 
         $data['readings'] = spa_get_readings_tag_value(
             $volunteer->team_name,
             $event->service_builder_url ?? '',
-            $html_readings
+            $html_readings,
+            $volunteer->team_id ?? 0
         );
     }
 

@@ -1,173 +1,7 @@
 <?php
 
 add_action('spa_hourly_notification_check', 'spa_run_notification_cron');
-add_action('spa_weekly_assignment_report', 'spa_send_weekly_assignment_report');
 add_action('wp_ajax_spa_notify_event_volunteer', 'spa_notify_event_volunteer_ajax');
-
-function spa_get_upcoming_assignment_events($limit = 2) {
-    global $wpdb;
-
-    $limit = max(1, intval($limit));
-    $today = current_time('Y-m-d');
-    $now = current_time('H:i:s');
-    $events = $wpdb->get_results(
-        $wpdb->prepare(
-            "SELECT e.id, e.name, e.event_date, e.start_time
-             FROM {$wpdb->prefix}spa_events e
-             WHERE e.active = 1
-             AND (e.event_date > %s OR (e.event_date = %s AND e.start_time >= %s))
-             AND EXISTS (
-                 SELECT 1
-                 FROM {$wpdb->prefix}spa_event_volunteers ev_check
-                 WHERE ev_check.event_id = e.id
-             )
-             ORDER BY e.event_date ASC, e.start_time ASC, e.id ASC
-             LIMIT %d",
-            $today,
-            $today,
-            $now,
-            $limit
-        ),
-        ARRAY_A
-    );
-
-    foreach ( $events as &$event ) {
-        $assignments = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT
-                    t.name AS team_name,
-                    CONCAT(v.first_name, ' ', v.last_name) AS volunteer_name
-                 FROM {$wpdb->prefix}spa_event_volunteers ev
-                 INNER JOIN {$wpdb->prefix}spa_teams t ON t.id = ev.team_id AND t.active = 1
-                 INNER JOIN {$wpdb->prefix}spa_volunteers v ON v.id = ev.volunteer_id AND v.active = 1
-                 WHERE ev.event_id = %d
-                 ORDER BY t.name, v.last_name, v.first_name",
-                $event['id']
-            ),
-            ARRAY_A
-        );
-
-        $event['assignments'] = array();
-        foreach ( $assignments as $assignment ) {
-            if ( ! isset($event['assignments'][$assignment['team_name']]) ) {
-                $event['assignments'][$assignment['team_name']] = array();
-            }
-            $event['assignments'][$assignment['team_name']][] = $assignment['volunteer_name'];
-        }
-    }
-    unset($event);
-
-    return $events;
-}
-
-function spa_build_weekly_assignment_report_email($events) {
-    $body = '<div style="font-family:Arial,sans-serif;color:#222;line-height:1.5;">';
-    $body .= '<h1 style="font-size:22px;margin:0 0 16px;">Weekly Assignments</h1>';
-
-    if ( empty($events) ) {
-        $body .= '<p>There are no upcoming events with volunteer assignments.</p></div>';
-        return $body;
-    }
-
-    foreach ( $events as $index => $event ) {
-        $event_date = DateTimeImmutable::createFromFormat('!Y-m-d', $event['event_date'], wp_timezone());
-        $start_time = DateTimeImmutable::createFromFormat('!H:i:s', $event['start_time'], wp_timezone());
-        $label = $index === 0 ? 'Current Event' : 'Next Event';
-        $date = $event_date ? $event_date->format('F j, Y') : $event['event_date'];
-        $time = $start_time ? $start_time->format(get_option('time_format')) : $event['start_time'];
-
-        $body .= '<section style="margin:0 0 24px;">';
-        $body .= '<h2 style="font-size:18px;margin:0 0 4px;">' . esc_html($label . ': ' . $event['name']) . '</h2>';
-        $body .= '<p style="margin:0 0 10px;color:#555;">' . esc_html($date . ' at ' . $time) . '</p>';
-        $body .= '<table role="presentation" style="width:100%;border-collapse:collapse;">';
-        $body .= '<thead><tr><th style="border:1px solid #ccc;padding:8px;text-align:left;background:#f3f3f3;">Team</th>';
-        $body .= '<th style="border:1px solid #ccc;padding:8px;text-align:left;background:#f3f3f3;">Volunteers</th></tr></thead><tbody>';
-
-        foreach ( $event['assignments'] as $team_name => $volunteers ) {
-            $body .= '<tr><td style="border:1px solid #ccc;padding:8px;vertical-align:top;">' . esc_html($team_name) . '</td>';
-            $body .= '<td style="border:1px solid #ccc;padding:8px;vertical-align:top;">' . implode('<br>', array_map('esc_html', $volunteers)) . '</td></tr>';
-        }
-
-        $body .= '</tbody></table></section>';
-    }
-
-    if ( count($events) === 1 ) {
-        $body .= '<section style="margin:0 0 24px;"><h2 style="font-size:18px;margin:0 0 4px;">Next Event</h2>';
-        $body .= '<p style="margin:0;">There is no additional upcoming event with volunteer assignments.</p></section>';
-    }
-
-    return $body . '</div>';
-}
-
-function spa_send_weekly_assignment_report($force = false) {
-    if ( ! $force && intval(get_option('spa_weekly_report_enabled', 0)) !== 1 ) {
-        return false;
-    }
-
-    if ( intval(get_option('spa_weekly_report_enabled', 0)) === 1 ) {
-        // Queue the following run before sending so a transient mail failure cannot stop future reports.
-        spa_reschedule_weekly_assignment_report();
-    }
-
-    $recipient = sanitize_email(get_option('spa_weekly_report_recipient', ''));
-    if ( ! is_email($recipient) ) {
-        error_log('St. Paul\'s Admin weekly assignment report has no valid recipient.');
-        return new WP_Error('invalid_weekly_report_recipient', 'The weekly assignment report recipient is not a valid email address.');
-    }
-
-    $events = spa_get_upcoming_assignment_events(2);
-    $subject = get_bloginfo('name') . ' - Weekly Assignments';
-    $result = spa_send_email($recipient, $subject, spa_build_weekly_assignment_report_email($events));
-    if ( is_wp_error($result) ) {
-        error_log('St. Paul\'s Admin weekly assignment report failed: ' . $result->get_error_message());
-    }
-
-    return $result;
-}
-
-function spa_get_next_weekly_assignment_report_timestamp() {
-    $day = max(0, min(6, intval(get_option('spa_weekly_report_day_of_week', 0))));
-    $time = get_option('spa_weekly_report_time', '09:00');
-    if ( ! preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $time) ) {
-        $time = '09:00';
-    }
-
-    list($hour, $minute) = array_map('intval', explode(':', $time));
-    $now = current_datetime();
-    $days_ahead = ($day - intval($now->format('w')) + 7) % 7;
-    $next = $now->setTime($hour, $minute, 0)->modify('+' . $days_ahead . ' days');
-    if ( $next <= $now ) {
-        $next = $next->modify('+7 days');
-    }
-
-    return $next->getTimestamp();
-}
-
-function spa_reschedule_weekly_assignment_report() {
-    wp_clear_scheduled_hook('spa_weekly_assignment_report');
-
-    if ( intval(get_option('spa_weekly_report_enabled', 0)) === 1 ) {
-        $scheduled = wp_schedule_single_event(
-            spa_get_next_weekly_assignment_report_timestamp(),
-            'spa_weekly_assignment_report',
-            array(),
-            true
-        );
-        if ( is_wp_error($scheduled) ) {
-            error_log('St. Paul\'s Admin could not schedule the weekly assignment report: ' . $scheduled->get_error_message());
-        }
-    }
-}
-
-function spa_ensure_weekly_assignment_report_schedule() {
-    if ( intval(get_option('spa_weekly_report_enabled', 0)) === 1 ) {
-        if ( ! wp_next_scheduled('spa_weekly_assignment_report') ) {
-            spa_reschedule_weekly_assignment_report();
-        }
-    } elseif ( wp_next_scheduled('spa_weekly_assignment_report') ) {
-        wp_clear_scheduled_hook('spa_weekly_assignment_report');
-    }
-}
 
 function spa_notification_should_run_now() {
     if ( intval(get_option('spa_notifications_enabled', 1)) !== 1 ) {
@@ -176,27 +10,70 @@ function spa_notification_should_run_now() {
 
     $day = intval(get_option('spa_notification_day_of_week', 0));
     $time = get_option('spa_notification_time', '09:00');
-    $current_day = intval(wp_date('w'));
-    $current_hour_minute = wp_date('H:i');
+    $timezone = wp_timezone();
+    $now = current_datetime();
+    $scheduled_time = DateTimeImmutable::createFromFormat('!H:i', $time, $timezone);
+    if ( ! $scheduled_time ) {
+        return false;
+    }
 
-    return ($current_day === $day && $current_hour_minute === $time);
+    $scheduled_time = $scheduled_time->setDate(
+        intval($now->format('Y')),
+        intval($now->format('m')),
+        intval($now->format('d'))
+    );
+
+    return (intval($now->format('w')) === $day && $now >= $scheduled_time);
 }
 
 function spa_get_next_notified_event() {
     global $wpdb;
 
-    return $wpdb->get_row(
-        "SELECT * FROM {$wpdb->prefix}spa_events
+    $events = $wpdb->get_results(
+        "SELECT *
+         FROM {$wpdb->prefix}spa_events
          WHERE active = 1
            AND notify_volunteers = 1
            AND event_date >= CURDATE()
-         ORDER BY event_date ASC, start_time ASC
-         LIMIT 1"
+         ORDER BY event_date ASC, start_time ASC"
     );
+
+    foreach ( $events as $event ) {
+        if ( ! empty(spa_get_notification_recipients_for_event($event->id)) ) {
+            return $event;
+        }
+    }
+
+    return null;
 }
 
 function spa_get_event_volunteers_for_notification($event_id) {
     return spa_get_notification_recipients_for_event($event_id);
+}
+
+function spa_get_notification_assignment_diagnostic($event_id) {
+    global $wpdb;
+
+    $diagnostic = $wpdb->get_row(
+        $wpdb->prepare(
+            "SELECT
+                COUNT(ev.volunteer_id) AS assignment_rows,
+                SUM(CASE WHEN v.id IS NOT NULL AND v.active = 1 THEN 1 ELSE 0 END) AS active_volunteers,
+                SUM(CASE WHEN v.id IS NOT NULL AND v.active = 1 AND t.id IS NOT NULL THEN 1 ELSE 0 END) AS deliverable_assignments
+             FROM {$wpdb->prefix}spa_event_volunteers ev
+             LEFT JOIN {$wpdb->prefix}spa_volunteers v ON v.id = ev.volunteer_id
+             LEFT JOIN {$wpdb->prefix}spa_teams t ON t.id = ev.team_id
+             WHERE ev.event_id = %d",
+            intval($event_id)
+        )
+    );
+    if ( ! $diagnostic ) {
+        $diagnostic = (object) array();
+    }
+    $diagnostic->database_name = $wpdb->get_var('SELECT DATABASE()');
+    $diagnostic->table_prefix = $wpdb->prefix;
+
+    return $diagnostic;
 }
 
 function spa_get_event_notification_templates() {
@@ -286,14 +163,26 @@ function spa_send_event_reminders($event, $reminder_type = 'scheduled') {
     }
 
     $volunteers = spa_get_event_volunteers_for_notification($event->id);
-    $sent = array('email' => 0, 'sms' => 0, 'push' => 0);
+    $sent = array(
+        'email'      => 0,
+        'sms'        => 0,
+        'push'       => 0,
+        'recipients' => count($volunteers),
+        'errors'     => array(),
+        'diagnostic' => spa_get_notification_assignment_diagnostic($event->id),
+    );
 
     foreach ( $volunteers as $volunteer ) {
         $result = spa_send_event_notification_to_volunteer($event, $volunteer, $templates, $reminder_type);
-        if ( ! is_wp_error($result) ) {
-            $sent['email'] += $result['email'];
-            $sent['sms'] += $result['sms'];
-            $sent['push'] += $result['push'];
+        if ( is_wp_error($result) ) {
+            $sent['errors'][] = trim($volunteer->first_name . ' ' . $volunteer->last_name) . ': ' . $result->get_error_message();
+            continue;
+        }
+        $sent['email'] += $result['email'];
+        $sent['sms'] += $result['sms'];
+        $sent['push'] += $result['push'];
+        if ( ! empty($result['errors']) ) {
+            $sent['errors'] = array_merge($sent['errors'], $result['errors']);
         }
     }
 
@@ -334,6 +223,7 @@ function spa_notify_event_volunteer_ajax() {
                v.push_external_id,
                v.email_enabled,
                v.phone_enabled,
+               ev.team_id,
                t.name AS team_name
              FROM {$wpdb->prefix}spa_event_volunteers ev
              INNER JOIN {$wpdb->prefix}spa_volunteers v
@@ -378,18 +268,39 @@ function spa_notify_event_volunteer_ajax() {
     wp_send_json_success(array('message' => $message));
 }
 
-function spa_run_notification_cron() {
-    if ( ! spa_notification_should_run_now() ) {
-        return;
-    }
-
+function spa_run_notification_cron($force = false) {
     $event = spa_get_next_notified_event();
     if ( ! $event ) {
-        return;
+        return new WP_Error('no_notifiable_event', 'No upcoming event is configured for volunteer notifications.');
     }
 
-    if ( spa_notification_should_run_now() ) {
-        spa_send_event_reminders($event, 'scheduled');
+    $result = array(
+        'event'          => $event,
+        'scheduled'      => array('email' => 0, 'sms' => 0, 'push' => 0),
+        'scheduled_error' => '',
+        'reminder_24h'   => array('email' => 0, 'sms' => 0, 'push' => 0),
+    );
+
+    if ( $force || spa_notification_should_run_now() ) {
+        $run_marker = wp_date('Y-m-d', time(), wp_timezone()) . ':' . intval($event->id);
+        if ( $force || get_option('spa_notification_last_run', '') !== $run_marker ) {
+            $scheduled_result = spa_send_event_reminders($event, 'scheduled');
+            if (
+                ! is_wp_error($scheduled_result)
+                && (
+                    $scheduled_result['email'] > 0
+                    || $scheduled_result['sms'] > 0
+                    || $scheduled_result['push'] > 0
+                )
+            ) {
+                update_option('spa_notification_last_run', $run_marker, false);
+            }
+            if ( is_wp_error($scheduled_result) ) {
+                $result['scheduled_error'] = $scheduled_result->get_error_message();
+            } else {
+                $result['scheduled'] = $scheduled_result;
+            }
+        }
     }
 
     if ( intval(get_option('spa_notification_reminder_24h', 0)) === 1 ) {
@@ -403,8 +314,13 @@ function spa_run_notification_cron() {
             if ( ! is_wp_error($reminder_result) && ( $reminder_result['email'] > 0 || $reminder_result['sms'] > 0 ) ) {
                 update_option($sent_marker, $event_marker, false);
             }
+            if ( ! is_wp_error($reminder_result) ) {
+                $result['reminder_24h'] = $reminder_result;
+            }
         }
     }
+
+    return $result;
 }
 
 function spa_schedule_hourly_notifications() {
@@ -413,4 +329,3 @@ function spa_schedule_hourly_notifications() {
     }
 }
 add_action('init', 'spa_schedule_hourly_notifications');
-add_action('init', 'spa_ensure_weekly_assignment_report_schedule');

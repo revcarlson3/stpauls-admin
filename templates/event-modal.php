@@ -99,7 +99,7 @@
 
                 <div class="spa-checkbox-field" style="margin-top:10px;">
                     <label>
-                        <input type="checkbox" id="spa-event-modal-notify-volunteers" class="spa-event-field">
+                        <input type="checkbox" name="notify_volunteers" id="spa-event-modal-notify-volunteers" class="spa-event-field">
                         Notify Volunteers
                     </label>
                 </div>

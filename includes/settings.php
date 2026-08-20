@@ -11,6 +11,77 @@ function spa_handle_settings_post() {
 
     $posted_tab = isset($_POST['active_tab']) ? sanitize_text_field(wp_unslash($_POST['active_tab'])) : 'general';
 
+    if ( $posted_tab === 'general' && isset($_POST['spa_force_notification_run']) ) {
+        $run_result = spa_run_notification_cron(true);
+        if ( is_wp_error($run_result) ) {
+            $redirect_args = array(
+                'page' => 'spa-settings',
+                'tab' => 'general',
+                'notification_run' => 'error',
+                'notification_message' => $run_result->get_error_message(),
+            );
+        } else {
+            $scheduled_result = $run_result['scheduled'];
+            if ( ! empty($run_result['scheduled_error']) ) {
+                $redirect_args = array(
+                    'page' => 'spa-settings',
+                    'tab' => 'general',
+                    'notification_run' => 'error',
+                    'notification_message' => $run_result['scheduled_error'],
+                );
+                wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+                exit;
+            }
+            $disabled_channels = array();
+            if ( intval(get_option('spa_enable_email', 0)) !== 1 ) {
+                $disabled_channels[] = 'email';
+            }
+            if ( intval(get_option('spa_enable_sms', 0)) !== 1 ) {
+                $disabled_channels[] = 'SMS';
+            }
+            $scheduled_total = intval($scheduled_result['email']) + intval($scheduled_result['sms']) + intval($scheduled_result['push']);
+            if ( $scheduled_total === 0 ) {
+                $notification_message = ! empty($scheduled_result['errors'])
+                    ? implode(' ', array_unique($scheduled_result['errors']))
+                    : ( ! empty($disabled_channels)
+                        ? implode(' and ', $disabled_channels) . ' notifications are disabled.'
+                    : (
+                        intval($scheduled_result['recipients']) === 0
+                            ? sprintf(
+                                'No deliverable assignments were found for "%s" (event ID %d). Database rows: %d; active volunteers: %d; deliverable assignments: %d. Runtime database: %s; table prefix: %s.',
+                                $run_result['event']->name,
+                                intval($run_result['event']->id),
+                                intval($scheduled_result['diagnostic']->assignment_rows ?? 0),
+                                intval($scheduled_result['diagnostic']->active_volunteers ?? 0),
+                                intval($scheduled_result['diagnostic']->deliverable_assignments ?? 0),
+                                $scheduled_result['diagnostic']->database_name ?? 'unknown',
+                                $scheduled_result['diagnostic']->table_prefix ?? 'unknown'
+                            )
+                            : 'No assigned volunteers have an enabled notification method with contact information.'
+                    ) );
+                $redirect_args = array(
+                    'page' => 'spa-settings',
+                    'tab' => 'general',
+                    'notification_run' => 'error',
+                    'notification_message' => $notification_message,
+                );
+                wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+                exit;
+            }
+            $redirect_args = array(
+                'page' => 'spa-settings',
+                'tab' => 'general',
+                'notification_run' => 'sent',
+                'notification_event' => $run_result['event']->name,
+                'notification_email' => intval($scheduled_result['email']),
+                'notification_sms' => intval($scheduled_result['sms']),
+                'notification_push' => intval($scheduled_result['push']),
+            );
+        }
+        wp_safe_redirect(add_query_arg($redirect_args, admin_url('admin.php')));
+        exit;
+    }
+
 
     if ( $posted_tab === 'general' ) {
         $weekly_report_enabled = isset($_POST['spa_weekly_report_enabled']) ? 1 : 0;
@@ -47,6 +118,11 @@ function spa_handle_settings_post() {
         update_option('spa_notification_day_of_week', intval($_POST['spa_notification_day_of_week'] ?? 0));
         update_option('spa_notification_time', sanitize_text_field(wp_unslash($_POST['spa_notification_time'] ?? '')));
         update_option('spa_notification_reminder_24h', isset($_POST['spa_notification_reminder_24h']) ? 1 : 0);
+        $readings_team_ids = isset($_POST['spa_readings_team_ids']) && is_array($_POST['spa_readings_team_ids'])
+            ? array_values(array_unique(array_filter(array_map('absint', wp_unslash($_POST['spa_readings_team_ids'])))))
+            : array();
+        update_option('spa_readings_team_ids', array_map('strval', $readings_team_ids));
+        spa_reschedule_volunteer_notifications();
         update_option('spa_weekly_report_enabled', $weekly_report_enabled);
         update_option('spa_weekly_report_recipient', $weekly_report_recipient);
         update_option('spa_weekly_report_day_of_week', $weekly_report_day);
@@ -258,6 +334,14 @@ function spa_handle_settings_post() {
             : 'sent';
     }
 
+    $volunteer_notification_result = '';
+    if ( isset($_POST['spa_send_volunteer_notifications_now']) ) {
+        $sent = spa_send_scheduled_volunteer_notifications(true);
+        $volunteer_notification_result = is_wp_error($sent)
+            ? 'error:' . rawurlencode($sent->get_error_message())
+            : sprintf('sent:%d:%d:%d', $sent['email'], $sent['sms'], $sent['push']);
+    }
+
     // Redirect back to avoid re-post on refresh
     $redirect_args = array('page' => 'spa-settings', 'tab' => $posted_tab, 'saved' => '1');
     if ( $test_result !== '' ) {
@@ -265,6 +349,9 @@ function spa_handle_settings_post() {
     }
     if ( $weekly_report_result !== '' ) {
         $redirect_args['weekly_report'] = $weekly_report_result;
+    }
+    if ( $volunteer_notification_result !== '' ) {
+        $redirect_args['volunteer_notifications'] = $volunteer_notification_result;
     }
     $redirect_url = add_query_arg($redirect_args, admin_url('admin.php'));
     wp_safe_redirect($redirect_url);
@@ -979,6 +1066,23 @@ function spa_settings_admin_notices() {
             echo '<div class="notice notice-success is-dismissible"><p>Weekly assignment report sent successfully.</p></div>';
         }
     }
+    if ( isset($_GET['volunteer_notifications']) ) {
+        $notification_result = wp_unslash($_GET['volunteer_notifications']);
+        if ( strpos($notification_result, 'error:') === 0 ) {
+            $msg = rawurldecode(substr($notification_result, 6));
+            echo '<div class="notice notice-error"><p>Volunteer notifications failed: ' . esc_html($msg) . '</p></div>';
+        } elseif ( strpos($notification_result, 'sent:') === 0 ) {
+            $counts = array_map('intval', explode(':', substr($notification_result, 5)));
+            $counts = array_pad($counts, 3, 0);
+            $message = sprintf(
+                'Volunteer notifications sent: %d email, %d SMS, %d push.',
+                $counts[0],
+                $counts[1],
+                $counts[2]
+            );
+            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($message) . '</p></div>';
+        }
+    }
     if (
         get_option('spa_email_provider', 'wp_mail') === 'sendgrid'
         && get_option('spa_sendgrid_webhook_public_key', '') === ''
@@ -1000,11 +1104,9 @@ function spa_ajax_send_test_email() {
 
     // Save basic email settings from POST
     $notification_email = isset($_POST['spa_notification_email']) ? sanitize_email(wp_unslash($_POST['spa_notification_email'])) : '';
-    $enable_email = isset($_POST['spa_enable_email']) ? 1 : 0;
     $email_provider = isset($_POST['spa_email_provider']) ? sanitize_text_field(wp_unslash($_POST['spa_email_provider'])) : 'wp_mail';
 
     update_option('spa_notification_email', $notification_email);
-    update_option('spa_enable_email', $enable_email);
     update_option('spa_email_provider', $email_provider);
 
     // Provider-specific saves (same rules as admin_post handler)
@@ -1140,9 +1242,7 @@ function spa_ajax_send_test_sms() {
     }
 
     // Test the values currently shown in the form without requiring a separate save.
-    $enable_sms = isset($_POST['spa_enable_sms']) ? 1 : 0;
     update_option('spa_sms_provider', $sms_provider);
-    update_option('spa_enable_sms', $enable_sms);
     if ( isset($_POST['spa_sms_default_country']) ) {
         update_option('spa_sms_default_country', sanitize_text_field(wp_unslash($_POST['spa_sms_default_country'])));
     }
@@ -1279,8 +1379,8 @@ function spa_ajax_send_test_notification() {
     $sample_phone = $volunteer && ! empty($volunteer->phone) ? $volunteer->phone : $phone_to;
     $sample_email = $volunteer && ! empty($volunteer->email) ? $volunteer->email : $email_to;
     $team_name = $team ? $team->name : 'Clergy';
-    $email_readings = spa_get_readings_tag_value($team_name, $event->service_builder_url ?? '', true);
-    $sms_readings = spa_get_readings_tag_value($team_name, $event->service_builder_url ?? '', false);
+    $email_readings = spa_get_readings_tag_value($team_name, $event->service_builder_url ?? '', true, $team ? $team->id : 0);
+    $sms_readings = spa_get_readings_tag_value($team_name, $event->service_builder_url ?? '', false, $team ? $team->id : 0);
 
     $template_id = intval(get_option('spa_active_email_template', 0));
     $sms_template_id = intval(get_option('spa_active_sms_template', 0));

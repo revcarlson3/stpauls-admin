@@ -43,6 +43,24 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
             <div class="notice notice-success is-dismissible"><p>Settings saved.</p></div>
         <?php endif; ?>
 
+        <?php if ( isset($_GET['notification_run']) ) : ?>
+            <?php if ( sanitize_key(wp_unslash($_GET['notification_run'])) === 'sent' ) : ?>
+                <div class="notice notice-success is-dismissible">
+                    <p>
+                        <strong>Notification run completed.</strong>
+                        <?php echo esc_html(wp_unslash($_GET['notification_event'] ?? '')); ?>:
+                        <?php echo intval($_GET['notification_email'] ?? 0); ?> email(s),
+                        <?php echo intval($_GET['notification_sms'] ?? 0); ?> SMS message(s), and
+                        <?php echo intval($_GET['notification_push'] ?? 0); ?> push notification(s) sent.
+                    </p>
+                </div>
+            <?php else : ?>
+                <div class="notice notice-error is-dismissible">
+                    <p><strong>Notification run failed.</strong> <?php echo esc_html(wp_unslash($_GET['notification_message'] ?? 'The notification run could not be completed.')); ?></p>
+                </div>
+            <?php endif; ?>
+        <?php endif; ?>
+
         <?php if ( isset($_GET['backup_restored']) ) : ?>
             <?php
             $backup_result = get_transient('spa_complete_backup_restore_result');
@@ -906,6 +924,19 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                     $weekly_report_recipient = esc_attr(get_option('spa_weekly_report_recipient', ''));
                     $weekly_report_day = intval(get_option('spa_weekly_report_day_of_week', 0));
                     $weekly_report_time = esc_attr(get_option('spa_weekly_report_time', '09:00'));
+                    $readings_team_ids = get_option('spa_readings_team_ids', null);
+                    $readings_team_ids = is_array($readings_team_ids) ? array_map('strval', $readings_team_ids) : null;
+                    $readings_teams = $wpdb->get_results(
+                        "SELECT id, name FROM {$wpdb->prefix}spa_teams WHERE active = 1 ORDER BY name"
+                    );
+                    if ( $readings_team_ids === null ) {
+                        $readings_team_ids = array();
+                        foreach ( $readings_teams as $readings_team ) {
+                            if ( strcasecmp(trim((string) $readings_team->name), 'Readers') === 0 ) {
+                                $readings_team_ids[] = (string) $readings_team->id;
+                            }
+                        }
+                    }
                     $email_templates_gen = $wpdb->get_results(
                         "SELECT id, name FROM {$wpdb->prefix}spa_notification_templates WHERE type = 'email' ORDER BY name"
                     );
@@ -957,6 +988,25 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                             </td>
                         </tr>
                         <tr>
+                            <th scope="row">Service Builder Readings Link</th>
+                            <td>
+                                <?php foreach ( $readings_teams as $readings_team ) : ?>
+                                    <label style="display:block;">
+                                        <input
+                                            type="checkbox"
+                                            name="spa_readings_team_ids[]"
+                                            value="<?php echo intval($readings_team->id); ?>"
+                                            <?php checked(in_array((string) $readings_team->id, $readings_team_ids, true)); ?>>
+                                        <?php echo esc_html($readings_team->name); ?>
+                                    </label>
+                                <?php endforeach; ?>
+                                <p class="description">
+                                    Teams selected here receive the <code>{readings}</code> link when their notification template includes that tag.
+                                    Leave this unchanged on an existing site to retain the legacy <code>Readers</code> team behavior.
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
                             <th scope="row">Volunteer Notification Schedule</th>
                             <td>
                                 <label for="spa_notification_day_of_week">Day</label>
@@ -975,6 +1025,10 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                                     <input type="checkbox" name="spa_notification_reminder_24h" value="1" <?php checked($notification_reminder_24h, 1); ?>>
                                     Send an additional reminder 24 hours before the event
                                 </label>
+                                <p>
+                                    <button type="submit" name="spa_send_volunteer_notifications_now" value="1" class="button">Send Notifications Now</button>
+                                    <span class="description">Saves these settings and immediately notifies volunteers for the next notification-enabled event, even when automated alerts are disabled.</span>
+                                </p>
                             </td>
                         </tr>
                         <tr>
@@ -1020,6 +1074,11 @@ include SPA_TEMPLATE_DIR . 'header.php'; ?>
                     <p>
                         <button type="button" class="button" id="spa-send-test-notification-btn">Send Test Notification</button>
                         <span id="spa-test-notification-result" style="margin-left:12px;"></span>
+                    </p>
+                    <h3>Manual Reminder Run</h3>
+                    <p>Use this if WordPress cron missed the scheduled time. It sends the configured reminders for the next upcoming event immediately.</p>
+                    <p>
+                        <button type="submit" name="spa_force_notification_run" value="1" class="button" onclick="return confirm('Send the configured volunteer reminders now?');">Run Notification Reminders Now</button>
                     </p>
                     <?php
                     break;
