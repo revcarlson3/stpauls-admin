@@ -327,7 +327,7 @@ function spa_handle_settings_post() {
         $sent = spa_send_weekly_assignment_report(true);
         $weekly_report_result = is_wp_error($sent)
             ? 'error:' . rawurlencode($sent->get_error_message())
-            : 'sent';
+            : ( $sent ? 'sent' : 'error:' . rawurlencode('The weekly assignment report was not sent.') );
     }
 
     $volunteer_notification_result = '';
