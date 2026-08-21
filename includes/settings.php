@@ -11,12 +11,12 @@ function spa_handle_settings_post() {
 
     $posted_tab = isset($_POST['active_tab']) ? sanitize_text_field(wp_unslash($_POST['active_tab'])) : 'general';
 
-    if ( $posted_tab === 'general' && isset($_POST['spa_force_notification_run']) ) {
+    if ( $posted_tab === 'notifications' && isset($_POST['spa_force_notification_run']) ) {
         $run_result = spa_run_notification_cron(true);
         if ( is_wp_error($run_result) ) {
             $redirect_args = array(
                 'page' => 'spa-settings',
-                'tab' => 'general',
+                'tab' => 'notifications',
                 'notification_run' => 'error',
                 'notification_message' => $run_result->get_error_message(),
             );
@@ -25,7 +25,7 @@ function spa_handle_settings_post() {
             if ( ! empty($run_result['scheduled_error']) ) {
                 $redirect_args = array(
                     'page' => 'spa-settings',
-                    'tab' => 'general',
+                    'tab' => 'notifications',
                     'notification_run' => 'error',
                     'notification_message' => $run_result['scheduled_error'],
                 );
@@ -61,7 +61,7 @@ function spa_handle_settings_post() {
                     ) );
                 $redirect_args = array(
                     'page' => 'spa-settings',
-                    'tab' => 'general',
+                    'tab' => 'notifications',
                     'notification_run' => 'error',
                     'notification_message' => $notification_message,
                 );
@@ -70,7 +70,7 @@ function spa_handle_settings_post() {
             }
             $redirect_args = array(
                 'page' => 'spa-settings',
-                'tab' => 'general',
+                'tab' => 'notifications',
                 'notification_run' => 'sent',
                 'notification_event' => $run_result['event']->name,
                 'notification_email' => intval($scheduled_result['email']),
@@ -84,34 +84,10 @@ function spa_handle_settings_post() {
 
 
     if ( $posted_tab === 'general' ) {
-        $weekly_report_enabled = isset($_POST['spa_weekly_report_enabled']) ? 1 : 0;
-        $weekly_report_recipient = isset($_POST['spa_weekly_report_recipient'])
-            ? sanitize_email(wp_unslash($_POST['spa_weekly_report_recipient']))
-            : '';
-        $weekly_report_day = isset($_POST['spa_weekly_report_day_of_week'])
-            ? intval($_POST['spa_weekly_report_day_of_week'])
-            : 0;
-        $weekly_report_time = isset($_POST['spa_weekly_report_time'])
-            ? sanitize_text_field(wp_unslash($_POST['spa_weekly_report_time']))
-            : '09:00';
+        update_option('spa_org_name', sanitize_text_field(wp_unslash($_POST['spa_org_name'] ?? '')));
+    }
 
-        if ( $weekly_report_enabled ) {
-            if ( ! is_email($weekly_report_recipient) ) {
-                wp_die('Enter a valid recipient email address for the weekly assignment report.', 'Invalid settings', array('response' => 400));
-            }
-            if ( $weekly_report_day < 0 || $weekly_report_day > 6 ) {
-                wp_die('Select a valid day for the weekly assignment report.', 'Invalid settings', array('response' => 400));
-            }
-            if ( ! preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $weekly_report_time) ) {
-                wp_die('Enter a valid time for the weekly assignment report.', 'Invalid settings', array('response' => 400));
-            }
-        } else {
-            $weekly_report_day = max(0, min(6, $weekly_report_day));
-            if ( ! preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $weekly_report_time) ) {
-                $weekly_report_time = '09:00';
-            }
-        }
-
+    if ( $posted_tab === 'notifications' ) {
         update_option('spa_active_email_template', intval($_POST['spa_active_email_template'] ?? 0));
         update_option('spa_active_sms_template', intval($_POST['spa_active_sms_template'] ?? 0));
         update_option('spa_notifications_enabled', isset($_POST['spa_notifications_enabled']) ? 1 : 0);
@@ -122,6 +98,28 @@ function spa_handle_settings_post() {
             ? array_values(array_unique(array_filter(array_map('absint', wp_unslash($_POST['spa_readings_team_ids'])))))
             : array();
         update_option('spa_readings_team_ids', array_map('strval', $readings_team_ids));
+    }
+
+    if ( $posted_tab === 'reports' ) {
+        $weekly_report_enabled = isset($_POST['spa_weekly_report_enabled']) ? 1 : 0;
+        $weekly_report_recipient = isset($_POST['spa_weekly_report_recipient'])
+            ? sanitize_email(wp_unslash($_POST['spa_weekly_report_recipient']))
+            : '';
+        $weekly_report_day = isset($_POST['spa_weekly_report_day_of_week'])
+            ? intval($_POST['spa_weekly_report_day_of_week'])
+            : 0;
+        $weekly_report_time = isset($_POST['spa_weekly_report_time'])
+            ? sanitize_text_field(wp_unslash($_POST['spa_weekly_report_time']))
+            : '09:00';
+        if ( $weekly_report_enabled && ! is_email($weekly_report_recipient) ) {
+            wp_die('Enter a valid recipient email address for the weekly assignment report.', 'Invalid settings', array('response' => 400));
+        }
+        if ( $weekly_report_day < 0 || $weekly_report_day > 6 ) {
+            wp_die('Select a valid day for the weekly assignment report.', 'Invalid settings', array('response' => 400));
+        }
+        if ( ! preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $weekly_report_time) ) {
+            $weekly_report_time = '09:00';
+        }
         update_option('spa_weekly_report_enabled', $weekly_report_enabled);
         update_option('spa_weekly_report_recipient', $weekly_report_recipient);
         update_option('spa_weekly_report_day_of_week', $weekly_report_day);
@@ -329,7 +327,7 @@ function spa_handle_settings_post() {
         $sent = spa_send_weekly_assignment_report(true);
         $weekly_report_result = is_wp_error($sent)
             ? 'error:' . rawurlencode($sent->get_error_message())
-            : 'sent';
+            : ( $sent ? 'sent' : 'error:' . rawurlencode('The weekly assignment report was not sent.') );
     }
 
     $volunteer_notification_result = '';
@@ -754,6 +752,7 @@ function spa_get_report_rows($report_key, $filters = array()) {
                 'rows' => $formatted_rows,
                 'filters' => $date_range,
             );
+
     }
 
     return array();
